@@ -1,0 +1,39 @@
+# Render Blueprint (spec §3.3) — backend FastAPI dari Dockerfile.
+#
+# Render dipilih sebagai target utama (tier gratis + dukungan Dockerfile native,
+# tanpa perlu buildpack khusus Python). Alternatif: Railway — proses deploy serupa
+# (hubungkan repo, pilih backend/Dockerfile sebagai build source, isi env var yang
+# sama seperti di bawah); dipakai kalau kuota tier gratis Render habis. Langkah
+# klik-demi-klik lengkap ada di README.md bagian "Deploy".
+#
+# Pemakaian: Render dashboard -> New -> Blueprint -> pilih repo ini -> Render
+# membaca file ini dan membuat service `satu-muatan-api` otomatis.
+services:
+  - type: web
+    name: satu-muatan-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    envVars:
+      # DATABASE_URL: connection string Postgres Neon/Supabase (region Singapore).
+      # `sync: false` -> Render TIDAK menyimpannya di blueprint; ditempel manual
+      # lewat dashboard setelah database dibuat (lihat README bagian Deploy).
+      - key: DATABASE_URL
+        sync: false
+      # JWT_SECRET: Render membuat string acak sendiri saat blueprint dijalankan
+      # -- tidak pernah ditulis di sini, tidak pernah masuk git.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: VENDOR_ADAPTER
+        value: MOCK
+      - key: DEMO_MODE
+        value: "true"
+      # CORS_ORIGINS: diisi setelah frontend live di Vercel, mis.
+      # "https://satu-muatan.vercel.app,http://localhost:5173" — JANGAN "*" (spec §3.3).
+      - key: CORS_ORIGINS
+        sync: false
+    # PORT disuntik otomatis oleh Render (bukan di sini) -- docker-entrypoint.sh
+    # membaca $PORT saat start, dan default ke 8000 kalau dijalankan lokal tanpa Render.
