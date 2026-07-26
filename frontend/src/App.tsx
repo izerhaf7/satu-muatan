@@ -1,45 +1,110 @@
-/** Peta rute (react-router) — layar dibangun agent frontend-layar (spec §9). */
+/** Peta rute (react-router) — Fase 2.6:
+ *  - `/` = Landing publik (authed → redirect /beranda)
+ *  - Layar ber-autentikasi dibungkus AppShell (header akun + NavBawah)
+ *  - Rute berat (peta Leaflet, grafik Recharts, berita acara) di-lazy-load
+ *    supaya chunk masuk tidak menyeret dependensi yang belum dibutuhkan. */
 
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Suspense, lazy } from "react";
+import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import AppShell from "./komponen/kerangka/AppShell";
+import RuteDenganPeran from "./komponen/kerangka/RuteDenganPeran";
+import { SkeletonKartu } from "./komponen/Skeleton";
 import Beranda from "./layar/Beranda";
-import BeritaAcara from "./layar/BeritaAcara";
 import BuatSlot from "./layar/BuatSlot";
-import DashboardDampak from "./layar/DashboardDampak";
 import DetailSlot from "./layar/DetailSlot";
-import Lacak from "./layar/Lacak";
+import Landing from "./layar/landing/Landing";
 import Masuk from "./layar/Masuk";
 import Muat from "./layar/Muat";
-import PanelAsumsi from "./layar/PanelAsumsi";
 import Permintaan from "./layar/Permintaan";
 import Riwayat from "./layar/Riwayat";
 import SerahTerima from "./layar/SerahTerima";
 import { useAuthStore } from "./stores/authStore";
 
+const Lacak = lazy(() => import("./layar/Lacak"));
+const DashboardDampak = lazy(() => import("./layar/DashboardDampak"));
+const BeritaAcara = lazy(() => import("./layar/BeritaAcara"));
+const PanelAsumsi = lazy(() => import("./layar/PanelAsumsi"));
+
+function SplashLogo() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-kertas">
+      <img src="/ikon-192.png" alt="Satu Muatan" className="h-16 w-16" />
+    </div>
+  );
+}
+
+function PerluMasuk() {
+  const token = useAuthStore((s) => s.token);
+  return token ? <Outlet /> : <Navigate to="/masuk" replace />;
+}
+
 export default function App() {
   const token = useAuthStore((s) => s.token);
   const telahHidrasi = useAuthStore((s) => s.telahHidrasi);
 
-  // Tunggu localStorage selesai dibaca dulu — cegah kedipan redirect ke /masuk saat refresh.
-  if (!telahHidrasi) {
-    return <div className="min-h-screen bg-kertas" />;
-  }
+  // Tunggu localStorage selesai dibaca dulu — cegah kedipan redirect saat refresh.
+  if (!telahHidrasi) return <SplashLogo />;
 
   return (
-    <Routes>
-      <Route path="/masuk" element={token ? <Navigate to="/" replace /> : <Masuk />} />
-      <Route path="/" element={token ? <Beranda /> : <Navigate to="/masuk" replace />} />
-      <Route path="/slot/baru" element={token ? <BuatSlot /> : <Navigate to="/masuk" replace />} />
-      <Route path="/slot/:id" element={token ? <DetailSlot /> : <Navigate to="/masuk" replace />} />
-      <Route path="/slot/:id/muat" element={token ? <Muat /> : <Navigate to="/masuk" replace />} />
-      <Route path="/slot/:id/lacak" element={token ? <Lacak /> : <Navigate to="/masuk" replace />} />
-      <Route path="/slot/:id/berita-acara" element={token ? <BeritaAcara /> : <Navigate to="/masuk" replace />} />
-      <Route path="/serah-terima" element={token ? <SerahTerima /> : <Navigate to="/masuk" replace />} />
-      <Route path="/asumsi" element={token ? <PanelAsumsi /> : <Navigate to="/masuk" replace />} />
-      <Route path="/dampak" element={token ? <DashboardDampak /> : <Navigate to="/masuk" replace />} />
-      <Route path="/riwayat" element={token ? <Riwayat /> : <Navigate to="/masuk" replace />} />
-      <Route path="/permintaan" element={token ? <Permintaan /> : <Navigate to="/masuk" replace />} />
-      <Route path="*" element={<Navigate to={token ? "/" : "/masuk"} replace />} />
-    </Routes>
+    <Suspense fallback={<div className="mx-auto max-w-md px-5 py-6"><SkeletonKartu /></div>}>
+      <Routes>
+        <Route path="/" element={token ? <Navigate to="/beranda" replace /> : <Landing />} />
+        <Route path="/masuk" element={token ? <Navigate to="/beranda" replace /> : <Masuk />} />
+
+        <Route element={<PerluMasuk />}>
+          <Route element={<AppShell />}>
+            <Route path="/beranda" element={<Beranda />} />
+            <Route
+              path="/slot/baru"
+              element={
+                <RuteDenganPeran peran={["KOPERASI"]}>
+                  <BuatSlot />
+                </RuteDenganPeran>
+              }
+            />
+            <Route path="/slot/:id" element={<DetailSlot />} />
+            <Route
+              path="/slot/:id/muat"
+              element={
+                <RuteDenganPeran peran={["KOPERASI"]}>
+                  <Muat />
+                </RuteDenganPeran>
+              }
+            />
+            <Route path="/slot/:id/lacak" element={<Lacak />} />
+            <Route path="/slot/:id/berita-acara" element={<BeritaAcara />} />
+            <Route
+              path="/serah-terima"
+              element={
+                <RuteDenganPeran peran={["PENERIMA"]}>
+                  <SerahTerima />
+                </RuteDenganPeran>
+              }
+            />
+            <Route
+              path="/asumsi"
+              element={
+                <RuteDenganPeran peran={["KOPERASI"]}>
+                  <PanelAsumsi />
+                </RuteDenganPeran>
+              }
+            />
+            <Route path="/dampak" element={<DashboardDampak />} />
+            <Route
+              path="/riwayat"
+              element={
+                <RuteDenganPeran peran={["PETANI"]}>
+                  <Riwayat />
+                </RuteDenganPeran>
+              }
+            />
+            <Route path="/permintaan" element={<Permintaan />} />
+          </Route>
+        </Route>
+
+        <Route path="*" element={<Navigate to={token ? "/beranda" : "/"} replace />} />
+      </Routes>
+    </Suspense>
   );
 }

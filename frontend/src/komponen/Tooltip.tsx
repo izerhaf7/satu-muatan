@@ -4,6 +4,7 @@
  *  Tanpa animasi. Target sentuh tombol pemicu tetap 48 px meski ikonnya kecil. */
 
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Info } from "lucide-react";
 
 interface TooltipProps {
   /** Label aksesibilitas tombol pemicu, mis. "Lihat rumus truk-km dihemat". */
@@ -42,18 +43,14 @@ export default function Tooltip({ label, children }: TooltipProps) {
         aria-describedby={terbuka ? idIsi : undefined}
         aria-label={label}
         onClick={() => setTerbuka((v) => !v)}
-        className="flex min-h-sentuh min-w-sentuh items-center justify-center text-tanah/60"
+        className={`flex min-h-sentuh min-w-sentuh items-center justify-center rounded-lg transition-colors duration-cepat hover:bg-tanah/5 active:bg-tanah/10 ${
+          terbuka ? "text-daun" : "text-tanah/60"
+        }`}
       >
-        <span className="flex h-6 w-6 items-center justify-center rounded-full border-2 border-tanah/40 text-xs font-bold">
-          ?
-        </span>
+        <Info aria-hidden className="h-5 w-5" strokeWidth={2.25} />
       </button>
       {terbuka && (
-        <div
-          id={idIsi}
-          role="tooltip"
-          className="absolute right-0 top-full z-20 mt-1 w-64 max-w-[80vw] rounded-md border-2 border-tanah bg-kertas p-3 text-sm text-tanah"
-        >
+        <div id={idIsi} role="tooltip" className="kartu-tonjol absolute right-0 top-full z-20 mt-1 w-64 max-w-[80vw] p-3 text-keterangan text-tanah">
           {children}
         </div>
       )}

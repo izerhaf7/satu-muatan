@@ -12,7 +12,7 @@ const InputPin = forwardRef<HTMLInputElement, InputPinProps>(
     const inputId = id ?? "pin";
     return (
       <div className="flex flex-col gap-1.5">
-        <label htmlFor={inputId} className="text-base font-medium text-tanah">
+        <label htmlFor={inputId} className="text-keterangan font-semibold text-tanah">
           {label}
         </label>
         <input
@@ -24,12 +24,12 @@ const InputPin = forwardRef<HTMLInputElement, InputPinProps>(
           pattern="[0-9]*"
           maxLength={6}
           autoComplete="one-time-code"
-          className={`angka min-h-sentuh rounded-md border-2 border-kabut bg-kertas px-4 text-xl tracking-[0.5em] text-tanah focus:border-daun ${className}`}
+          className={`angka min-h-sentuh rounded-lg border-2 border-kabut bg-kertas px-4 text-xl tracking-[0.5em] text-tanah transition-colors duration-cepat hover:border-tanah/30 focus:border-daun focus:outline-none focus:ring-2 focus:ring-daun/25 disabled:cursor-not-allowed disabled:border-kabut disabled:bg-kabut/30 disabled:text-tanah/40 ${className}`}
           aria-invalid={pesanKesalahan ? true : undefined}
           {...props}
         />
         {pesanKesalahan && (
-          <p role="alert" className="text-sm text-tanah-liat">
+          <p role="alert" className="text-keterangan font-medium text-tanah-liat">
             {pesanKesalahan}
           </p>
         )}

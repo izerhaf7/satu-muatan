@@ -1,10 +1,11 @@
 /** Angka harga — objek terpenting seluruh aplikasi (spec §10).
- *  Monospace, tabular-nums wajib. TANPA animasi di Fase 1 — count-up harga berjalan
- *  hanya boleh dipasang di layar Detail Slot (§9.4), Fase 2. */
+ *  Monospace, tabular-nums wajib. Statis (tanpa animasi) — untuk harga atap terkunci
+ *  dan tempat lain yang tidak butuh count-up. Count-up harga berjalan sudah ada sejak
+ *  Fase 2 lewat AngkaCountUp (§9.4 Detail Slot); JANGAN pasang animasi di sini. */
 
 import { formatRupiah } from "@/utils/format";
 
-export type UkuranAngkaHarga = "kecil" | "sedang" | "besar";
+export type UkuranAngkaHarga = "kecil" | "sedang" | "besar" | "raksasa";
 
 interface AngkaHargaProps {
   nilai: number | null;
@@ -17,6 +18,7 @@ const kelasUkuran: Record<UkuranAngkaHarga, string> = {
   kecil: "text-lg",
   sedang: "text-2xl",
   besar: "text-4xl",
+  raksasa: "text-display",
 };
 
 export default function AngkaHarga({ nilai, ukuran = "sedang", satuan, className = "" }: AngkaHargaProps) {

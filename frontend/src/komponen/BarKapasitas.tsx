@@ -32,10 +32,13 @@ export default function BarKapasitas({
 
   return (
     <div className={`flex flex-col gap-1 ${className}`}>
-      <div className="h-3 w-full overflow-hidden rounded-full bg-kabut" role="img" aria-label={label}>
-        <div className={`h-full rounded-full ${kelasWarna[varian]}`} style={{ width: `${persen}%` }} />
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-kabut/70" role="img" aria-label={label}>
+        <div
+          className={`h-full rounded-full transition-[width] duration-500 ${kelasWarna[varian]}`}
+          style={{ width: `${persen}%` }}
+        />
       </div>
-      <p className="angka text-sm text-tanah/70">
+      <p className="angka text-keterangan text-tanah/70">
         {kapasitasKg ? `${formatAngka(volumeKg)} / ${formatAngka(kapasitasKg)} kg` : `${formatAngka(volumeKg)} kg`}
       </p>
     </div>

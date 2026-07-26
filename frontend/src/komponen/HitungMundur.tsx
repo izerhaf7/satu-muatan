@@ -4,6 +4,7 @@
  *  di Beranda, jadi offset 0 pada kasus itu, cukup akurat untuk tampilan). */
 
 import { useEffect, useState } from "react";
+import { Timer } from "lucide-react";
 
 interface HitungMundurProps {
   cutoffAt: string;
@@ -28,7 +29,14 @@ export default function HitungMundur({ cutoffAt, waktuServer, className = "" }: 
   }, [cutoffAt, waktuServer]);
 
   if (sisaMs <= 0) {
-    return <p className={`angka text-sm font-medium text-tanah-liat ${className}`}>Sudah ditutup</p>;
+    return (
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-full bg-tanah-liat/10 px-3 py-1 text-keterangan font-semibold text-tanah-liat ${className}`}
+      >
+        <Timer aria-hidden className="h-3.5 w-3.5" />
+        Sudah ditutup
+      </span>
+    );
   }
 
   const totalDetik = Math.floor(sisaMs / 1000);
@@ -38,8 +46,11 @@ export default function HitungMundur({ cutoffAt, waktuServer, className = "" }: 
   const dua = (n: number) => String(n).padStart(2, "0");
 
   return (
-    <p className={`angka text-sm font-medium text-tanah ${className}`}>
+    <span
+      className={`angka inline-flex items-center gap-1.5 rounded-full bg-tanah/5 px-3 py-1 text-keterangan font-semibold text-tanah ${className}`}
+    >
+      <Timer aria-hidden className="h-3.5 w-3.5" />
       Tutup dalam {dua(jam)}:{dua(menit)}:{dua(detik)}
-    </p>
+    </span>
   );
 }

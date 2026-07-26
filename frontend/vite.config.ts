@@ -19,6 +19,11 @@ export default defineConfig({
       srcDir: "src",
       filename: "sw.ts",
       registerType: "autoUpdate",
+      // woff2 wajib masuk precache — font self-host harus tersedia offline (K12)
+      injectManifest: {
+        globPatterns: ["**/*.{js,css,html,svg,png,ico,woff2}"],
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+      },
       manifest: {
         name: "Satu Muatan",
         short_name: "Satu Muatan",
@@ -27,7 +32,12 @@ export default defineConfig({
         display: "standalone",
         background_color: "#FAF7F2",
         theme_color: "#2F6B3A",
-        icons: [],
+        icons: [
+          { src: "/ikon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "/ikon-512.png", sizes: "512x512", type: "image/png" },
+          { src: "/ikon-192-maskable.png", sizes: "192x192", type: "image/png", purpose: "maskable" },
+          { src: "/ikon-512-maskable.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+        ],
       },
     }),
   ],

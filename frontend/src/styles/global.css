@@ -1,3 +1,8 @@
+/* Font self-host (offline-friendly, ikut precache PWA — K12) */
+@import "@fontsource-variable/plus-jakarta-sans/index.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,6 +19,7 @@
 @layer base {
   html {
     font-size: 16px; /* body minimum 16 px */
+    scroll-behavior: smooth;
   }
 
   body {
@@ -24,6 +30,11 @@
   :focus-visible {
     outline: 3px solid var(--daun);
     outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: rgba(47, 107, 58, 0.25);
   }
 }
 
@@ -34,10 +45,25 @@
     @apply font-angka;
     font-variant-numeric: tabular-nums;
   }
+
+  /* Sistem kartu (K12): datar = baris daftar, tonjol = konten utama,
+     hero = momen penekanan. Radius konsisten rounded-xl. */
+  .kartu-datar {
+    @apply rounded-xl border border-kabut bg-kertas;
+  }
+  .kartu-tonjol {
+    @apply rounded-xl border border-kabut bg-kertas shadow-lembut;
+  }
+  .kartu-hero {
+    @apply rounded-xl bg-daun text-kertas shadow-sedang;
+  }
 }
 
 /* Hormati prefers-reduced-motion (spec §10, DoD §14) */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
   *,
   *::before,
   *::after {
