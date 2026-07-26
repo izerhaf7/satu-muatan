@@ -9,7 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://satu_muatan:satu_muatan_dev@localhost:5433/satu_muatan"
+    # 127.0.0.1 (bukan "localhost"): di Windows, localhost dicoba lewat IPv6 dulu
+    # dan bisa menggantung ~130 detik sebelum fallback ke IPv4 port-mapping Docker.
+    database_url: str = "postgresql+psycopg://satu_muatan:satu_muatan_dev@127.0.0.1:5433/satu_muatan"
     jwt_secret: str = "ganti-di-produksi"
     jwt_kadaluarsa_menit: int = 60 * 24  # sesi login, bukan koefisien bisnis
     vendor_adapter: str = "MOCK"  # MOCK | DELIVEREE
