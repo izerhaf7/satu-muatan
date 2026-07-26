@@ -1,4 +1,7 @@
-/** Timeline vertikal Lacak (§9.6): Dipesan -> Dimuat -> Jalan -> Tiba, tahap saat ini disorot. */
+/** Timeline vertikal Lacak (§9.6): Dipesan -> Dimuat -> Jalan -> Tiba, tahap saat ini disorot
+ *  dengan ring, tahap tercapai berupa lingkaran daun terisi berikon, sisanya redup. */
+
+import { ClipboardList, MapPinCheck, PackageCheck, Truck, type LucideIcon } from "lucide-react";
 
 import type { components } from "@/api/client";
 
@@ -18,11 +21,11 @@ function formatWaktu(waktu: string): string {
   });
 }
 
-const TAHAP: { kunci: keyof TimelineOut; label: string }[] = [
-  { kunci: "dipesan", label: "Dipesan" },
-  { kunci: "dimuat", label: "Dimuat" },
-  { kunci: "berangkat", label: "Jalan" },
-  { kunci: "tiba", label: "Tiba" },
+const TAHAP: { kunci: keyof TimelineOut; label: string; ikon: LucideIcon }[] = [
+  { kunci: "dipesan", label: "Dipesan", ikon: ClipboardList },
+  { kunci: "dimuat", label: "Dimuat", ikon: PackageCheck },
+  { kunci: "berangkat", label: "Jalan", ikon: Truck },
+  { kunci: "tiba", label: "Tiba", ikon: MapPinCheck },
 ];
 
 export default function TimelineLacak({ timeline, className = "" }: TimelineLacakProps) {
@@ -35,22 +38,29 @@ export default function TimelineLacak({ timeline, className = "" }: TimelineLaca
         const tercapai = idx <= indeksSaatIni;
         const iniSaatIni = idx === indeksSaatIni;
         const terakhir = idx === TAHAP.length - 1;
+        const Ikon = tahap.ikon;
 
         return (
           <li key={tahap.kunci} className="flex gap-3">
             <div className="flex flex-col items-center">
               <span
-                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 ${
-                  tercapai ? "border-daun bg-daun" : "border-kabut bg-kertas"
-                }`}
-              />
-              {!terakhir && <span className={`w-0.5 flex-1 ${tercapai ? "bg-daun" : "bg-kabut"}`} style={{ minHeight: 24 }} />}
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-cepat ${
+                  tercapai ? "border-daun bg-daun text-kertas" : "border-kabut bg-kertas text-tanah/35"
+                } ${iniSaatIni ? "ring-2 ring-daun/25 ring-offset-2 ring-offset-kertas" : ""}`}
+              >
+                <Ikon aria-hidden className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+              {!terakhir && (
+                <span className={`w-0.5 flex-1 ${tercapai ? "bg-daun" : "bg-kabut"}`} style={{ minHeight: 28 }} />
+              )}
             </div>
-            <div className="pb-6">
-              <p className={`text-base ${iniSaatIni ? "font-bold text-tanah" : tercapai ? "font-medium text-tanah" : "text-tanah/50"}`}>
+            <div className="pb-7 pt-1.5">
+              <p
+                className={`text-base ${iniSaatIni ? "font-bold text-tanah" : tercapai ? "font-medium text-tanah" : "text-tanah/50"}`}
+              >
                 {tahap.label}
               </p>
-              <p className="angka text-sm text-tanah/60">{waktu ? formatWaktu(waktu) : "—"}</p>
+              <p className="angka text-keterangan text-tanah/60">{waktu ? formatWaktu(waktu) : "—"}</p>
             </div>
           </li>
         );

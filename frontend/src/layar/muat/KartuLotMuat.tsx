@@ -3,8 +3,12 @@
  *  baru menekan "Simpan timbangan" satu kali per lot. */
 
 import { useEffect, useState } from "react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Save, Sprout } from "lucide-react";
 
 import AmbilFoto from "@/komponen/AmbilFoto";
+import AreaTeks from "@/komponen/AreaTeks";
+import InputTeks from "@/komponen/InputTeks";
+import KotakCentang from "@/komponen/KotakCentang";
 import Tombol from "@/komponen/Tombol";
 import type { components } from "@/api/client";
 import { formatAngka } from "@/utils/format";
@@ -52,76 +56,92 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border-2 border-kabut p-4">
+    <div
+      className={`kartu-tonjol flex flex-col gap-4 p-4 transition-colors duration-cepat ${
+        sudahDitimbang ? "border-daun/30 bg-daun/5" : ""
+      }`}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-base font-semibold text-tanah">{lot.nama_petani}</p>
-          <p className="text-sm text-tanah/70">
-            {lot.nama_komoditas} · komitmen {formatAngka(lot.volume_kg)} kg
-          </p>
-          {lot.nama_penerima && <p className="text-sm text-tanah/60">Tujuan: {lot.nama_penerima}</p>}
+        <div className="flex items-start gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-daun/10 text-daun">
+            <Sprout aria-hidden className="h-5 w-5" strokeWidth={2.25} />
+          </span>
+          <div>
+            <p className="text-base font-semibold text-tanah">{lot.nama_petani}</p>
+            <p className="text-keterangan text-tanah/70">
+              {lot.nama_komoditas} · komitmen <span className="angka">{formatAngka(lot.volume_kg)}</span> kg
+            </p>
+            {lot.nama_penerima && <p className="text-keterangan text-tanah/60">Tujuan: {lot.nama_penerima}</p>}
+          </div>
         </div>
         {sudahDitimbang && (
-          <span className="inline-flex items-center rounded-full bg-daun px-2.5 py-1 text-sm font-semibold text-kertas">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-daun px-2.5 py-1 text-keterangan font-semibold text-kertas">
+            <CheckCircle2 aria-hidden className="h-3.5 w-3.5" />
             Selesai
           </span>
         )}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={`berat-${lot.id}`} className="text-base font-medium text-tanah">
-          Berat aktual (kg)
-        </label>
-        <input
-          id={`berat-${lot.id}`}
-          type="number"
-          inputMode="decimal"
-          min={0.1}
-          step="0.1"
-          value={beratAktual}
-          onChange={(e) => setBeratAktual(e.target.value)}
-          className="angka min-h-sentuh rounded-md border-2 border-kabut bg-kertas px-4 text-lg font-semibold text-tanah focus:border-daun"
-        />
-      </div>
+      <InputTeks
+        label="Berat aktual (kg)"
+        id={`berat-${lot.id}`}
+        type="number"
+        inputMode="decimal"
+        min={0.1}
+        step="0.1"
+        value={beratAktual}
+        onChange={(e) => setBeratAktual(e.target.value)}
+        className="angka text-lg font-semibold"
+      />
 
       <AmbilFoto label="Foto muat" nilai={foto} onUbah={setFoto} />
 
-      <label className="flex min-h-sentuh cursor-pointer items-center gap-3 rounded-md border-2 border-kabut px-4">
-        <input
-          type="checkbox"
-          className="h-6 w-6 shrink-0"
+      <div
+        className={`flex items-center justify-between rounded-lg border-2 pr-3 transition-colors duration-cepat ${
+          cacatTerlihat ? "border-tanah-liat/50 bg-tanah-liat/5" : "border-kabut"
+        }`}
+      >
+        <KotakCentang
+          label="Ada cacat terlihat"
           checked={cacatTerlihat}
           onChange={(e) => setCacatTerlihat(e.target.checked)}
+          style={{ accentColor: cacatTerlihat ? "#C1502E" : undefined }}
+          className="flex-1"
         />
-        <span className="text-base font-medium text-tanah">Ada cacat terlihat</span>
-      </label>
-
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={`catatan-${lot.id}`} className="text-base font-medium text-tanah">
-          Catatan <span className="font-normal text-tanah/60">(opsional)</span>
-        </label>
-        <textarea
-          id={`catatan-${lot.id}`}
-          value={catatan}
-          onChange={(e) => setCatatan(e.target.value)}
-          rows={2}
-          className="rounded-md border-2 border-kabut bg-kertas px-4 py-2 text-base text-tanah focus:border-daun"
-        />
+        {cacatTerlihat && <AlertTriangle aria-hidden className="h-5 w-5 shrink-0 text-tanah-liat" />}
       </div>
 
+      <AreaTeks
+        label="Catatan (opsional)"
+        id={`catatan-${lot.id}`}
+        value={catatan}
+        onChange={(e) => setCatatan(e.target.value)}
+        rows={2}
+      />
+
       {gagalMenyimpan && (
-        <p role="alert" className="text-sm text-tanah-liat">
+        <p role="alert" className="flex items-center gap-1.5 text-keterangan font-medium text-tanah-liat">
+          <AlertCircle aria-hidden className="h-4 w-4 shrink-0" />
           Gagal menyimpan timbangan. Coba lagi.
         </p>
       )}
 
-      <Tombol type="button" varian="aksi" onClick={simpan} disabled={!beratValid || sedangMenyimpan}>
-        {sedangMenyimpan ? "Menyimpan…" : sudahDitimbang ? "Perbarui timbangan" : "Simpan timbangan"}
+      <Tombol
+        type="button"
+        varian="aksi"
+        ikon={Save}
+        sedangProses={sedangMenyimpan}
+        disabled={!beratValid}
+        onClick={simpan}
+      >
+        {sudahDitimbang ? "Perbarui timbangan" : "Simpan timbangan"}
       </Tombol>
 
-      <div className="flex flex-col items-center gap-1 border-t-2 border-kabut pt-4">
-        {qrDataUrl && <img src={qrDataUrl} alt={`QR lot ${lot.kode_qr}`} className="h-32 w-32" />}
-        <p className="angka text-sm text-tanah/70">{lot.kode_qr}</p>
+      <div className="flex flex-col items-center gap-2 border-t border-kabut pt-4">
+        <div className="rounded-xl border-2 border-kabut bg-kertas p-3">
+          {qrDataUrl && <img src={qrDataUrl} alt={`QR lot ${lot.kode_qr}`} className="h-28 w-28" />}
+        </div>
+        <p className="angka text-keterangan text-tanah/70">{lot.kode_qr}</p>
       </div>
     </div>
   );

@@ -1,9 +1,12 @@
 /** Tabel Tier Kendaraan (§9.9) — nama, kapasitas, tarif dasar, tarif/km, sumber,
- *  toggle aktif langsung di baris, dan edit inline untuk angka tarif/kapasitas. */
+ *  toggle aktif sebagai sakelar (role="switch"), dan edit inline untuk angka tarif/kapasitas. */
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type FormEvent } from "react";
+import { Truck } from "lucide-react";
 
 import BadgeSumber from "@/komponen/BadgeSumber";
+import InputTeks from "@/komponen/InputTeks";
+import { Tabel, Td, Th, Thead } from "@/komponen/Tabel";
 import Tombol from "@/komponen/Tombol";
 import type { components } from "@/api/client";
 import { useUbahTier } from "@/hooks/useAsumsi";
@@ -19,28 +22,56 @@ interface TabelTierProps {
 export default function TabelTier({ tiers, onTersimpan }: TabelTierProps) {
   return (
     <section aria-label="Tier kendaraan" className="flex flex-col gap-2">
-      <h2 className="text-lg font-semibold text-tanah">Tier kendaraan</h2>
-      <div className="overflow-x-auto rounded-lg border-2 border-kabut">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b-2 border-kabut bg-kabut/30 text-left">
-              <Th>Nama</Th>
-              <Th className="text-right">Kapasitas</Th>
-              <Th className="text-right">Tarif dasar</Th>
-              <Th className="text-right">Tarif/km</Th>
-              <Th>Sumber</Th>
-              <Th>Aktif</Th>
-              <Th aria-hidden="true" />
-            </tr>
-          </thead>
-          <tbody>
-            {tiers.map((tier) => (
-              <BarisTier key={tier.id} tier={tier} onTersimpan={onTersimpan} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <h2 className="flex items-center gap-2 text-lg font-semibold text-tanah">
+        <Truck aria-hidden className="h-5 w-5 text-tanah/60" strokeWidth={2.25} />
+        Tier kendaraan
+      </h2>
+      <Tabel className="min-w-[640px] text-sm">
+        <Thead>
+          <tr>
+            <Th>Nama</Th>
+            <Th className="text-right">Kapasitas</Th>
+            <Th className="text-right">Tarif dasar</Th>
+            <Th className="text-right">Tarif/km</Th>
+            <Th>Sumber</Th>
+            <Th>Aktif</Th>
+            <Th aria-hidden="true" />
+          </tr>
+        </Thead>
+        <tbody>
+          {tiers.map((tier) => (
+            <BarisTier key={tier.id} tier={tier} onTersimpan={onTersimpan} />
+          ))}
+        </tbody>
+      </Tabel>
     </section>
+  );
+}
+
+function Sakelar({ aktif, disabled, label, onToggle }: { aktif: boolean; disabled?: boolean; label: string; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={aktif}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onToggle}
+      className="flex min-h-sentuh min-w-sentuh items-center justify-center disabled:opacity-50"
+    >
+      <span
+        aria-hidden
+        className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-cepat ${
+          aktif ? "bg-daun" : "bg-kabut"
+        }`}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-kertas shadow-lembut transition-transform duration-cepat ${
+            aktif ? "translate-x-6" : "translate-x-1"
+          }`}
+        />
+      </span>
+    </button>
   );
 }
 
@@ -89,7 +120,7 @@ function BarisTier({ tier, onTersimpan }: { tier: TierKendaraanOut; onTersimpan:
 
   return (
     <>
-      <tr className="border-b border-kabut align-top last:border-0">
+      <tr>
         <Td className="font-medium">{tier.nama}</Td>
         <Td className="angka text-right">{formatAngka(tier.kapasitas_kg)} kg</Td>
         <Td className="angka text-right">{formatRupiah(tier.tarif_dasar)}</Td>
@@ -98,89 +129,63 @@ function BarisTier({ tier, onTersimpan }: { tier: TierKendaraanOut; onTersimpan:
           <BadgeSumber status={tier.status_sumber} />
         </Td>
         <Td>
-          <label className="inline-flex min-h-sentuh items-center gap-2">
-            <input
-              type="checkbox"
-              checked={tier.aktif}
-              onChange={ubahAktif}
-              disabled={mutasi.isPending}
-              className="h-6 w-6 accent-daun"
-              aria-label={`Tier ${tier.nama} aktif`}
-            />
-          </label>
+          <Sakelar aktif={tier.aktif} disabled={mutasi.isPending} label={`Tier ${tier.nama} aktif`} onToggle={ubahAktif} />
         </Td>
         <Td>
           {!mengedit && (
-            <Tombol varian="sekunder" className="px-3 text-sm" onClick={bukaEdit}>
+            <Tombol varian="sekunder" className="min-h-11 px-3 text-keterangan" onClick={bukaEdit}>
               Ubah
             </Tombol>
           )}
         </Td>
       </tr>
       {mengedit && (
-        <tr className="border-b border-kabut">
-          <td colSpan={7} className="p-3">
-            <form onSubmit={submitEdit} className="flex flex-col gap-3 rounded-md border-2 border-kabut p-3">
+        <tr>
+          <Td colSpan={7}>
+            <form onSubmit={submitEdit} className="kartu-datar flex flex-col gap-3 p-3">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-tanah">Kapasitas (kg)</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    value={kapasitas}
-                    onChange={(e) => setKapasitas(e.target.value)}
-                    className="min-h-sentuh rounded-md border-2 border-kabut bg-kertas px-4 text-base text-tanah focus:border-daun"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-tanah">Tarif dasar (Rp)</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    value={tarifDasar}
-                    onChange={(e) => setTarifDasar(e.target.value)}
-                    className="min-h-sentuh rounded-md border-2 border-kabut bg-kertas px-4 text-base text-tanah focus:border-daun"
-                  />
-                </label>
-                <label className="flex flex-col gap-1.5">
-                  <span className="text-sm font-medium text-tanah">Tarif/km (Rp)</span>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    value={tarifPerKm}
-                    onChange={(e) => setTarifPerKm(e.target.value)}
-                    className="min-h-sentuh rounded-md border-2 border-kabut bg-kertas px-4 text-base text-tanah focus:border-daun"
-                  />
-                </label>
+                <InputTeks
+                  label="Kapasitas (kg)"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={kapasitas}
+                  onChange={(e) => setKapasitas(e.target.value)}
+                />
+                <InputTeks
+                  label="Tarif dasar (Rp)"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={tarifDasar}
+                  onChange={(e) => setTarifDasar(e.target.value)}
+                />
+                <InputTeks
+                  label="Tarif/km (Rp)"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  value={tarifPerKm}
+                  onChange={(e) => setTarifPerKm(e.target.value)}
+                />
               </div>
               <div className="flex items-center gap-2">
-                <Tombol type="submit" disabled={mutasi.isPending}>
-                  {mutasi.isPending ? "Menyimpan…" : "Simpan"}
+                <Tombol type="submit" className="min-h-11 px-4 text-keterangan" sedangProses={mutasi.isPending}>
+                  Simpan
                 </Tombol>
-                <Tombol type="button" varian="sekunder" onClick={batalEdit}>
+                <Tombol type="button" varian="sekunder" className="min-h-11 px-4 text-keterangan" onClick={batalEdit}>
                   Batal
                 </Tombol>
               </div>
               {mutasi.isError && (
-                <p role="alert" className="text-sm text-tanah-liat">
+                <p role="alert" className="text-keterangan text-tanah-liat">
                   Gagal menyimpan — periksa kembali nilainya.
                 </p>
               )}
             </form>
-          </td>
+          </Td>
         </tr>
       )}
     </>
   );
-}
-
-function Th({ children, className = "" }: { children?: ReactNode; className?: string }) {
-  return <th className={`p-2 font-semibold text-tanah ${className}`}>{children}</th>;
-}
-
-function Td({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <td className={`p-2 text-tanah ${className}`}>{children}</td>;
 }

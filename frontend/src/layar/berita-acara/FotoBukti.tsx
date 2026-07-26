@@ -14,7 +14,7 @@ export default function FotoBukti({ base64, alt }: FotoBuktiProps) {
 
   if (!base64 || gagal) {
     return (
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded border-2 border-dashed border-kabut p-1 text-center text-[10px] leading-tight text-tanah/50">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-kabut p-1 text-center text-[10px] leading-tight text-tanah/50">
         Tidak ada foto
       </div>
     );
@@ -27,7 +27,7 @@ export default function FotoBukti({ base64, alt }: FotoBuktiProps) {
       src={src}
       alt={alt}
       onError={() => setGagal(true)}
-      className="h-14 w-14 shrink-0 rounded border-2 border-kabut object-cover"
+      className="h-14 w-14 shrink-0 rounded-lg border-2 border-kabut object-cover"
     />
   );
 }

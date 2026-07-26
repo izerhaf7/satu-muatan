@@ -2,9 +2,11 @@
  *  dicegah) + grafik batang bulanan. Kartu `nilai=null` WAJIB tampil "—", jangan
  *  pernah nol yang terlihat seperti hasil hitung (spec §7, aturan kejujuran). */
 
+import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
+import KartuGalat from "@/komponen/KartuGalat";
 import KartuMetrik from "@/komponen/KartuMetrik";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
-import Tombol from "@/komponen/Tombol";
+import { Skeleton, SkeletonAngka } from "@/komponen/Skeleton";
 import { useDampakBulanan, useDampakRingkasan } from "@/hooks/useDampak";
 
 import GrafikBulanan from "./dampak/GrafikBulanan";
@@ -14,20 +16,22 @@ export default function DashboardDampak() {
   const bulanan = useDampakBulanan();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-tanah">Dampak</h1>
-        <p className="text-base text-tanah/70">Manfaat nyata dari mengirim bersama, dihitung dari slot yang sudah selesai.</p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <HeaderLayar
+        judul="Dampak"
+        subjudul="Manfaat nyata dari mengirim bersama, dihitung dari slot yang sudah selesai"
+      />
 
-      {ringkasan.isLoading && <p className="text-base text-tanah/60">Memuat ringkasan dampak…</p>}
-      {ringkasan.isError && (
-        <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-tanah-liat/40 p-4">
-          <p className="text-base text-tanah-liat">Gagal memuat ringkasan dampak.</p>
-          <Tombol varian="sekunder" onClick={() => ringkasan.refetch()}>
-            Coba lagi
-          </Tombol>
+      {ringkasan.isLoading && (
+        <div className="grid grid-cols-2 gap-3">
+          <SkeletonAngka className="kartu-datar" />
+          <SkeletonAngka className="kartu-datar" />
+          <SkeletonAngka className="kartu-datar" />
+          <SkeletonAngka className="kartu-datar" />
         </div>
+      )}
+      {ringkasan.isError && (
+        <KartuGalat pesan="Gagal memuat ringkasan dampak." onCobaLagi={() => ringkasan.refetch()} />
       )}
 
       {ringkasan.data && (
@@ -68,23 +72,16 @@ export default function DashboardDampak() {
         </section>
       )}
 
-      {bulanan.isLoading && <p className="text-base text-tanah/60">Memuat grafik bulanan…</p>}
-      {bulanan.isError && (
-        <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-tanah-liat/40 p-4">
-          <p className="text-base text-tanah-liat">Gagal memuat grafik bulanan.</p>
-          <Tombol varian="sekunder" onClick={() => bulanan.refetch()}>
-            Coba lagi
-          </Tombol>
-        </div>
-      )}
+      {bulanan.isLoading && <Skeleton className="h-[268px] w-full" />}
+      {bulanan.isError && <KartuGalat pesan="Gagal memuat grafik bulanan." onCobaLagi={() => bulanan.refetch()} />}
       {bulanan.data && bulanan.data.length === 0 && (
         <KeadaanKosong
           pesan="Belum ada slot selesai. Dampaknya akan muncul di sini begitu pengiriman pertama tuntas."
           teksAksi="Kembali ke Beranda"
-          ke="/"
+          ke="/beranda"
         />
       )}
       {bulanan.data && bulanan.data.length > 0 && <GrafikBulanan data={bulanan.data} />}
-    </main>
+    </div>
   );
 }

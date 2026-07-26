@@ -1,9 +1,13 @@
 /** Layar Lacak (§9.6, semua peran) — timeline status, peta rute, estimasi tiba,
  *  dan tombol simulasi "Majukan (demo)" khusus Koperasi (K5). Poll 3 detik selama belum TIBA. */
 
+import { Timer } from "lucide-react";
 import { useParams } from "react-router-dom";
 
+import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
+import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
+import { Skeleton } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
 import { useDaftarPenerima } from "@/hooks/usePenerima";
 import { useMajukanPengiriman, usePengirimanSlot, useSlotUntukLacak } from "@/hooks/useLacak";
@@ -54,15 +58,21 @@ export default function Lacak() {
   const sudahTiba = Boolean(pengiriman.data?.timeline.tiba);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-6 pb-24">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-tanah">Lacak</h1>
-        <p className="angka text-base text-tanah/70">
-          {slot.data ? `${slot.data.kode} · ${formatAngka(slot.data.jarak_km)} km` : "Memuat…"}
-        </p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <HeaderLayar
+        judul="Lacak"
+        subjudul={slot.data ? `${slot.data.kode} · ${formatAngka(slot.data.jarak_km)} km` : undefined}
+        kembaliKe={slotId ? `/slot/${slotId}` : "/beranda"}
+      />
 
-      {memuat && <p className="text-base text-tanah/60">Memuat data pengiriman…</p>}
+      {slot.isError && <KartuGalat pesan="Gagal memuat data slot." onCobaLagi={() => slot.refetch()} />}
+
+      {memuat && (
+        <div className="flex flex-col gap-6">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      )}
 
       {belumTutup && !memuat && (
         <KeadaanKosong pesan="Slot ini belum punya pengiriman untuk dilacak. Tutup slot dahulu di layar Detail Slot." />
@@ -70,7 +80,7 @@ export default function Lacak() {
 
       {!belumTutup && pengiriman.data && (
         <>
-          <section aria-label="Status pengiriman" className="rounded-lg border-2 border-kabut p-4">
+          <section aria-label="Status pengiriman" className="kartu-tonjol p-4">
             <TimelineLacak timeline={pengiriman.data.timeline} />
           </section>
 
@@ -84,43 +94,46 @@ export default function Lacak() {
             </section>
           )}
 
-          <section aria-label="Estimasi tiba" className="flex flex-col gap-1 rounded-lg border-2 border-kabut p-4">
-            {sudahTiba ? (
-              <p className="text-base font-semibold text-tanah">
-                Sudah tiba{pengiriman.data.timeline.tiba ? ` · ${formatWaktu(pengiriman.data.timeline.tiba)}` : ""}
-              </p>
-            ) : (
-              <p className="text-base font-semibold text-tanah">
-                Estimasi tiba: {pengiriman.data.estimasi_tiba ? formatWaktu(pengiriman.data.estimasi_tiba) : "—"}
-              </p>
-            )}
-            <p className="text-sm text-tanah/60">
+          <section aria-label="Estimasi tiba" className="kartu-datar flex flex-col gap-1 p-4">
+            <div className="flex items-center gap-2">
+              <Timer aria-hidden className="h-5 w-5 shrink-0 text-daun" strokeWidth={2.25} />
+              {sudahTiba ? (
+                <p className="text-base font-semibold text-tanah">
+                  Sudah tiba{pengiriman.data.timeline.tiba ? ` · ${formatWaktu(pengiriman.data.timeline.tiba)}` : ""}
+                </p>
+              ) : (
+                <p className="text-base font-semibold text-tanah">
+                  Estimasi tiba: {pengiriman.data.estimasi_tiba ? formatWaktu(pengiriman.data.estimasi_tiba) : "—"}
+                </p>
+              )}
+            </div>
+            <p className="text-keterangan text-tanah/60">
               Ambang rute ini: <span className="angka">{formatAngka(pengiriman.data.ambang_transit_menit)}</span> menit
             </p>
           </section>
 
           {pengguna?.peran === "KOPERASI" && !sudahTiba && (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {majukan.isError && (
-                <p role="alert" className="text-sm text-tanah-liat">
+                <p role="alert" className="text-keterangan text-tanah-liat">
                   Gagal memajukan simulasi. Coba lagi.
                 </p>
               )}
               <Tombol
                 type="button"
-                varian="sekunder"
-                disabled={majukan.isPending}
+                varian="halus"
+                sedangProses={majukan.isPending}
                 onClick={() => pengiriman.data && majukan.mutate(pengiriman.data.id)}
               >
-                {majukan.isPending ? "Memproses…" : "Majukan (demo)"}
+                Majukan (demo)
               </Tombol>
-              <p className="text-sm text-tanah/50">
+              <p className="text-keterangan text-tanah/50">
                 Simulasi vendor demo — memajukan status pengiriman satu langkah tanpa menunggu waktu asli.
               </p>
             </div>
           )}
         </>
       )}
-    </main>
+    </div>
   );
 }

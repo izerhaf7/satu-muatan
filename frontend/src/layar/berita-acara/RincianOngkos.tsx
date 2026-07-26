@@ -5,6 +5,7 @@
 
 import type { ReactNode } from "react";
 
+import { Tabel, Td, Th, Thead } from "@/komponen/Tabel";
 import type { components } from "@/api/client";
 import { formatAngka, formatRupiah } from "@/utils/format";
 
@@ -26,49 +27,47 @@ export default function RincianOngkos({ rincian, biayaTotal, hargaFinalPerKg, su
   return (
     <section aria-label="Rincian ongkos per petani" className="flex flex-col gap-2">
       <h2 className="text-base font-semibold text-tanah">Rincian ongkos per petani</h2>
-      <div className="overflow-x-auto rounded-lg border-2 border-kabut">
-        <table className="w-full min-w-[560px] border-collapse text-sm">
-          <thead>
-            <tr className="border-b-2 border-kabut bg-kabut/30 text-left">
-              <Th>Petani</Th>
-              <Th className="text-right">Volume</Th>
-              <Th className="text-right">Harga atap</Th>
-              <Th className="text-right">Harga final</Th>
-              <Th className="text-right">Tagihan</Th>
-              <Th className="text-right">Kembalian</Th>
+      <Tabel className="min-w-[560px] text-sm">
+        <Thead>
+          <tr>
+            <Th>Petani</Th>
+            <Th className="text-right">Volume</Th>
+            <Th className="text-right">Harga atap</Th>
+            <Th className="text-right">Harga final</Th>
+            <Th className="text-right">Tagihan</Th>
+            <Th className="text-right">Kembalian</Th>
+          </tr>
+        </Thead>
+        <tbody>
+          {rincian.map((r) => (
+            <tr key={r.partisipasi_id}>
+              <Td>{r.nama_petani}</Td>
+              <Td className="angka text-right">{formatAngka(r.volume_kg)} kg</Td>
+              <Td className="angka text-right">{formatRupiah(r.harga_atap_per_kg)}</Td>
+              <Td className="angka text-right">{formatRupiah(r.harga_final_per_kg)}</Td>
+              <Td className="angka text-right">{formatRupiah(r.tagihan_rp)}</Td>
+              <Td className="angka text-right">{formatRupiah(r.kembalian_rp)}</Td>
             </tr>
-          </thead>
-          <tbody>
-            {rincian.map((r) => (
-              <tr key={r.partisipasi_id} className="border-b border-kabut last:border-0">
-                <Td>{r.nama_petani}</Td>
-                <Td className="angka text-right">{formatAngka(r.volume_kg)} kg</Td>
-                <Td className="angka text-right">{formatRupiah(r.harga_atap_per_kg)}</Td>
-                <Td className="angka text-right">{formatRupiah(r.harga_final_per_kg)}</Td>
-                <Td className="angka text-right">{formatRupiah(r.tagihan_rp)}</Td>
-                <Td className="angka text-right">{formatRupiah(r.kembalian_rp)}</Td>
-              </tr>
-            ))}
-            {rincian.length === 0 && (
-              <tr>
-                <td colSpan={6} className="p-3 text-center text-tanah/50">
-                  Belum ada partisipasi dengan harga final.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {rincian.length === 0 && (
+            <tr>
+              <Td colSpan={6} className="text-center text-tanah/50">
+                Belum ada partisipasi dengan harga final.
+              </Td>
+            </tr>
+          )}
+        </tbody>
+      </Tabel>
 
-      <dl className="flex flex-col gap-1.5 rounded-lg border-2 border-kabut p-4 text-sm">
-        <BarisRingkasan label="Biaya total">
-          {biayaTotal !== null ? formatRupiah(biayaTotal) : "—"}
-        </BarisRingkasan>
+      <dl className="kartu-datar flex flex-col gap-1.5 p-4 text-sm">
+        <BarisRingkasan label="Biaya total">{biayaTotal !== null ? formatRupiah(biayaTotal) : "—"}</BarisRingkasan>
         <BarisRingkasan label="Harga final/kg">
           {hargaFinalPerKg !== null ? formatRupiah(hargaFinalPerKg) : "—"}
         </BarisRingkasan>
         {/* K11: negatif = surplus pembulatan ceil (masuk kas koperasi), bukan subsidi */}
-        <BarisRingkasan label={subsidiKoperasi > 0 ? "Selisih ditanggung koperasi" : "Sisa pembulatan (masuk kas koperasi)"}>
+        <BarisRingkasan
+          label={subsidiKoperasi > 0 ? "Selisih ditanggung koperasi" : "Sisa pembulatan (masuk kas koperasi)"}
+        >
           <span className="flex items-baseline gap-1.5">{tampilanSubsidi}</span>
         </BarisRingkasan>
       </dl>
@@ -83,12 +82,4 @@ function BarisRingkasan({ label, children }: { label: string; children: ReactNod
       <dd className="angka font-semibold text-tanah">{children}</dd>
     </div>
   );
-}
-
-function Th({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <th className={`p-2 font-semibold text-tanah ${className}`}>{children}</th>;
-}
-
-function Td({ children, className = "" }: { children: ReactNode; className?: string }) {
-  return <td className={`p-2 text-tanah ${className}`}>{children}</td>;
 }

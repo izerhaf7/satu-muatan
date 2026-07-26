@@ -14,7 +14,7 @@ type DampakBulananOut = components["schemas"]["DampakBulananOut"];
 // Palet 5 warna (spec §10 / tailwind.config.js) — jangan tambah warna lain.
 const WARNA_DAUN = "#2F6B3A";
 const WARNA_KABUT = "#D8D2C7";
-const WARNA_TANAH = "#2B2119";
+const WARNA_TANAH_60 = "rgba(43, 33, 25, 0.6)"; // teks sumbu — tanah/60, bukan solid
 
 function labelBulanSingkat(bulan: string): string {
   const [tahun, bulanKe] = bulan.split("-").map(Number);
@@ -31,9 +31,9 @@ interface TooltipGrafikProps {
 function TooltipGrafik({ active, payload, label }: TooltipGrafikProps) {
   if (!active || !payload?.length || !label) return null;
   return (
-    <div className="rounded-md border-2 border-tanah bg-kertas px-3 py-2 text-sm text-tanah">
+    <div className="kartu-tonjol px-3 py-2 text-keterangan text-tanah">
       <p className="font-semibold">{formatBulan(label)}</p>
-      <p className="angka">{formatRupiah(payload[0].value)}</p>
+      <p className="angka text-base font-bold text-daun">{formatRupiah(payload[0].value)}</p>
     </div>
   );
 }
@@ -44,7 +44,7 @@ interface GrafikBulananProps {
 
 export default function GrafikBulanan({ data }: GrafikBulananProps) {
   return (
-    <div className="rounded-lg border-2 border-kabut p-4">
+    <div className="kartu-tonjol p-4">
       <p className="mb-3 text-base font-semibold text-tanah">Penghematan ongkos per bulan</p>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="30%">
@@ -52,13 +52,13 @@ export default function GrafikBulanan({ data }: GrafikBulananProps) {
           <XAxis
             dataKey="bulan"
             tickFormatter={labelBulanSingkat}
-            tick={{ fill: WARNA_TANAH, fontSize: 12 }}
+            tick={{ fill: WARNA_TANAH_60, fontSize: 12 }}
             axisLine={{ stroke: WARNA_KABUT }}
             tickLine={false}
           />
           <YAxis
             tickFormatter={(nilai: number) => formatAngka(nilai)}
-            tick={{ fill: WARNA_TANAH, fontSize: 12 }}
+            tick={{ fill: WARNA_TANAH_60, fontSize: 12 }}
             axisLine={false}
             tickLine={false}
             width={56}

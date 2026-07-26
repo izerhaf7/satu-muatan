@@ -1,6 +1,7 @@
 /* Stylesheet cetak Berita Acara (§9.8, KEPUTUSAN.md K4) — dipakai window.print().
  * Diimpor HANYA oleh BeritaAcara.tsx. Semua selector di bawah ini di-scope di
- * bawah root class `.berita-acara` supaya TIDAK BOCOR ke print styling layar
+ * bawah root class `.berita-acara` (atau `:has(.berita-acara)` — hanya aktif saat
+ * elemen ini ada di halaman) supaya TIDAK BOCOR ke print styling layar
  * lain — sengaja tanpa `@page` global karena itu tidak bisa di-scope per elemen.
  * Jangan pakai library PDF (spec §9.8) — window.print() saja. */
 
@@ -11,15 +12,37 @@
     display: none !important;
   }
 
-  /* Dokumen penuh, hitam di atas putih, tanpa batas lebar layar HP. */
+  /* Fase 2.6 (K12) membungkus semua layar ber-autentikasi dalam AppShell (bilah
+     akun atas + NavBawah tetap) — keduanya tidak ditandai `no-print` di komponen
+     bersama (di luar cakupan berkas ini), jadi disembunyikan di sini, hanya saat
+     halaman ini yang tampil (:has scoping — tidak bocor ke print layar lain). */
+  body:has(.berita-acara) nav[aria-label="Navigasi utama"] {
+    display: none !important;
+  }
+  body:has(.berita-acara) #root > div > div:first-child {
+    display: none !important;
+  }
+
+  /* AppShell membungkus kontennya dalam kontainer `max-w-md` (mobile-first) —
+     dokumen cetak harus lolos dari batas itu supaya memakai lebar kertas penuh,
+     bukan kolom sempit di tengah halaman (temuan audit K12). */
   .berita-acara {
     max-width: none !important;
-    width: 100% !important;
-    margin: 0 !important;
+    width: 100vw !important;
+    margin: 0 0 0 calc(50% - 50vw) !important;
     padding: 0 !important;
     gap: 12px !important;
     color: #000 !important;
     background: #fff !important;
+  }
+
+  /* Kartu dokumen (kartu-tonjol) di layar punya border+padding+shadow — di kertas
+     kontennya sendiri sudah rapi tanpa bingkai kartu, jadi dilucuti di sini. */
+  .berita-acara .dokumen-ba {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
   }
 
   .berita-acara,
