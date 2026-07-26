@@ -67,11 +67,9 @@ export default function RincianOngkos({ rincian, biayaTotal, hargaFinalPerKg, su
         <BarisRingkasan label="Harga final/kg">
           {hargaFinalPerKg !== null ? formatRupiah(hargaFinalPerKg) : "—"}
         </BarisRingkasan>
-        <BarisRingkasan label="Selisih ditanggung koperasi">
-          <span className="flex items-baseline gap-1.5">
-            {tampilanSubsidi}
-            {subsidiKoperasi < 0 && <span className="text-xs font-normal text-tanah/50">(pembulatan)</span>}
-          </span>
+        {/* K11: negatif = surplus pembulatan ceil (masuk kas koperasi), bukan subsidi */}
+        <BarisRingkasan label={subsidiKoperasi > 0 ? "Selisih ditanggung koperasi" : "Sisa pembulatan (masuk kas koperasi)"}>
+          <span className="flex items-baseline gap-1.5">{tampilanSubsidi}</span>
         </BarisRingkasan>
       </dl>
     </section>

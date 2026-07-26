@@ -42,9 +42,11 @@ export default function RingkasanPenutupan({ slot, peran, penggunaId }: Ringkasa
         <>
           {slot.subsidi_koperasi !== 0 && (
             <p className="text-sm text-tanah/80">
-              Selisih ditanggung koperasi:{" "}
-              <span className="angka font-semibold text-tanah-liat">{formatRupiah(Math.abs(slot.subsidi_koperasi))}</span>
-              {slot.subsidi_koperasi < 0 && <span className="ml-1 text-tanah/50">(pembulatan)</span>}
+              {/* K11: negatif = surplus pembulatan ceil (masuk kas koperasi), bukan subsidi */}
+              {slot.subsidi_koperasi > 0 ? "Selisih ditanggung koperasi:" : "Sisa pembulatan (masuk kas koperasi):"}{" "}
+              <span className={`angka font-semibold ${slot.subsidi_koperasi > 0 ? "text-tanah-liat" : "text-tanah/70"}`}>
+                {formatRupiah(Math.abs(slot.subsidi_koperasi))}
+              </span>
             </p>
           )}
 

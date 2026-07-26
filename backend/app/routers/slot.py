@@ -539,15 +539,21 @@ def tutup_slot(slot_id: UUID, pengguna=Depends(wajib_peran("KOPERASI")), db: Ses
     tujuan_pertama_id = min(slot.tujuan, key=lambda t: t.urutan).penerima_id if slot.tujuan else None
 
     partisipasi_terurut = sorted(partisipasi_aktif, key=lambda p: p.bergabung_pada)
+    # K11: kuota permintaan dilacak DALAM loop ini juga — volume_terpenuhi_kg baru
+    # bertambah saat serah terima, jadi tanpa pelacakan lokal semua lot komoditas
+    # sama bisa membanjiri permintaan pertama walau kuotanya sudah habis dialokasi.
+    teralokasi_kg: dict = {pm.id: 0 for pm in permintaan_slot}
     for idx, p in enumerate(partisipasi_terurut, start=1):
         kandidat = [
             pm
             for pm in permintaan_slot
-            if pm.komoditas_id == p.komoditas_id and pm.volume_terpenuhi_kg < pm.volume_kg
+            if pm.komoditas_id == p.komoditas_id
+            and pm.volume_terpenuhi_kg + teralokasi_kg[pm.id] < pm.volume_kg
         ]
         if kandidat:
             kandidat.sort(key=lambda pm: urutan_by_penerima.get(pm.penerima_id, 10**6))
             penerima_id = kandidat[0].penerima_id
+            teralokasi_kg[kandidat[0].id] += p.volume_kg
         else:
             penerima_id = tujuan_pertama_id
 
