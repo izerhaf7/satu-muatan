@@ -1,14 +1,18 @@
 """Seed: konfigurasi + tier_kendaraan (Fase 0, spec §4.2 + KEPUTUSAN.md K6),
-plus data induk (koperasi, penerima, komoditas, pengguna K9) untuk Fase 2.
+plus data induk (koperasi, penerima, komoditas, pengguna K9) untuk Fase 2,
+plus 8 slot riwayat SELESAI (Fase 3, spec §11.1) supaya Dashboard Dampak &
+Beranda punya grafik terisi saat demo.
 
 IDEMPOTEN: upsert per kunci alami — aman dijalankan berulang (DoD §14).
-Riwayat 8 slot SELESAI + skenario demo ditambahkan agent infra-demo di Fase 3.
+Skenario demo (reset ke keadaan awal §11.2) ada di `seed/skenario_demo.py`.
 
 Jalankan dari folder backend:  python seed/seed.py
 """
 
 import pathlib
 import sys
+import uuid
+from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -17,18 +21,34 @@ from sqlalchemy.orm import Session  # noqa: E402
 
 from app.auth import hash_pin  # noqa: E402
 from app.database import SessionLocal  # noqa: E402
+from app.domain.armada import TujuanInput, urutkan_tujuan_nearest_neighbor  # noqa: E402
+from app.domain.atribusi import ambang_transit_menit, tentukan_atribusi  # noqa: E402
+from app.domain.harga import PartisipasiHarga, harga_atap_per_kg, tetapkan_harga_final  # noqa: E402
 from app.models import (  # noqa: E402
+    Atribusi,
+    KeputusanSerahTerima,
     Komoditas,
     Konfigurasi,
     Koperasi,
+    Lot,
+    Partisipasi,
     Penerima,
     Pengguna,
+    Pengiriman,
     PeranPengguna,
+    Permintaan,
+    SerahTerima,
+    Slot,
+    SlotTujuan,
+    StatusPartisipasi,
+    StatusPermintaan,
+    StatusSlot,
     StatusSumber,
     TierKendaraan,
     TipeKonfigurasi,
     TipePenerima,
 )
+from app.services.konfigurasi import baca_konfigurasi, baca_tiers_aktif  # noqa: E402
 
 CATATAN_TARIF = (
     "Struktur tarif dasar + per km Deliveree, referensi Jabodetabek yang dipakai "
@@ -147,6 +167,41 @@ PENGGUNA_SEED = [
 PIN_DEMO = "123456"
 
 
+# ---------------------------------------------------------------------------
+# Riwayat (spec §11.1): 8 slot SELESAI tersebar ~60 hari ke belakang (anchor
+# penulisan 2026-07-27, spasi mingguan tetap) — Dashboard Dampak & Beranda
+# butuh grafik yang tidak kosong saat demo. Tanggal FIXED (bukan "hari ini − N"
+# yang dihitung ulang tiap run) supaya kode slot deterministik selamanya, bukan
+# cuma dalam sesi yang sama — syarat idempoten dijalankan dua kali (DoD §14)
+# juga harus tahan dijalankan ulang di hari yang berbeda.
+#
+# tanggal, nama_komoditas, [nama_penerima tujuan...], [(nama_petani, volume_kg)...]
+# Volume & jarak TIDAK PERNAH dihitung manual — seed_riwayat() memanggil
+# app.domain.armada/harga/atribusi dengan koefisien dari tabel konfigurasi
+# saat seed dijalankan (aturan keras CLAUDE.md #1).
+RIWAYAT_SEED: list[tuple[date, str, list[str], list[tuple[str, int]]]] = [
+    (date(2026, 5, 28), "Kubis", ["SPPG Cibiru 3"],
+     [("Asep", 500), ("Wati", 400), ("Dedi", 300)]),
+    (date(2026, 6, 4), "Tomat", ["SPPG Ujungberung 1", "SPPG Panyileukan 2"],
+     [("Ijah", 350), ("Ujang", 350)]),
+    (date(2026, 6, 11), "Sawi hijau", ["SPPG Cibiru 3", "SPPG Ujungberung 1", "SPPG Panyileukan 2"],
+     [("Asep", 400), ("Wati", 380), ("Dedi", 350), ("Ijah", 340), ("Euis", 330)]),
+    (date(2026, 6, 18), "Wortel", ["SPPG Panyileukan 2"],
+     [("Wati", 320), ("Ujang", 280)]),
+    (date(2026, 6, 25), "Kubis", ["SPPG Cibiru 3", "SPPG Panyileukan 2"],
+     [("Dedi", 420), ("Ijah", 400), ("Euis", 380), ("Asep", 300)]),
+    (date(2026, 7, 2), "Tomat", ["SPPG Ujungberung 1"],
+     [("Wati", 260), ("Euis", 240), ("Ujang", 200)]),
+    (date(2026, 7, 9), "Sawi hijau", ["SPPG Cibiru 3", "SPPG Ujungberung 1", "SPPG Panyileukan 2"],
+     [("Asep", 450), ("Dedi", 430), ("Ijah", 420), ("Ujang", 400), ("Euis", 300)]),
+    (date(2026, 7, 16), "Wortel", ["SPPG Cibiru 3"],
+     [("Wati", 300), ("Asep", 200)]),
+]  # fmt: skip
+
+# NN selalu "01" — satu slot per tanggal riwayat (tidak ada slot kedua di hari sama).
+RIWAYAT_SLOT_KODE = [f"SM-{tanggal:%Y%m%d}-CKJ-01" for tanggal, *_ in RIWAYAT_SEED]
+
+
 def seed_induk(db: Session) -> int:
     baru = 0
 
@@ -209,6 +264,243 @@ def seed_induk(db: Session) -> int:
     return baru
 
 
+def seed_riwayat(db: Session) -> int:
+    """8 slot SELESAI historis (spec §11.1) — IDEMPOTEN: kalau `kode` sudah ada,
+    slot itu (dan seluruh anaknya) dilewati apa adanya, fakta historis tidak
+    pernah ditulis ulang. Panggil setelah `seed_induk`/`seed_tier`/`seed_konfigurasi`.
+
+    Jarak, harga atap/final/kembalian, ambang transit, dan atribusi SELALU dihitung
+    lewat `app.domain.armada/harga/atribusi` dengan koefisien dibaca dari tabel
+    `konfigurasi`/`tier_kendaraan` saat fungsi ini dijalankan — tidak ada angka
+    bisnis hardcoded di sini (CLAUDE.md aturan #1).
+    """
+    koperasi = db.query(Koperasi).filter_by(kode="CKJ").one_or_none()
+    if koperasi is None:
+        raise RuntimeError("seed_riwayat() butuh koperasi CKJ — jalankan seed_induk() dulu")
+
+    penerima_by_nama = {p.nama: p for p in db.query(Penerima).all()}
+    komoditas_by_nama = {k.nama: k for k in db.query(Komoditas).all()}
+    petani_by_nama = {u.nama: u for u in db.query(Pengguna).filter_by(peran=PeranPengguna.PETANI).all()}
+    tier_row_by_kode = {t.kode: t for t in db.query(TierKendaraan).all()}
+
+    tiers = baca_tiers_aktif(db)
+    maks_kendaraan = baca_konfigurasi(db, "maks_kendaraan")
+    faktor_jalan = baca_konfigurasi(db, "faktor_jalan")
+    kecepatan = baca_konfigurasi(db, "kecepatan_rata_kmh")
+    toleransi = baca_konfigurasi(db, "faktor_toleransi_transit")
+
+    lot_idx = 0  # counter GLOBAL lintas slot — sumber variasi cacat/transit deterministik (bukan random)
+    slot_baru = 0
+
+    for tanggal, nama_komoditas, nama_tujuan_list, petani_volume in RIWAYAT_SEED:
+        kode_slot = f"SM-{tanggal:%Y%m%d}-CKJ-01"
+        if db.query(Slot).filter_by(kode=kode_slot).one_or_none() is not None:
+            lot_idx += len(petani_volume)  # majukan counter walau di-skip — pola tetap konsisten
+            continue
+
+        komoditas = komoditas_by_nama[nama_komoditas]
+        tujuan_penerima = [penerima_by_nama[n] for n in nama_tujuan_list]
+
+        tujuan_input = [TujuanInput(penerima_id=p.id, lat=p.lat, lng=p.lng) for p in tujuan_penerima]
+        urutan = urutkan_tujuan_nearest_neighbor((koperasi.lat, koperasi.lng), tujuan_input, faktor_jalan)
+        jarak_total = sum(t.jarak_segmen_km for t in urutan)
+
+        cutoff_at = datetime.combine(tanggal, time(11, 0), tzinfo=timezone.utc)  # 18:00 WIB (jam_cutoff_default)
+
+        volume_total = sum(v for _, v in petani_volume)
+        slot = Slot(
+            kode=kode_slot,
+            koperasi_id=koperasi.id,
+            tanggal_kirim=tanggal,
+            cutoff_at=cutoff_at,
+            status=StatusSlot.SELESAI,
+            jarak_km=Decimal(str(round(jarak_total, 2))),
+            volume_terkunci_kg=volume_total,
+            subsidi_koperasi=0,
+            dibuat_pada=cutoff_at - timedelta(days=1),
+        )
+        db.add(slot)
+        db.flush()  # butuh slot.id untuk baris anak
+
+        for t in urutan:
+            db.add(
+                SlotTujuan(
+                    slot_id=slot.id,
+                    penerima_id=t.penerima_id,
+                    urutan=t.urutan,
+                    jarak_segmen_km=Decimal(str(round(t.jarak_segmen_km, 2))),
+                )
+            )
+
+        partisipasi_rows: list[Partisipasi] = []
+        partisipasi_harga_input: list[PartisipasiHarga] = []
+        for nama_petani, volume in petani_volume:
+            petani = petani_by_nama[nama_petani]
+            atap = harga_atap_per_kg(volume, jarak_total, tiers, maks_kendaraan)
+            pid = uuid.uuid4()
+            partisipasi_harga_input.append(PartisipasiHarga(id=pid, volume_kg=volume, harga_atap_per_kg=atap))
+            p = Partisipasi(
+                id=pid,
+                slot_id=slot.id,
+                petani_id=petani.id,
+                komoditas_id=komoditas.id,
+                volume_kg=volume,
+                harga_atap_per_kg=atap,
+                status=StatusPartisipasi.SELESAI,
+                bergabung_pada=cutoff_at - timedelta(hours=6),
+            )
+            db.add(p)
+            partisipasi_rows.append(p)
+        db.flush()  # Lot di bawah mereferensikan partisipasi_id lewat FK — tanpa relationship ORM,
+        # SQLAlchemy tidak otomatis mengurutkan insert lintas tabel, jadi di-flush eksplisit dulu.
+
+        hasil = tetapkan_harga_final(partisipasi_harga_input, jarak_total, tiers, maks_kendaraan)
+        for p in partisipasi_rows:
+            h_i = min(hasil.harga_final_per_kg, p.harga_atap_per_kg)
+            p.harga_final_per_kg = h_i
+            p.kembalian_rp = hasil.kembalian[p.id]
+
+        tier_dominan = max(hasil.rencana.tier, key=lambda t: t.kapasitas_kg)
+        slot.biaya_total = hasil.biaya_total
+        slot.harga_final_per_kg = hasil.harga_final_per_kg
+        slot.subsidi_koperasi = hasil.subsidi_koperasi
+        slot.tier_terpilih_id = tier_row_by_kode[tier_dominan.kode].id
+        slot.jumlah_kendaraan = len(hasil.rencana.tier)
+        slot.rencana_json = {
+            "tier": [{"kode": t.kode, "kapasitas_kg": t.kapasitas_kg} for t in hasil.rencana.tier],
+            "biaya_total": hasil.rencana.biaya_total,
+            "kapasitas_total_kg": hasil.rencana.kapasitas_total_kg,
+            "tier_ringkas": "+".join(t.kode for t in hasil.rencana.tier),
+        }
+
+        ambang_menit = ambang_transit_menit(jarak_total, kecepatan, toleransi)
+
+        # Alokasi lot -> tujuan: round-robin antar penerima yang dituju slot ini.
+        lots_info: list[tuple[Lot, Partisipasi, Penerima, bool, int]] = []
+        waktu_muat_list = []
+        for i, p in enumerate(partisipasi_rows):
+            penerima_tujuan = tujuan_penerima[i % len(tujuan_penerima)]
+            cacat = lot_idx % 6 == 5  # ~1 dari 6 lot punya cacat terlihat saat muat
+            waktu_muat = cutoff_at + timedelta(hours=2, minutes=10 * i)
+            berat_aktual = max(1, p.volume_kg - (lot_idx % 7))  # variasi kecil vs volume komitmen (K3: bukti mutu)
+            lot = Lot(
+                id=uuid.uuid4(),  # di-set eksplisit (bukan default kolom) — SerahTerima di bawah butuh lot.id
+                # sebelum flush, sama seperti pola id=pid pada Partisipasi di atas.
+                partisipasi_id=p.id,
+                kode_qr=f"LOT-{kode_slot}-{i + 1:02d}",
+                penerima_id=penerima_tujuan.id,
+                berat_aktual_kg=berat_aktual,
+                waktu_muat=waktu_muat,
+                cacat_terlihat=cacat,
+            )
+            db.add(lot)
+            waktu_muat_list.append(waktu_muat)
+            lots_info.append((lot, p, penerima_tujuan, cacat, lot_idx))
+            lot_idx += 1
+
+        waktu_berangkat = max(waktu_muat_list) + timedelta(minutes=30)
+        pengiriman = Pengiriman(
+            slot_id=slot.id,
+            vendor="MOCK",
+            vendor_ref=f"MOCKV-HIST-{kode_slot}",
+            status_vendor="TIBA",
+            waktu_berangkat=waktu_berangkat,
+            kuotasi_json={
+                "tier_kode": tier_dominan.kode,
+                "jarak_km": round(jarak_total, 2),
+                "biaya_total": hasil.biaya_total,
+            },
+            dibuat_pada=cutoff_at,
+        )
+        db.add(pengiriman)
+
+        penerima_volume_terkirim: dict[uuid.UUID, int] = {}
+        waktu_bongkar_list = []
+        for lot, p, penerima_tujuan, cacat, idx in lots_info:
+            if cacat:
+                durasi = max(5, int(ambang_menit * 0.6))  # cacat menang di atribusi apa pun durasinya
+            elif idx % 4 == 2:
+                durasi = ambang_menit + 20  # LOGISTIK — transit melewati ambang
+            else:
+                durasi = max(5, ambang_menit - 25)  # TIDAK_TERBUKTI — masih di dalam ambang
+
+            waktu_bongkar = waktu_berangkat + timedelta(minutes=durasi)
+            waktu_bongkar_list.append(waktu_bongkar)
+
+            atribusi_str = tentukan_atribusi(cacat, durasi, ambang_menit)
+            if atribusi_str == Atribusi.PETANI.value:
+                if idx % 12 == 11:
+                    keputusan, persen, alasan = (
+                        KeputusanSerahTerima.TOLAK,
+                        0,
+                        "Cacat terlihat sejak muat — kualitas tidak layak terima, lot ditolak seluruhnya.",
+                    )
+                else:
+                    keputusan, persen, alasan = (
+                        KeputusanSerahTerima.POTONG,
+                        20,
+                        "Cacat terlihat sejak muat — potongan 20% sesuai kesepakatan mutu.",
+                    )
+            elif atribusi_str == Atribusi.LOGISTIK.value:
+                if idx % 8 == 6:
+                    keputusan, persen, alasan = (
+                        KeputusanSerahTerima.POTONG,
+                        10,
+                        "Transit melebihi ambang waktu rute — potongan 10% akibat penyusutan selama perjalanan.",
+                    )
+                else:
+                    keputusan, persen, alasan = KeputusanSerahTerima.TERIMA, 0, None
+            else:
+                if idx % 10 == 9:
+                    keputusan, persen, alasan = (
+                        KeputusanSerahTerima.POTONG,
+                        5,
+                        "Variasi mutu alami saat bongkar — potongan kecil disepakati di tempat.",
+                    )
+                else:
+                    keputusan, persen, alasan = KeputusanSerahTerima.TERIMA, 0, None
+
+            db.add(
+                SerahTerima(
+                    lot_id=lot.id,
+                    penerima_id=penerima_tujuan.id,
+                    waktu_bongkar=waktu_bongkar,
+                    keputusan=keputusan,
+                    persen_potongan=persen,
+                    alasan=alasan,
+                    durasi_transit_menit=durasi,
+                    ambang_transit_menit=ambang_menit,
+                    atribusi=Atribusi(atribusi_str),
+                )
+            )
+            penerima_volume_terkirim[penerima_tujuan.id] = (
+                penerima_volume_terkirim.get(penerima_tujuan.id, 0) + p.volume_kg
+            )
+
+        pengiriman.waktu_tiba = max(waktu_bongkar_list)
+
+        # Riwayat permintaan (K6) — tautkan ke tujuan pertama rute, terpenuhi penuh.
+        tujuan_pertama = tujuan_penerima[0]
+        volume_terpenuhi = penerima_volume_terkirim.get(tujuan_pertama.id, 0)
+        if volume_terpenuhi > 0:
+            db.add(
+                Permintaan(
+                    penerima_id=tujuan_pertama.id,
+                    komoditas_id=komoditas.id,
+                    volume_kg=volume_terpenuhi,
+                    tanggal_dibutuhkan=tanggal,
+                    status=StatusPermintaan.TERPENUHI,
+                    slot_id=slot.id,
+                    volume_terpenuhi_kg=volume_terpenuhi,
+                    dibuat_pada=cutoff_at - timedelta(days=2),
+                )
+            )
+
+        slot_baru += 1
+
+    return slot_baru
+
+
 def main() -> None:
     db = SessionLocal()
     try:
@@ -216,9 +508,11 @@ def main() -> None:
         konf_baru = seed_konfigurasi(db)
         induk_baru = seed_induk(db)
         db.commit()
+        riwayat_baru = seed_riwayat(db)
+        db.commit()
         print(
             f"Seed selesai: {tier_baru} tier baru, {konf_baru} konfigurasi baru, "
-            f"{induk_baru} data induk baru (sisanya di-update)."
+            f"{induk_baru} data induk baru, {riwayat_baru} slot riwayat baru (sisanya di-update/dilewati)."
         )
     finally:
         db.close()
