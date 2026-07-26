@@ -76,6 +76,7 @@ def _ke_serah_terima_out(st: SerahTerima) -> SerahTerimaOut:
         ambang_transit_menit=st.ambang_transit_menit,
         atribusi=st.atribusi,
         penjelasan=penjelasan,
+        foto_bongkar=st.foto_bongkar,  # K10
     )
 
 

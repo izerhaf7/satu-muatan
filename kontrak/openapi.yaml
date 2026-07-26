@@ -234,8 +234,8 @@ paths:
       tags:
       - permintaan
       summary: Daftar Permintaan
-      description: 'Ter-scope per peran (K6): PENERIMA → miliknya; KOPERASI → semua
-        yang terbuka.'
+      description: 'Ter-scope per peran (K6): PENERIMA -> miliknya; KOPERASI (& lainnya)
+        -> semua yang terbuka.'
       operationId: daftar_permintaan_api_permintaan_get
       responses:
         '200':
@@ -280,9 +280,10 @@ paths:
       tags:
       - slot
       summary: Daftar Slot
-      description: 'Ter-scope per peran (K6): KOPERASI → miliknya; PETANI → slot koperasinya;
+      description: 'Ter-scope per peran (K6): KOPERASI -> miliknya; PETANI -> slot
+        koperasinya;
 
-        PENERIMA → slot yang tujuannya memuat dirinya.'
+        PENERIMA -> slot yang tujuannya memuat dirinya.'
       operationId: daftar_slot_api_slot_get
       security:
       - HTTPBearer: []
@@ -617,7 +618,7 @@ paths:
       tags:
       - lot
       summary: Selesai Muat
-      description: Selesai muat → slot JALAN, waktu berangkat tercatat (§9.5).
+      description: Selesai muat -> slot JALAN, waktu berangkat tercatat (§9.5).
       operationId: selesai_muat_api_slot__slot_id__selesai_muat_post
       security:
       - HTTPBearer: []
@@ -702,7 +703,7 @@ paths:
       tags:
       - lot
       summary: Serah Terima
-      description: Terima / Terima dengan potongan / Tolak → atribusi + PENJELASAN
+      description: Terima / Terima dengan potongan / Tolak -> atribusi + PENJELASAN
         (§6, §9.7).
       operationId: serah_terima_api_lot__lot_id__serah_terima_post
       security:
@@ -834,7 +835,7 @@ paths:
       - dampak
       summary: Dampak Ringkasan
       description: 4 kartu, masing-masing dengan rumus + status_sumber. Tanpa data
-        = null → '—'.
+        = null -> '—'.
       operationId: dampak_ringkasan_api_dampak_ringkasan_get
       responses:
         '200':
@@ -888,7 +889,15 @@ paths:
       tags:
       - demo
       summary: Reset Demo
-      description: Kembalikan database ke keadaan awal skenario demo. Idempoten, deterministik.
+      description: 'Kembalikan database ke keadaan awal skenario demo. Idempoten,
+        deterministik.
+
+
+        Fase 1: hapus seluruh data transaksional, pertahankan master (koperasi, penerima,
+
+        komoditas, pengguna) + konfigurasi/tier. Seed skenario penuh (§11.2) ditambahkan
+
+        agent infra-demo di Fase 3.'
       operationId: reset_demo_api_demo_reset_post
       responses:
         '200':
@@ -1943,6 +1952,11 @@ components:
           type: string
           format: date-time
           title: Waktu Bongkar
+        foto_bongkar:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Foto Bongkar
         keputusan:
           $ref: '#/components/schemas/KeputusanSerahTerima'
         persen_potongan:

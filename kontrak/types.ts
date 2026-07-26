@@ -195,7 +195,7 @@ export interface paths {
         };
         /**
          * Daftar Permintaan
-         * @description Ter-scope per peran (K6): PENERIMA → miliknya; KOPERASI → semua yang terbuka.
+         * @description Ter-scope per peran (K6): PENERIMA -> miliknya; KOPERASI (& lainnya) -> semua yang terbuka.
          */
         get: operations["daftar_permintaan_api_permintaan_get"];
         put?: never;
@@ -216,8 +216,8 @@ export interface paths {
         };
         /**
          * Daftar Slot
-         * @description Ter-scope per peran (K6): KOPERASI → miliknya; PETANI → slot koperasinya;
-         *     PENERIMA → slot yang tujuannya memuat dirinya.
+         * @description Ter-scope per peran (K6): KOPERASI -> miliknya; PETANI -> slot koperasinya;
+         *     PENERIMA -> slot yang tujuannya memuat dirinya.
          */
         get: operations["daftar_slot_api_slot_get"];
         put?: never;
@@ -402,7 +402,7 @@ export interface paths {
         put?: never;
         /**
          * Selesai Muat
-         * @description Selesai muat → slot JALAN, waktu berangkat tercatat (§9.5).
+         * @description Selesai muat -> slot JALAN, waktu berangkat tercatat (§9.5).
          */
         post: operations["selesai_muat_api_slot__slot_id__selesai_muat_post"];
         delete?: never;
@@ -463,7 +463,7 @@ export interface paths {
         put?: never;
         /**
          * Serah Terima
-         * @description Terima / Terima dengan potongan / Tolak → atribusi + PENJELASAN (§6, §9.7).
+         * @description Terima / Terima dengan potongan / Tolak -> atribusi + PENJELASAN (§6, §9.7).
          */
         post: operations["serah_terima_api_lot__lot_id__serah_terima_post"];
         delete?: never;
@@ -542,7 +542,7 @@ export interface paths {
         };
         /**
          * Dampak Ringkasan
-         * @description 4 kartu, masing-masing dengan rumus + status_sumber. Tanpa data = null → '—'.
+         * @description 4 kartu, masing-masing dengan rumus + status_sumber. Tanpa data = null -> '—'.
          */
         get: operations["dampak_ringkasan_api_dampak_ringkasan_get"];
         put?: never;
@@ -605,6 +605,10 @@ export interface paths {
         /**
          * Reset Demo
          * @description Kembalikan database ke keadaan awal skenario demo. Idempoten, deterministik.
+         *
+         *     Fase 1: hapus seluruh data transaksional, pertahankan master (koperasi, penerima,
+         *     komoditas, pengguna) + konfigurasi/tier. Seed skenario penuh (§11.2) ditambahkan
+         *     agent infra-demo di Fase 3.
          */
         post: operations["reset_demo_api_demo_reset_post"];
         delete?: never;
@@ -1234,6 +1238,8 @@ export interface components {
              * Format: date-time
              */
             waktu_bongkar: string;
+            /** Foto Bongkar */
+            foto_bongkar?: string | null;
             keputusan: components["schemas"]["KeputusanSerahTerima"];
             /** Persen Potongan */
             persen_potongan: number;

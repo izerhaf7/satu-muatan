@@ -63,9 +63,7 @@ export default function TabelLot({ lot }: TabelLotProps) {
                   <FotoBukti base64={l.foto_muat} alt={`Foto muat lot ${l.nama_petani}`} />
                 </Td>
                 <Td>
-                  {/* Catatan: kontrak SerahTerimaOut belum mengembalikan foto_bongkar
-                      (tersimpan di DB, tapi tidak ada di skema respons) — lihat laporan gap. */}
-                  <FotoBukti base64={null} alt={`Foto bongkar lot ${l.nama_petani}`} />
+                  <FotoBukti base64={serah_terima?.foto_bongkar ?? null} alt={`Foto bongkar lot ${l.nama_petani}`} />
                 </Td>
                 <Td>
                   {serah_terima ? (

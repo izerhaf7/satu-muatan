@@ -47,6 +47,9 @@ class SerahTerimaOut(BaseModel):
     lot_id: UUID
     penerima_id: UUID
     waktu_bongkar: datetime
+    # K10: amandemen pasca-beku oleh arsitek — Berita Acara §9.8 wajib menampilkan
+    # foto bongkar; kolomnya terisi via POST serah-terima tapi tidak pernah keluar.
+    foto_bongkar: str | None = None  # base64
     keputusan: KeputusanSerahTerima
     persen_potongan: int
     alasan: str | None = None
