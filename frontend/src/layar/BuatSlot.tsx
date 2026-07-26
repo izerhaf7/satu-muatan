@@ -7,8 +7,9 @@ import AngkaHarga from "@/komponen/AngkaHarga";
 import Tombol from "@/komponen/Tombol";
 import InputTeks from "@/komponen/InputTeks";
 import { useDaftarPenerima } from "@/hooks/usePenerima";
+import { useDaftarPermintaan } from "@/hooks/usePermintaan";
 import { useBuatSlot, usePratinjauSlot } from "@/hooks/useSlot";
-import { formatAngka } from "@/utils/format";
+import { formatAngka, formatTanggal } from "@/utils/format";
 
 /** Skenario volume dipratinjau (§9.3: "tabel harga/kg pada berbagai skenario volume"). */
 const SKENARIO_VOLUME = [300, 800, 2000];
@@ -18,13 +19,26 @@ export default function BuatSlot() {
   const [tanggalKirim, setTanggalKirim] = useState("");
   const [jamCutoff, setJamCutoff] = useState("");
   const [tujuanTerpilih, setTujuanTerpilih] = useState<string[]>([]);
+  const [permintaanTerpilih, setPermintaanTerpilih] = useState<string[]>([]);
 
   const daftarPenerima = useDaftarPenerima();
+  const daftarPermintaan = useDaftarPermintaan();
   const pratinjau = usePratinjauSlot();
   const buatSlot = useBuatSlot();
 
   function toggleTujuan(id: string) {
     setTujuanTerpilih((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  }
+
+  /** Pilih permintaan sekaligus pra-pilih penerimanya di daftar tujuan (kalau belum dipilih) —
+   *  supaya koperasi tidak perlu mencentang dua kali untuk hal yang sama. */
+  function togglePermintaan(permintaanId: string, penerimaId: string) {
+    setPermintaanTerpilih((prev) => {
+      const sudahTerpilih = prev.includes(permintaanId);
+      if (sudahTerpilih) return prev.filter((id) => id !== permintaanId);
+      setTujuanTerpilih((prevTujuan) => (prevTujuan.includes(penerimaId) ? prevTujuan : [...prevTujuan, penerimaId]));
+      return [...prev, permintaanId];
+    });
   }
 
   function lihatPratinjau() {
@@ -37,7 +51,12 @@ export default function BuatSlot() {
     if (!tanggalKirim || !jamCutoff || tujuanTerpilih.length === 0) return;
     const cutoffAt = `${tanggalKirim}T${jamCutoff}:00`;
     buatSlot.mutate(
-      { tanggal_kirim: tanggalKirim, cutoff_at: cutoffAt, tujuan: tujuanTerpilih },
+      {
+        tanggal_kirim: tanggalKirim,
+        cutoff_at: cutoffAt,
+        tujuan: tujuanTerpilih,
+        ...(permintaanTerpilih.length > 0 ? { permintaan_ids: permintaanTerpilih } : {}),
+      },
       { onSuccess: () => navigate("/", { replace: true }) },
     );
   }
@@ -106,6 +125,31 @@ export default function BuatSlot() {
             </label>
           ))}
         </fieldset>
+
+        {daftarPermintaan.data && daftarPermintaan.data.length > 0 && (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 text-base font-medium text-tanah">Penuhi permintaan dapur (opsional)</legend>
+            {daftarPermintaan.data.map((p) => (
+              <label
+                key={p.id}
+                className="flex min-h-sentuh cursor-pointer items-center gap-3 rounded-md border-2 border-kabut px-4"
+              >
+                <input
+                  type="checkbox"
+                  className="h-5 w-5"
+                  checked={permintaanTerpilih.includes(p.id)}
+                  onChange={() => togglePermintaan(p.id, p.penerima_id)}
+                />
+                <span className="flex flex-col">
+                  <span className="text-base text-tanah">
+                    {p.nama_penerima} · {p.nama_komoditas} · {formatAngka(p.volume_kg)} kg
+                  </span>
+                  <span className="text-sm text-tanah/60">Dibutuhkan {formatTanggal(p.tanggal_dibutuhkan)}</span>
+                </span>
+              </label>
+            ))}
+          </fieldset>
+        )}
 
         <Tombol
           type="button"
