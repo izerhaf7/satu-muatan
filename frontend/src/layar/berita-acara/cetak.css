@@ -1,0 +1,73 @@
+/* Stylesheet cetak Berita Acara (§9.8, KEPUTUSAN.md K4) — dipakai window.print().
+ * Diimpor HANYA oleh BeritaAcara.tsx. Semua selector di bawah ini di-scope di
+ * bawah root class `.berita-acara` supaya TIDAK BOCOR ke print styling layar
+ * lain — sengaja tanpa `@page` global karena itu tidak bisa di-scope per elemen.
+ * Jangan pakai library PDF (spec §9.8) — window.print() saja. */
+
+@media print {
+  /* Chrome layar (tombol cetak, tautan kembali, status loading) — tidak relevan
+     di atas kertas. */
+  .berita-acara .no-print {
+    display: none !important;
+  }
+
+  /* Dokumen penuh, hitam di atas putih, tanpa batas lebar layar HP. */
+  .berita-acara {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    gap: 12px !important;
+    color: #000 !important;
+    background: #fff !important;
+  }
+
+  .berita-acara,
+  .berita-acara * {
+    color: #000 !important;
+    background: #fff !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .berita-acara table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .berita-acara th,
+  .berita-acara td {
+    border: 1px solid #000;
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+
+  /* Thumbnail bukti muat/bongkar — kecil & rapi di atas kertas (§9.8). */
+  .berita-acara img {
+    width: 40px !important;
+    height: 40px !important;
+    max-width: 40px;
+    max-height: 40px;
+  }
+
+  /* Tabel lot & rincian ongkos bisa lebar di layar (overflow-x-auto) — di kertas
+     harus muat penuh, tidak boleh terpotong scroll. */
+  .berita-acara .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .berita-acara table {
+    min-width: 0 !important;
+  }
+
+  /* Jangan pecah baris tanda tangan ke halaman berikutnya. */
+  .berita-acara .tanda-tangan {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .berita-acara section {
+    break-inside: avoid-page;
+  }
+}
