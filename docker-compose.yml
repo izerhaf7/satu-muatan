@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: satu_muatan_dev
       POSTGRES_DB: satu_muatan
     ports:
-      - "5432:5432"
+      # 5433 di host: 5432 sudah dipakai kontainer proyek lain di mesin dev
+      - "5433:5432"
     volumes:
       - satu_muatan_pgdata:/var/lib/postgresql/data
     healthcheck:
