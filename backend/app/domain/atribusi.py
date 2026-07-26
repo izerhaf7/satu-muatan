@@ -7,6 +7,7 @@ dan wajib ditampilkan di UI apa adanya. Sistem yang selalu bisa menunjuk pihak
 bersalah sedang berbohong — jawaban jujur justru menaikkan nilai di mata juri.
 """
 
+import math
 from typing import Literal
 
 
@@ -16,7 +17,9 @@ def ambang_transit_menit(jarak_km: float, kecepatan_kmh: int, faktor_toleransi: 
     Koefisien dari tabel `konfigurasi` (kecepatan_rata_kmh, faktor_toleransi_transit).
     Acuan rute demo 70,03 km @35 km/j ×1,5 → 181 menit (KEPUTUSAN.md K2).
     """
-    raise NotImplementedError
+    # Pembanding: waktu tempuh wajar (jarak/kecepatan × 60 menit) dikali faktor
+    # toleransi, dibulatkan ke atas — ambang harus longgar, bukan ketat.
+    return math.ceil((jarak_km / kecepatan_kmh) * 60 * faktor_toleransi)
 
 
 def tentukan_atribusi(
@@ -34,4 +37,12 @@ def tentukan_atribusi(
     "Tidak terbukti — tidak ada cacat di foto muat, dan waktu tempuh 178 menit
     masih di dalam ambang 181 menit untuk rute ini."
     """
-    raise NotImplementedError
+    # Pembanding: cabang 1 — bukti visual langsung saat muat mengalahkan segalanya.
+    if cacat_terlihat_saat_muat:
+        return "PETANI"
+    # Pembanding: cabang 2 — transit lebih lama dari ambang wajar rute ini.
+    if durasi_transit_menit > ambang_menit:
+        return "LOGISTIK"
+    # Pembanding: cabang 3 — tidak ada cacat saat muat DAN transit masih wajar;
+    # tidak ada bukti untuk menuding siapa pun. WAJIB ada (CLAUDE.md #4).
+    return "TIDAK_TERBUKTI"
