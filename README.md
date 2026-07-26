@@ -63,7 +63,7 @@ cd backend
 pip install -r requirements.txt
 alembic upgrade head
 python seed/seed.py
-uvicorn app.main:app --reload      # http://localhost:8000/docs
+uvicorn app.main:app --reload --port 8100      # http://127.0.0.1:8100/docs
 
 # frontend
 cd frontend
