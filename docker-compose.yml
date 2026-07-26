@@ -1,0 +1,21 @@
+# Postgres lokal untuk pengembangan saja. Produksi memakai Postgres terkelola (Neon/Supabase).
+services:
+  db:
+    image: postgres:16
+    container_name: satu-muatan-db
+    environment:
+      POSTGRES_USER: satu_muatan
+      POSTGRES_PASSWORD: satu_muatan_dev
+      POSTGRES_DB: satu_muatan
+    ports:
+      - "5432:5432"
+    volumes:
+      - satu_muatan_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U satu_muatan -d satu_muatan"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  satu_muatan_pgdata:

@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Palet 5 warna (spec §10) — sumber yang sama dengan tailwind.config.js */
+:root {
+  --tanah: #2b2119;
+  --kertas: #faf7f2;
+  --daun: #2f6b3a;
+  --tanah-liat: #c1502e;
+  --kabut: #d8d2c7;
+}
+
+@layer base {
+  html {
+    font-size: 16px; /* body minimum 16 px */
+  }
+
+  body {
+    @apply bg-kertas text-tanah font-sans antialiased;
+  }
+
+  /* Fokus keyboard terlihat (spec §10 wajib) */
+  :focus-visible {
+    outline: 3px solid var(--daun);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Angka harga — objek terpenting seluruh aplikasi (spec §10).
+     tabular-nums WAJIB: angka tidak boleh bergeser saat count-up. */
+  .angka {
+    @apply font-angka;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Hormati prefers-reduced-motion (spec §10, DoD §14) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
