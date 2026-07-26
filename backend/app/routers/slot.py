@@ -544,12 +544,15 @@ def tutup_slot(slot_id: UUID, pengguna=Depends(wajib_peran("KOPERASI")), db: Ses
     # sama bisa membanjiri permintaan pertama walau kuotanya sudah habis dialokasi.
     teralokasi_kg: dict = {pm.id: 0 for pm in permintaan_slot}
     for idx, p in enumerate(partisipasi_terurut, start=1):
+        sekomoditas = [pm for pm in permintaan_slot if pm.komoditas_id == p.komoditas_id]
         kandidat = [
-            pm
-            for pm in permintaan_slot
-            if pm.komoditas_id == p.komoditas_id
-            and pm.volume_terpenuhi_kg + teralokasi_kg[pm.id] < pm.volume_kg
+            pm for pm in sekomoditas if pm.volume_terpenuhi_kg + teralokasi_kg[pm.id] < pm.volume_kg
         ]
+        if not kandidat:
+            # Semua kuota sekomoditas habis → luber ke pemohon komoditas yang sama
+            # (pemenuhan-lebih), bukan ke drop pertama — demo §11.2 (4 lot kubis,
+            # 1 permintaan 300 kg) bergantung pada perilaku ini.
+            kandidat = sekomoditas
         if kandidat:
             kandidat.sort(key=lambda pm: urutan_by_penerima.get(pm.penerima_id, 10**6))
             penerima_id = kandidat[0].penerima_id
