@@ -4,10 +4,11 @@
 Fase 0: signature beku. Implementasi oleh agent domain-engine (Fase 1), test-first.
 """
 
+import math
 from dataclasses import dataclass
 from uuid import UUID
 
-from app.domain.armada import RencanaArmada, Tier
+from app.domain.armada import RencanaArmada, Tier, rencana_armada
 
 
 @dataclass(frozen=True)
@@ -45,12 +46,20 @@ def harga_atap_per_kg(volume_petani_kg: int, jarak_km: float, tiers: list[Tier],
 
     Acuan: 300 kg @80 km → ceil(332.000/300) = 1.107 (VAN, bukan PICKUP — K1).
     """
-    raise NotImplementedError
+    # Pembanding: rencana_armada termurah untuk volume itu SENDIRIAN, dibagi
+    # volume, dibulatkan ke atas — jangan pernah menjanjikan lebih murah dari
+    # yang benar-benar bisa direalisasikan.
+    rencana = rencana_armada(volume_petani_kg, jarak_km, tiers, maks_kendaraan)
+    return math.ceil(rencana.biaya_total / volume_petani_kg)
 
 
 def harga_berjalan_per_kg(volume_total_kg: int, jarak_km: float, tiers: list[Tier], maks_kendaraan: int) -> int:
     """Harga per kg dengan volume terkunci saat ini. Dibulatkan ke atas (ceil)."""
-    raise NotImplementedError
+    # Pembanding: definisi sama dengan harga_atap_per_kg (ceil biaya/volume),
+    # bedanya volume di sini adalah total slot SAAT INI, bukan volume solo
+    # seorang petani — turun tiap kali ada petani baru bergabung (spec §5.3).
+    rencana = rencana_armada(volume_total_kg, jarak_km, tiers, maks_kendaraan)
+    return math.ceil(rencana.biaya_total / volume_total_kg)
 
 
 def cek_luapan_kapasitas(
@@ -68,7 +77,20 @@ def cek_luapan_kapasitas(
     pada slot ~800 kg ini terjadi di demo (800 kg → VAN 415/kg; +10 kg →
     ENGKEL, H_kasar 671 > atap 415).
     """
-    raise NotImplementedError
+    volume_total_baru = sum(p.volume_kg for p in partisipasi) + volume_baru_kg
+    rencana_baru = rencana_armada(volume_total_baru, jarak_km, tiers, maks_kendaraan)
+    h_baru = math.ceil(rencana_baru.biaya_total / volume_total_baru)
+
+    # Pembanding: peserta LAMA yang atapnya sendiri akan terlampaui oleh
+    # H_kasar baru — merekalah yang butuh jaminan atap kalau volume baru ini
+    # benar-benar bergabung.
+    jumlah_atap_terdampak = sum(1 for p in partisipasi if h_baru > p.harga_atap_per_kg)
+
+    return HasilCekLuapan(
+        luapan=jumlah_atap_terdampak > 0,
+        harga_baru_per_kg=h_baru,
+        jumlah_atap_terdampak=jumlah_atap_terdampak,
+    )
 
 
 def tetapkan_harga_final(
@@ -97,4 +119,28 @@ def tetapkan_harga_final(
     Test acuan T11 (WAJIB, K1): A 800 kg atap 415 + B 10 kg atap 27.100 @80 km
     → H_kasar 671, H_A=415, H_B=671, tagihan 338.710, subsidi 204.290.
     """
-    raise NotImplementedError
+    volume_total = sum(p.volume_kg for p in partisipasi)
+    rencana = rencana_armada(volume_total, jarak_km, tiers, maks_kendaraan)
+    h_kasar = math.ceil(rencana.biaya_total / volume_total)
+
+    tagihan: dict[UUID, int] = {}
+    kembalian: dict[UUID, int] = {}
+    for p in partisipasi:
+        # Pembanding: jaminan atap (spec §5.5) — petani tidak pernah membayar
+        # di atas harga yang dijanjikan saat ia bergabung.
+        h_i = min(h_kasar, p.harga_atap_per_kg)
+        tagihan[p.id] = p.volume_kg * h_i
+        kembalian[p.id] = p.volume_kg * (p.harga_atap_per_kg - h_i)
+
+    # Pembanding: selisih antara biaya riil armada dan total yang benar-benar
+    # ditagihkan ke petani — ditanggung koperasi, ditampilkan terbuka (§5.5).
+    subsidi_koperasi = rencana.biaya_total - sum(tagihan.values())
+
+    return HasilPenetapanHarga(
+        harga_final_per_kg=h_kasar,
+        biaya_total=rencana.biaya_total,
+        rencana=rencana,
+        tagihan=tagihan,
+        kembalian=kembalian,
+        subsidi_koperasi=subsidi_koperasi,
+    )

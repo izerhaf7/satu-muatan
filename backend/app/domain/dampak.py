@@ -60,4 +60,30 @@ def hitung_dampak(
     Angka berbasis koefisien ASUMSI diberi penanda visual berbeda dari
     TERVERIFIKASI di Dashboard Dampak (spec §7).
     """
-    raise NotImplementedError
+    # Pembanding: baseline "tiap petani mengirim sendiri-sendiri" — konsolidasi
+    # menghemat (n-1) perjalanan truk sejauh jarak yang sama.
+    truk_km_dihemat = (jumlah_partisipan - 1) * jarak_km
+    emisi_dihemat_kg_co2 = truk_km_dihemat * faktor_emisi
+
+    # Pembanding: penghematan per peserta pakai H_i MILIK peserta itu (bukan
+    # H_kasar global) — identik dengan Σ kembalian dari mesin harga, sehingga
+    # peserta yang ter-cap jaminan atap tidak pernah menghasilkan angka negatif.
+    penghematan_ongkos_rp = sum(
+        p.volume_kg * (p.harga_atap_per_kg - p.harga_final_per_kg) for p in partisipasi
+    )
+
+    # Pembanding: susut dicegah HANYA berarti kalau ada data jam yang benar-benar
+    # dihemat dibanding transit sendiri-sendiri; tanpa itu, None → UI "—".
+    if jam_dihemat is not None and jam_dihemat > 0:
+        susut_dicegah_kg = sum(
+            p.volume_kg * laju_susut_per_jam[p.komoditas_id] * jam_dihemat for p in partisipasi
+        )
+    else:
+        susut_dicegah_kg = None
+
+    return Dampak(
+        truk_km_dihemat=truk_km_dihemat,
+        emisi_dihemat_kg_co2=emisi_dihemat_kg_co2,
+        penghematan_ongkos_rp=penghematan_ongkos_rp,
+        susut_dicegah_kg=susut_dicegah_kg,
+    )
