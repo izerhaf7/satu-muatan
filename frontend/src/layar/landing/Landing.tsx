@@ -1,20 +1,27 @@
-/** Landing publik (Fase 2.6) — placeholder Tahap 0; dibangun penuh oleh
- *  agent fase2-6/landing (hero three.js, angka band, cara kerja, fitur, CTA). */
+/** Landing publik (Fase 2.6) — permukaan pemasaran di `/`, di luar cakupan batas
+ *  animasi §10 (K12 butir 4): hero three.js lazy-chunk + scroll-reveal diizinkan,
+ *  semua tetap tunduk prefers-reduced-motion. Beranda aplikasi ada di `/beranda`. */
 
-import TombolTautan from "@/komponen/TombolTautan";
+import AngkaBand from "./komponen/AngkaBand";
+import CaraKerja from "./komponen/CaraKerja";
+import CtaPenutup from "./komponen/CtaPenutup";
+import FiturUnggulan from "./komponen/FiturUnggulan";
+import Footer from "./komponen/Footer";
+import Hero from "./komponen/Hero";
+import Nav from "./komponen/Nav";
 
 export default function Landing() {
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-6 px-5 text-center">
-      <img src="/ikon-192.png" alt="Logo Satu Muatan" className="h-20 w-20" />
-      <h1 className="text-display text-tanah">
-        Satu muatan penuh. <span className="text-daun">Ongkos turun.</span>
-      </h1>
-      <p className="text-base text-tanah/70">
-        Perkakas koperasi desa untuk mengirim panen bersama-sama — dengan harga atap terkunci dan
-        bukti mutu di setiap serah terima.
-      </p>
-      <TombolTautan to="/masuk">Masuk</TombolTautan>
-    </main>
+    <div className="flex min-h-screen flex-col">
+      <Nav />
+      <main className="flex-1">
+        <Hero />
+        <AngkaBand />
+        <CaraKerja />
+        <FiturUnggulan />
+        <CtaPenutup />
+      </main>
+      <Footer />
+    </div>
   );
 }
