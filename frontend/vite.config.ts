@@ -3,10 +3,15 @@ import path from "node:path";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 
+import { mockApiPlugin } from "./vite.mockApi";
+
 // PWA: installable + offline shell saja (spec §3.1) — tanpa caching data API.
 export default defineConfig({
   plugins: [
     react(),
+    // MOCK DEV FASE 1 — mati secara default; aktif hanya lewat `VITE_MOCK=1 npm run dev`
+    // (backend sungguhan masih 501 di worktree paralel saat Fase 1 ditulis).
+    ...(process.env.VITE_MOCK === "1" ? [mockApiPlugin()] : []),
     VitePWA({
       // injectManifest (bukan generateSW): generateSW milik workbox menulis path
       // absolut tanpa escaping dan pecah pada path proyek yang mengandung tanda '
