@@ -1,11 +1,15 @@
 /** Layar Detail Slot (§9.4) — LAYAR UTAMA DEMO. Harga berjalan turun hidup-hidup
  *  di sebelah harga atap yang diam terkunci; juri paham seluruh produk dalam
- *  hitungan detik tanpa penjelasan. Dipoll 3 detik (useDetailSlot). */
+ *  hitungan detik tanpa penjelasan. Dipoll 3 detik (useDetailSlot). Logika/hook/
+ *  polling/pratinjau TIDAK diubah sama sekali — rombakan ini murni visual (§K12). */
 
 import { useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 
+import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
+import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
+import { SkeletonAngka, SkeletonKartu } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
 import { useDetailSlot } from "@/hooks/useDetailSlot";
 import type { LuapanKapasitasOut } from "@/hooks/useGabung";
@@ -30,43 +34,56 @@ export default function DetailSlot() {
 
   if (!id) {
     return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-6">
-        <KeadaanKosong pesan="Slot tidak ditemukan." teksAksi="Kembali ke Beranda" ke="/" />
-      </main>
+      <div className="flex flex-col gap-6">
+        <HeaderLayar judul="Slot" kembaliKe="/beranda" />
+        <KeadaanKosong pesan="Slot tidak ditemukan." teksAksi="Kembali ke Beranda" ke="/beranda" />
+      </div>
     );
   }
 
+  const atapSaya =
+    pengguna?.peran === "PETANI" &&
+    detail.data?.status === "DIBUKA" &&
+    detail.data?.atap_saya_per_kg !== null &&
+    detail.data?.atap_saya_per_kg !== undefined;
+
+  const tampilkanCtaIkutKirim =
+    pengguna?.peran === "PETANI" &&
+    detail.data?.status === "DIBUKA" &&
+    (detail.data?.atap_saya_per_kg === null || detail.data?.atap_saya_per_kg === undefined);
+
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-6 pb-28">
-      <Link to="/" className="text-sm font-medium text-tanah/60">
-        ← Beranda
-      </Link>
+    <div className={`flex flex-col gap-6 ${tampilkanCtaIkutKirim ? "pb-24" : ""}`}>
+      {detail.data ? (
+        <HeaderDetailSlot slot={detail.data} />
+      ) : (
+        <HeaderLayar judul="Detail slot" kembaliKe="/beranda" />
+      )}
 
-      {detail.isLoading && <p className="text-base text-tanah/60">Memuat detail slot…</p>}
-
-      {detail.isError && (
-        <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-tanah-liat/40 p-4">
-          <p className="text-base text-tanah-liat">Gagal memuat detail slot.</p>
-          <Tombol varian="sekunder" onClick={() => detail.refetch()}>
-            Coba lagi
-          </Tombol>
+      {detail.isLoading && (
+        <div className="flex flex-col gap-6">
+          <SkeletonAngka className="kartu-hero" />
+          <SkeletonKartu jumlah={4} />
         </div>
       )}
 
+      {detail.isError && <KartuGalat pesan="Gagal memuat detail slot." onCobaLagi={() => detail.refetch()} />}
+
       {detail.data && (
         <>
-          <HeaderDetailSlot slot={detail.data} />
-
-          {detail.data.status === "DIBUKA" && <HargaBerjalanHero hargaPerKg={detail.data.harga_berjalan_per_kg ?? null} />}
-
-          {pengguna?.peran === "PETANI" && detail.data.status === "DIBUKA" && detail.data.atap_saya_per_kg !== null && (
-            <KartuAtapSaya
-              atapPerKg={detail.data.atap_saya_per_kg!}
-              hematPerKg={detail.data.hemat_saya_per_kg ?? null}
-              volumeSayaKg={detail.data.partisipasi
-                .filter((p) => p.petani_id === pengguna.id)
-                .reduce((total, p) => total + p.volume_kg, 0)}
-            />
+          {detail.data.status === "DIBUKA" && (
+            <div className="overflow-hidden rounded-xl shadow-sedang">
+              <HargaBerjalanHero hargaPerKg={detail.data.harga_berjalan_per_kg ?? null} />
+              {atapSaya && (
+                <KartuAtapSaya
+                  atapPerKg={detail.data.atap_saya_per_kg!}
+                  hematPerKg={detail.data.hemat_saya_per_kg ?? null}
+                  volumeSayaKg={detail.data.partisipasi
+                    .filter((p) => p.petani_id === pengguna!.id)
+                    .reduce((total, p) => total + p.volume_kg, 0)}
+                />
+              )}
+            </div>
           )}
 
           <KapasitasTierBar
@@ -76,7 +93,7 @@ export default function DetailSlot() {
           />
 
           <section aria-label="Peserta" className="flex flex-col gap-2">
-            <h2 className="text-base font-semibold text-tanah">Peserta</h2>
+            <h2 className="text-subjudul text-tanah">Peserta</h2>
             <DaftarPeserta partisipasi={detail.data.partisipasi} />
           </section>
 
@@ -88,8 +105,8 @@ export default function DetailSlot() {
             <PanelTutupSlot slotId={detail.data.id} />
           )}
 
-          {pengguna?.peran === "PETANI" && detail.data.status === "DIBUKA" && detail.data.atap_saya_per_kg === null && (
-            <div className="fixed inset-x-0 bottom-0 mx-auto max-w-md border-t-2 border-kabut bg-kertas p-4">
+          {tampilkanCtaIkutKirim && (
+            <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md border-t border-kabut bg-kertas/95 p-4 backdrop-blur-sm">
               <Tombol type="button" varian="aksi" className="w-full" onClick={() => setFormTerbuka(true)}>
                 Ikut kirim
               </Tombol>
@@ -105,6 +122,6 @@ export default function DetailSlot() {
           <DialogLuapanKapasitas info={luapanInfo} onTutup={() => setLuapanInfo(null)} />
         </>
       )}
-    </main>
+    </div>
   );
 }
