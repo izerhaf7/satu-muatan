@@ -16,7 +16,7 @@ function KotakTandaTangan({ label }: { label: string }) {
   return (
     <div className="flex flex-col gap-10">
       <div aria-hidden="true" className="h-16 border-b-2 border-tanah" />
-      <p className="text-center text-sm font-medium text-tanah">{label}</p>
+      <p className="text-center text-keterangan font-medium text-tanah">{label}</p>
     </div>
   );
 }

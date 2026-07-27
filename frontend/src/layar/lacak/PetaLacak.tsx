@@ -1,7 +1,8 @@
 /** Peta rute Lacak (§9.6) — Leaflet + OpenStreetMap, BUKAN Google Maps (spec §3.1, §9.6:
  *  tidak butuh API key). Marker gudang koperasi + tujuan penerima, garis rute, dan posisi
  *  terakhir kalau ada jejak. Tanpa ikon default Leaflet (path asetnya patah di bundler Vite) —
- *  dipakai divIcon sederhana dari palet desain. */
+ *  dipakai divIcon sederhana dari palet desain, warna lewat custom property (temuan audit:
+ *  hex hardcode + box-shadow tebal dihapus). */
 
 import "leaflet/dist/leaflet.css";
 
@@ -23,15 +24,15 @@ interface PetaLacakProps {
 
 function ikonBundar(warna: string, isi: string): DivIcon {
   return new DivIcon({
-    html: `<span style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:9999px;background:${warna};color:#FAF7F2;font-family:system-ui,sans-serif;font-size:12px;font-weight:700;border:2px solid #FAF7F2;box-shadow:0 1px 3px rgba(0,0,0,0.4);">${isi}</span>`,
+    html: `<span style="display:flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:9999px;background:${warna};color:var(--kertas);font-family:'Plus Jakarta Sans Variable',system-ui,sans-serif;font-size:12px;font-weight:700;border:2px solid var(--kertas);">${isi}</span>`,
     className: "",
     iconSize: [26, 26],
     iconAnchor: [13, 13],
   });
 }
 
-const IKON_GUDANG = ikonBundar("#2B2119", "G");
-const IKON_POSISI = ikonBundar("#C1502E", "•");
+const IKON_GUDANG = ikonBundar("var(--tanah)", "G");
+const IKON_POSISI = ikonBundar("var(--tanah-liat)", "•");
 
 export default function PetaLacak({ gudang, tujuan, posisiTerakhir, className = "" }: PetaLacakProps) {
   const titikGudang: [number, number] = [gudang.lat, gudang.lng];
@@ -44,7 +45,7 @@ export default function PetaLacak({ gudang, tujuan, posisiTerakhir, className = 
   const bounds: LatLngBoundsExpression = semuaTitik;
 
   return (
-    <div className={`overflow-hidden rounded-lg border-2 border-kabut ${className}`} style={{ height: 280 }}>
+    <div className={`kartu-tonjol overflow-hidden rounded-xl ${className}`} style={{ height: 280 }}>
       <MapContainer bounds={bounds} boundsOptions={{ padding: [24, 24] }} style={{ height: "100%", width: "100%" }} scrollWheelZoom={false}>
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -57,7 +58,7 @@ export default function PetaLacak({ gudang, tujuan, posisiTerakhir, className = 
         </Marker>
 
         {tujuan.map((t, idx) => (
-          <Marker key={`${t.lat}-${t.lng}-${idx}`} position={[t.lat, t.lng]} icon={ikonBundar("#2F6B3A", String(idx + 1))}>
+          <Marker key={`${t.lat}-${t.lng}-${idx}`} position={[t.lat, t.lng]} icon={ikonBundar("var(--daun)", String(idx + 1))}>
             <Popup>{t.label}</Popup>
           </Marker>
         ))}

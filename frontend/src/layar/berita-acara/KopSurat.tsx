@@ -1,4 +1,5 @@
-/** Kop surat Berita Acara (§9.8) — kode slot, tanggal, koperasi, daftar tujuan. */
+/** Kop surat Berita Acara (§9.8) — kode slot, tanggal, koperasi, daftar tujuan.
+ *  Judul dokumen terpusat (kop resmi), rincian di bawahnya sebagai daftar deskripsi. */
 
 import type { components } from "@/api/client";
 import { formatAngka, formatTanggal } from "@/utils/format";
@@ -10,31 +11,35 @@ interface KopSuratProps {
 }
 
 export default function KopSurat({ data }: KopSuratProps) {
-  const lokasiKoperasi = [data.koperasi.desa && `Desa ${data.koperasi.desa}`, data.koperasi.kecamatan && `Kec. ${data.koperasi.kecamatan}`, data.koperasi.kabupaten && `Kab. ${data.koperasi.kabupaten}`]
+  const lokasiKoperasi = [
+    data.koperasi.desa && `Desa ${data.koperasi.desa}`,
+    data.koperasi.kecamatan && `Kec. ${data.koperasi.kecamatan}`,
+    data.koperasi.kabupaten && `Kab. ${data.koperasi.kabupaten}`,
+  ]
     .filter(Boolean)
     .join(", ");
 
   return (
     <header className="flex flex-col gap-4 border-b-2 border-tanah pb-4">
       <div className="text-center">
-        <p className="text-lg font-bold uppercase tracking-wide text-tanah">Berita Acara Serah Terima</p>
-        <p className="text-sm font-semibold uppercase tracking-widest text-tanah/70">Satu Muatan</p>
+        <p className="text-subjudul font-bold uppercase tracking-wide text-tanah">Berita Acara Serah Terima</p>
+        <p className="text-keterangan font-semibold uppercase tracking-widest text-tanah/60">Satu Muatan</p>
       </div>
 
-      <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-sm text-tanah">
-        <dt className="font-medium text-tanah/60">Kode slot</dt>
+      <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1.5 text-base text-tanah">
+        <dt className="text-keterangan font-medium text-tanah/60">Kode slot</dt>
         <dd className="angka font-semibold">{data.kode_slot}</dd>
 
-        <dt className="font-medium text-tanah/60">Tanggal kirim</dt>
+        <dt className="text-keterangan font-medium text-tanah/60">Tanggal kirim</dt>
         <dd>{formatTanggal(data.tanggal_kirim)}</dd>
 
-        <dt className="font-medium text-tanah/60">Koperasi</dt>
+        <dt className="text-keterangan font-medium text-tanah/60">Koperasi</dt>
         <dd>
           {data.koperasi.nama}
           {lokasiKoperasi && <span className="text-tanah/70">, {lokasiKoperasi}</span>}
         </dd>
 
-        <dt className="font-medium text-tanah/60">Tujuan</dt>
+        <dt className="text-keterangan font-medium text-tanah/60">Tujuan</dt>
         <dd>
           <ol className="flex flex-col gap-0.5">
             {data.tujuan.map((t) => (

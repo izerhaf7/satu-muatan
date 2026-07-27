@@ -1,92 +1,77 @@
 /** Layar Muat (§9.5, peran Koperasi) — timbang tiap lot, foto, cacat terlihat, QR,
- *  lalu "Selesai muat" memberangkatkan slot (status -> JALAN). */
+ *  lalu "Selesai muat" memberangkatkan slot (status -> JALAN). Guard peran KOPERASI
+ *  sudah terpusat di RuteDenganPeran (App.tsx). */
 
-import { Link, useParams } from "react-router-dom";
+import { CheckCircle2, Truck } from "lucide-react";
 
+import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
+import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
+import { SkeletonKartu } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
+import TombolTautan from "@/komponen/TombolTautan";
 import { useDaftarLotSlot, useMuatLot, useSelesaiMuat, useSlotUntukMuat } from "@/hooks/useLot";
-import { useAuthStore } from "@/stores/authStore";
+import { useParams } from "react-router-dom";
 
 import KartuLotMuat from "./muat/KartuLotMuat";
 
 export default function Muat() {
   const { id: slotId } = useParams();
-  const pengguna = useAuthStore((s) => s.pengguna);
 
   const slot = useSlotUntukMuat(slotId);
   const daftarLot = useDaftarLotSlot(slotId);
   const muatLot = useMuatLot(slotId);
   const selesaiMuat = useSelesaiMuat(slotId);
 
-  if (pengguna?.peran !== "KOPERASI") {
-    return (
-      <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-6">
-        <h1 className="text-2xl font-bold text-tanah">Muat</h1>
-        <KeadaanKosong pesan="Halaman ini khusus pengurus koperasi." teksAksi="Kembali ke Beranda" ke="/" />
-      </main>
-    );
-  }
-
   const jumlahLot = daftarLot.data?.length ?? 0;
-  const jumlahSelesai = daftarLot.data?.filter((l) => l.berat_aktual_kg !== null && l.berat_aktual_kg !== undefined).length ?? 0;
+  const jumlahSelesai =
+    daftarLot.data?.filter((l) => l.berat_aktual_kg !== null && l.berat_aktual_kg !== undefined).length ?? 0;
   const semuaSelesaiTimbang = jumlahLot > 0 && jumlahSelesai === jumlahLot;
   const sudahBerangkat = slot.data?.status === "JALAN" || slot.data?.status === "SELESAI";
+  const persenSelesai = jumlahLot > 0 ? Math.round((jumlahSelesai / jumlahLot) * 100) : 0;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-6 pb-24">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-tanah">Muat</h1>
-        <p className="angka text-base text-tanah/70">{slot.data?.kode ?? (slotId ? "Memuat kode slot…" : "")}</p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <HeaderLayar judul="Muat" subjudul={slot.data?.kode} kembaliKe={slotId ? `/slot/${slotId}` : "/beranda"} />
 
-      {slot.isError && (
-        <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-tanah-liat/40 p-4">
-          <p className="text-base text-tanah-liat">Gagal memuat data slot.</p>
-          <Tombol varian="sekunder" onClick={() => slot.refetch()}>
-            Coba lagi
-          </Tombol>
-        </div>
-      )}
+      {slot.isError && <KartuGalat pesan="Gagal memuat data slot." onCobaLagi={() => slot.refetch()} />}
 
       {sudahBerangkat && (
-        <section className="flex flex-col items-center gap-4 rounded-lg border-2 border-daun bg-daun/10 p-6 text-center">
-          <p className="text-lg font-semibold text-tanah">
+        <section className="kartu-tonjol flex flex-col items-center gap-4 border-daun/30 bg-daun/5 p-6 text-center">
+          <CheckCircle2 aria-hidden className="h-10 w-10 text-daun" />
+          <p className="text-base font-semibold text-tanah">
             Muat selesai. Kiriman sudah {slot.data?.status === "SELESAI" ? "diterima" : "berangkat"}.
           </p>
-          <Link
-            to={`/slot/${slotId}/lacak`}
-            className="inline-flex min-h-sentuh items-center justify-center gap-2 rounded-md bg-daun px-5 text-base font-semibold text-kertas"
-          >
-            Lihat pelacakan →
-          </Link>
+          <TombolTautan to={`/slot/${slotId}/lacak`} ikon={Truck}>
+            Lihat pelacakan
+          </TombolTautan>
         </section>
       )}
 
       {!sudahBerangkat && (
         <>
-          {daftarLot.isLoading && <p className="text-base text-tanah/60">Memuat daftar lot…</p>}
-          {daftarLot.isError && (
-            <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-tanah-liat/40 p-4">
-              <p className="text-base text-tanah-liat">Gagal memuat daftar lot.</p>
-              <Tombol varian="sekunder" onClick={() => daftarLot.refetch()}>
-                Coba lagi
-              </Tombol>
-            </div>
-          )}
+          {daftarLot.isLoading && <SkeletonKartu jumlah={2} />}
+          {daftarLot.isError && <KartuGalat pesan="Gagal memuat daftar lot." onCobaLagi={() => daftarLot.refetch()} />}
           {daftarLot.data?.length === 0 && (
             <KeadaanKosong pesan="Belum ada lot untuk dimuat. Tutup slot ini dahulu di layar Detail Slot." />
           )}
 
           {jumlahLot > 0 && (
-            <section
-              aria-label="Progres timbang"
-              className="flex items-center justify-between rounded-lg border-2 border-kabut px-4 py-3"
-            >
-              <p className="text-base font-medium text-tanah">
-                <span className="angka font-bold">{jumlahSelesai}</span> dari{" "}
-                <span className="angka font-bold">{jumlahLot}</span> lot selesai ditimbang
-              </p>
+            <section aria-label="Progres timbang" className="kartu-tonjol flex flex-col gap-2 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-base font-medium text-tanah">Progres timbang</p>
+                <p className="text-base font-semibold text-tanah">
+                  <span className="angka font-bold text-daun">{jumlahSelesai}</span>
+                  <span className="text-tanah/50"> dari </span>
+                  <span className="angka font-bold">{jumlahLot}</span> lot
+                </p>
+              </div>
+              <div className="h-2.5 w-full overflow-hidden rounded-full bg-kabut/70">
+                <div
+                  className="h-full rounded-full bg-daun transition-[width] duration-500"
+                  style={{ width: `${persenSelesai}%` }}
+                />
+              </div>
             </section>
           )}
 
@@ -103,24 +88,26 @@ export default function Muat() {
           </section>
 
           {jumlahLot > 0 && (
-            <div className="flex flex-col gap-2">
+            <div className="sticky bottom-20 z-10 flex flex-col gap-2 rounded-xl border border-kabut bg-kertas p-3 shadow-sedang">
               {selesaiMuat.isError && (
-                <p role="alert" className="text-sm text-tanah-liat">
+                <p role="alert" className="text-keterangan text-tanah-liat">
                   Gagal menyelesaikan muat. Pastikan semua lot sudah ditimbang, lalu coba lagi.
                 </p>
               )}
               <Tombol
                 type="button"
                 varian="aksi"
-                disabled={!semuaSelesaiTimbang || selesaiMuat.isPending}
+                ikon={Truck}
+                sedangProses={selesaiMuat.isPending}
+                disabled={!semuaSelesaiTimbang}
                 onClick={() => selesaiMuat.mutate()}
               >
-                {selesaiMuat.isPending ? "Memberangkatkan…" : "Selesai muat"}
+                Selesai muat
               </Tombol>
             </div>
           )}
         </>
       )}
-    </main>
+    </div>
   );
 }
