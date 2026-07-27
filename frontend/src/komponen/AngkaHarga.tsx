@@ -23,7 +23,7 @@ const kelasUkuran: Record<UkuranAngkaHarga, string> = {
 
 export default function AngkaHarga({ nilai, ukuran = "sedang", satuan, className = "" }: AngkaHargaProps) {
   return (
-    <span className={`angka font-bold text-tanah ${kelasUkuran[ukuran]} ${className}`}>
+    <span className={`angka break-words font-bold text-tanah ${kelasUkuran[ukuran]} ${className}`}>
       {nilai === null ? "—" : formatRupiah(nilai)}
       {satuan && nilai !== null && <span className="ml-1 text-base font-normal text-tanah/70">{satuan}</span>}
     </span>

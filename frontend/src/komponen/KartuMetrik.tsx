@@ -38,7 +38,7 @@ export default function KartuMetrik({
 
   return (
     <div
-      className={`flex flex-col gap-3 rounded-lg border-2 p-4 ${
+      className={`flex min-w-0 flex-col gap-3 rounded-lg border-2 p-4 ${
         asumsi ? "border-dashed border-kabut" : "border-kabut"
       }`}
     >
@@ -59,7 +59,7 @@ export default function KartuMetrik({
       ) : tampilan === "rupiah" ? (
         <AngkaHarga nilai={nilai} ukuran="besar" />
       ) : (
-        <p className="angka text-3xl font-bold text-tanah">
+        <p className="angka break-words text-3xl font-bold text-tanah">
           {formatAngka(nilai)}
           <span className="ml-1 text-base font-normal text-tanah/70">{satuan}</span>
         </p>
