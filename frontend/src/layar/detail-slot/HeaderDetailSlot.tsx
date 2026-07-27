@@ -1,6 +1,9 @@
-/** Header Detail Slot (§9.4) — kode slot, ringkasan rute, hitung mundur cutoff. */
+/** Header Detail Slot (§9.4) — kode slot, ringkasan rute, status, hitung mundur cutoff.
+ *  Dibangun di atas HeaderLayar (kerangka) supaya sticky + tombol kembali seragam
+ *  dengan layar lain (§K12). */
 
 import BadgeStatus from "@/komponen/BadgeStatus";
+import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
 import type { components } from "@/api/client";
 import HitungMundur from "@/komponen/HitungMundur";
 import { formatAngka } from "@/utils/format";
@@ -16,15 +19,14 @@ export default function HeaderDetailSlot({ slot }: HeaderDetailSlotProps) {
   const jumlahTujuan = slot.tujuan.length;
 
   return (
-    <header className="flex flex-col gap-2">
-      <div className="flex items-start justify-between gap-2">
-        <p className="angka text-lg font-bold text-tanah">{slot.kode}</p>
-        <BadgeStatus status={slot.status} />
-      </div>
-      <p className="text-base text-tanah/70">
-        {asal} → {jumlahTujuan} tujuan · {formatAngka(slot.jarak_km)} km
-      </p>
+    <div className="flex flex-col gap-3">
+      <HeaderLayar
+        judul={slot.kode}
+        subjudul={`${asal} → ${jumlahTujuan} tujuan · ${formatAngka(slot.jarak_km)} km`}
+        kembaliKe="/beranda"
+        aksi={<BadgeStatus status={slot.status} />}
+      />
       {slot.status === "DIBUKA" && <HitungMundur cutoffAt={slot.cutoff_at} waktuServer={slot.waktu_server} />}
-    </header>
+    </div>
   );
 }

@@ -1,11 +1,14 @@
 /** Tombol + dialog konfirmasi "Tutup slot" (§5.4, peran Koperasi). Menetapkan harga
  *  final + jaminan atap, mengunci rencana armada, membuat lot, memesan ke vendor —
- *  aksi tidak bisa dibatalkan makanya wajib konfirmasi. */
+ *  aksi tidak bisa dibatalkan makanya wajib konfirmasi. Logika/hook TIDAK diubah,
+ *  hanya menambah toast keberhasilan (§K12: "sukses mutasi → useToast"). */
 
+import { Lock } from "lucide-react";
 import { useState } from "react";
 
 import Dialog from "@/komponen/Dialog";
 import Tombol from "@/komponen/Tombol";
+import { useToast } from "@/komponen/Toast";
 import { useTutupSlot } from "@/hooks/useDetailSlot";
 
 interface PanelTutupSlotProps {
@@ -15,10 +18,11 @@ interface PanelTutupSlotProps {
 export default function PanelTutupSlot({ slotId }: PanelTutupSlotProps) {
   const [konfirmasi, setKonfirmasi] = useState(false);
   const tutupSlot = useTutupSlot(slotId);
+  const tampilkanToast = useToast();
 
   return (
     <>
-      <Tombol type="button" varian="aksi" onClick={() => setKonfirmasi(true)}>
+      <Tombol type="button" varian="aksi" ikon={Lock} onClick={() => setKonfirmasi(true)}>
         Tutup slot
       </Tombol>
 
@@ -29,15 +33,22 @@ export default function PanelTutupSlot({ slotId }: PanelTutupSlotProps) {
             ditagih di atas harga atapnya — kalau ada selisih, koperasi yang menanggung. Slot yang sudah ditutup
             tidak bisa dibuka kembali.
           </p>
-          {tutupSlot.isError && <p className="text-sm text-tanah-liat">Gagal menutup slot. Coba lagi.</p>}
+          {tutupSlot.isError && <p className="text-keterangan text-tanah-liat">Gagal menutup slot. Coba lagi.</p>}
           <div className="flex flex-col gap-3">
             <Tombol
               type="button"
               varian="aksi"
-              disabled={tutupSlot.isPending}
-              onClick={() => tutupSlot.mutate(undefined, { onSuccess: () => setKonfirmasi(false) })}
+              sedangProses={tutupSlot.isPending}
+              onClick={() =>
+                tutupSlot.mutate(undefined, {
+                  onSuccess: () => {
+                    setKonfirmasi(false);
+                    tampilkanToast("Slot ditutup. Harga final sudah ditetapkan.");
+                  },
+                })
+              }
             >
-              {tutupSlot.isPending ? "Menutup…" : "Ya, tutup slot"}
+              Ya, tutup slot
             </Tombol>
             <Tombol type="button" varian="sekunder" onClick={() => setKonfirmasi(false)}>
               Batal

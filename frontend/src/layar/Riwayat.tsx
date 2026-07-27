@@ -1,9 +1,14 @@
-/** Layar Riwayat (§2.5, layar utama Petani) — daftar ikut kirim + kembalian. */
+/** Layar Riwayat (§2.5, layar utama Petani) — daftar ikut kirim + kembalian.
+ *  Data/hook (useRiwayatSaya) TIDAK diubah — hanya bahasa tampilan (§K12). */
+
+import { Leaf } from "lucide-react";
 
 import type { components } from "@/api/client";
+import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
 import IkonGembok from "@/komponen/IkonGembok";
+import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
-import Tombol from "@/komponen/Tombol";
+import { SkeletonKartu } from "@/komponen/Skeleton";
 import { useRiwayatSaya } from "@/hooks/useRiwayat";
 import { formatAngka, formatRupiah, formatTanggal } from "@/utils/format";
 
@@ -18,40 +23,32 @@ const labelStatus: Record<StatusPartisipasi, string> = {
   BATAL: "Batal",
 };
 
+/** Bahasa pill 3-nada seragam dengan komponen/BadgeStatus (K12): baik (daun),
+ *  netral (kabut), buruk (tanah-liat). */
 const kelasStatus: Record<StatusPartisipasi, string> = {
-  TERDAFTAR: "bg-daun text-kertas",
-  TERKUNCI: "bg-tanah-liat text-kertas",
-  DIMUAT: "bg-tanah text-kertas",
-  SELESAI: "bg-kabut text-tanah",
-  BATAL: "bg-kabut text-tanah/60",
+  TERDAFTAR: "bg-daun/15 text-daun",
+  TERKUNCI: "bg-tanah-liat/15 text-tanah-liat",
+  DIMUAT: "bg-kabut/60 text-tanah/60",
+  SELESAI: "bg-daun/15 text-daun",
+  BATAL: "bg-tanah-liat/15 text-tanah-liat",
 };
 
 export default function Riwayat() {
   const riwayat = useRiwayatSaya();
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-6 px-5 py-6 pb-24">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-2xl font-bold text-tanah">Riwayat</h1>
-        <p className="text-base text-tanah/70">Semua slot yang pernah kamu ikuti</p>
-      </header>
+    <div className="flex flex-col gap-6">
+      <HeaderLayar judul="Riwayat" subjudul="Semua slot yang pernah kamu ikuti" />
 
-      {riwayat.isLoading && <p className="text-base text-tanah/60">Memuat riwayat…</p>}
+      {riwayat.isLoading && <SkeletonKartu jumlah={4} />}
 
-      {riwayat.isError && (
-        <div className="flex flex-col items-start gap-3 rounded-lg border-2 border-tanah-liat/40 p-4">
-          <p className="text-base text-tanah-liat">Gagal memuat riwayat.</p>
-          <Tombol varian="sekunder" onClick={() => riwayat.refetch()}>
-            Coba lagi
-          </Tombol>
-        </div>
-      )}
+      {riwayat.isError && <KartuGalat pesan="Gagal memuat riwayat." onCobaLagi={() => riwayat.refetch()} />}
 
       {riwayat.data?.length === 0 && (
         <KeadaanKosong
           pesan="Belum ada riwayat ikut kirim. Cari slot yang sedang dibuka dan ikut kirim →"
           teksAksi="Lihat slot dibuka"
-          ke="/"
+          ke="/beranda"
         />
       )}
 
@@ -62,28 +59,35 @@ export default function Riwayat() {
           ))}
         </ul>
       )}
-    </main>
+    </div>
   );
 }
 
 function BarisRiwayat({ partisipasi }: { partisipasi: PartisipasiRiwayatOut }) {
   return (
-    <li className="flex flex-col gap-2 rounded-lg border-2 border-kabut p-4">
+    <li className="kartu-tonjol flex flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="angka text-base font-semibold text-tanah">{partisipasi.slot_kode}</p>
-          <p className="text-sm text-tanah/60">{formatTanggal(partisipasi.tanggal_kirim)}</p>
+          <p className="text-keterangan text-tanah/60">{formatTanggal(partisipasi.tanggal_kirim)}</p>
         </div>
-        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-sm font-semibold ${kelasStatus[partisipasi.status]}`}>
+        <span
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${kelasStatus[partisipasi.status]}`}
+        >
           {labelStatus[partisipasi.status]}
         </span>
       </div>
 
-      <p className="text-base text-tanah">
-        {partisipasi.nama_komoditas} · <span className="angka">{formatAngka(partisipasi.volume_kg)} kg</span>
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-daun/10 text-daun">
+          <Leaf aria-hidden className="h-4 w-4" strokeWidth={2.25} />
+        </span>
+        <p className="text-base text-tanah">
+          {partisipasi.nama_komoditas} · <span className="angka">{formatAngka(partisipasi.volume_kg)} kg</span>
+        </p>
+      </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t-2 border-kabut pt-2 text-sm text-tanah/80">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-kabut/60 pt-3 text-keterangan text-tanah/80">
         <span className="inline-flex items-center gap-1.5">
           <IkonGembok className="text-tanah/50" />
           Atap <span className="angka font-medium text-tanah">{formatRupiah(partisipasi.harga_atap_per_kg)}/kg</span>
@@ -97,7 +101,10 @@ function BarisRiwayat({ partisipasi }: { partisipasi: PartisipasiRiwayatOut }) {
       </div>
 
       {partisipasi.kembalian_rp > 0 && (
-        <p className="angka text-base font-semibold text-daun">Kembalian {formatRupiah(partisipasi.kembalian_rp)}</p>
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-daun/10 px-3 py-2.5">
+          <span className="text-base font-medium text-tanah">Kembalian</span>
+          <span className="angka text-lg font-bold text-daun">{formatRupiah(partisipasi.kembalian_rp)}</span>
+        </div>
       )}
     </li>
   );

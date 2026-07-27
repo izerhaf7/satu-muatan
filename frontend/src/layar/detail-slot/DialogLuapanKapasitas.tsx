@@ -1,8 +1,10 @@
 /** Dialog dua pilihan saat gabung memicu LUAPAN_KAPASITAS (§5.5, §9.4 butir 5).
  *  Bukan edge case teoretis — terjadi ketika volume baru mendorong H_kasar
  *  melewati atap peserta yang sudah bergabung. Dua jalan keluar:
- *  gabung ke slot berikutnya, atau minta koperasi buka slot kedua. */
+ *  gabung ke slot berikutnya, atau minta koperasi buka slot kedua.
+ *  Logika/hook TIDAK diubah — hanya bahasa tampilan (§K12). */
 
+import { TriangleAlert } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -31,8 +33,11 @@ export default function DialogLuapanKapasitas({ info, onTutup }: DialogLuapanKap
     <Dialog terbuka={Boolean(info)} onTutup={tutup} judul="Slot ini akan melebihi kapasitas">
       {!mintaInfo ? (
         <div className="flex flex-col gap-4">
-          <p className="text-base text-tanah/80">{info.pesan}</p>
-          <div className="flex flex-col gap-1 rounded-md bg-kabut/40 p-3 text-sm text-tanah/80">
+          <p className="flex items-start gap-2 text-base text-tanah/80">
+            <TriangleAlert aria-hidden className="mt-0.5 h-5 w-5 shrink-0 text-tanah-liat" />
+            {info.pesan}
+          </p>
+          <div className="flex flex-col gap-1.5 rounded-lg bg-tanah-liat/5 p-3.5 text-keterangan text-tanah/80">
             <p>
               Harga berjalan akan naik jadi{" "}
               <span className="angka font-semibold text-tanah">{formatRupiah(info.harga_baru_per_kg)}/kg</span>.
@@ -59,7 +64,7 @@ export default function DialogLuapanKapasitas({ info, onTutup }: DialogLuapanKap
               Gabung slot berikutnya
             </Tombol>
             {!info.slot_alternatif_id && (
-              <p className="text-sm text-tanah/60">Belum ada slot berikutnya di hari yang sama.</p>
+              <p className="text-keterangan text-tanah/60">Belum ada slot berikutnya di hari yang sama.</p>
             )}
             <Tombol type="button" varian="sekunder" onClick={() => setMintaInfo(true)}>
               Minta koperasi buka slot kedua
@@ -69,7 +74,7 @@ export default function DialogLuapanKapasitas({ info, onTutup }: DialogLuapanKap
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-base text-tanah/80">
-            Sampaikan ke pengurus koperasi Anda: slot ini sudah penuh, minta dibukakan slot kedua di hari yang sama
+            Sampaikan ke pengurus koperasi kamu: slot ini sudah penuh, minta dibukakan slot kedua di hari yang sama
             supaya harga atap peserta yang sudah bergabung tetap terjaga.
           </p>
           <Tombol type="button" varian="sekunder" onClick={tutup}>
