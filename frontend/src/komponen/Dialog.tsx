@@ -87,7 +87,7 @@ export default function Dialog({ terbuka, onTutup, judul, children }: DialogProp
         aria-modal="true"
         aria-labelledby="judul-dialog"
         tabIndex={-1}
-        className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-t-2xl border border-kabut bg-kertas p-5 shadow-sedang sm:rounded-2xl"
+        className="flex max-h-[90vh] w-full max-w-md flex-col gap-4 overflow-y-auto rounded-t-2xl border border-kabut bg-kertas p-5 shadow-sedang sm:rounded-2xl lg:max-w-lg"
       >
         <div className="flex items-center justify-between gap-3">
           <h2 id="judul-dialog" className="text-xl font-bold text-tanah">

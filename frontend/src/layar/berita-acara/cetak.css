@@ -19,7 +19,9 @@
   body:has(.berita-acara) nav[aria-label="Navigasi utama"] {
     display: none !important;
   }
-  body:has(.berita-acara) #root > div > div:first-child {
+  /* Bar akun atas diberi kelas stabil `bar-akun-atas` di AppShell (bukan selector
+     posisi — rapuh saat struktur kerangka berubah, mis. tambah NavSamping). */
+  body:has(.berita-acara) .bar-akun-atas {
     display: none !important;
   }
 

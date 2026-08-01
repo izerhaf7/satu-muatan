@@ -26,11 +26,13 @@ export default function PanelAsumsi() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <HeaderLayar
-        judul="Panel Asumsi"
-        subjudul="Setiap angka yang menggerakkan mesin harga, lengkap dengan sumbernya"
-      />
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
+      <div className="lg:col-span-2">
+        <HeaderLayar
+          judul="Panel Asumsi"
+          subjudul="Setiap angka yang menggerakkan mesin harga, lengkap dengan sumbernya"
+        />
+      </div>
 
       <section aria-label="Konfigurasi" className="flex flex-col gap-2">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-tanah">
@@ -52,10 +54,12 @@ export default function PanelAsumsi() {
         )}
       </section>
 
-      {tier.isLoading && <SkeletonKartu jumlah={3} />}
-      {tier.isError && <KartuGalat pesan="Gagal memuat tier kendaraan." onCobaLagi={() => tier.refetch()} />}
-      {tier.data && tier.data.length === 0 && <KeadaanKosong pesan="Belum ada tier kendaraan terdaftar." />}
-      {tier.data && tier.data.length > 0 && <TabelTier tiers={tier.data} onTersimpan={tampilkanKonfirmasi} />}
+      <div>
+        {tier.isLoading && <SkeletonKartu jumlah={3} />}
+        {tier.isError && <KartuGalat pesan="Gagal memuat tier kendaraan." onCobaLagi={() => tier.refetch()} />}
+        {tier.data && tier.data.length === 0 && <KeadaanKosong pesan="Belum ada tier kendaraan terdaftar." />}
+        {tier.data && tier.data.length > 0 && <TabelTier tiers={tier.data} onTersimpan={tampilkanKonfirmasi} />}
+      </div>
     </div>
   );
 }

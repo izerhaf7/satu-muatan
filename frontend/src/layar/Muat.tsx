@@ -75,7 +75,7 @@ export default function Muat() {
             </section>
           )}
 
-          <section aria-label="Daftar lot" className="flex flex-col gap-4">
+          <section aria-label="Daftar lot" className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
             {daftarLot.data?.map((lot) => (
               <KartuLotMuat
                 key={lot.id}

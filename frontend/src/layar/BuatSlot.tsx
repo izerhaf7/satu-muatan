@@ -78,7 +78,7 @@ export default function BuatSlot() {
   const bisaSimpan = Boolean(tanggalKirim && jamCutoff && tujuanTerpilih.length > 0);
 
   return (
-    <div className="flex flex-col gap-6 pb-24">
+    <div className="flex flex-col gap-6 pb-24 lg:pb-0">
       <HeaderLayar judul="Buka slot baru" subjudul="Atur jadwal dan tujuan pengiriman" kembaliKe="/beranda" />
 
       <form onSubmit={simpan} className="flex flex-col gap-7">
@@ -113,7 +113,7 @@ export default function BuatSlot() {
           {daftarPenerima.data?.length === 0 && (
             <p className="text-base text-tanah/60">Belum ada penerima terdaftar.</p>
           )}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 lg:grid lg:grid-cols-2 lg:items-start">
             {daftarPenerima.data?.map((p) => {
               const terpilih = tujuanTerpilih.includes(p.id);
               return (
@@ -145,7 +145,7 @@ export default function BuatSlot() {
         {daftarPermintaan.data && daftarPermintaan.data.length > 0 && (
           <section className="flex flex-col gap-3">
             <LangkahLabel nomor={3} label="Permintaan" opsional />
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 lg:grid lg:grid-cols-2 lg:items-start lg:gap-3">
               {daftarPermintaan.data.map((p) => (
                 <KotakCentang
                   key={p.id}
@@ -205,7 +205,7 @@ export default function BuatSlot() {
           </p>
         )}
 
-        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md border-t border-kabut bg-kertas/95 p-4 backdrop-blur-sm">
+        <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md border-t border-kabut bg-kertas/95 p-4 backdrop-blur-sm lg:static lg:mx-0 lg:max-w-none lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
           <Tombol type="submit" varian="aksi" className="w-full" disabled={!bisaSimpan} sedangProses={buatSlot.isPending}>
             Simpan slot
           </Tombol>

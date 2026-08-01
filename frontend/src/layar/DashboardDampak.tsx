@@ -23,7 +23,7 @@ export default function DashboardDampak() {
       />
 
       {ringkasan.isLoading && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <SkeletonAngka className="kartu-datar" />
           <SkeletonAngka className="kartu-datar" />
           <SkeletonAngka className="kartu-datar" />
@@ -35,7 +35,7 @@ export default function DashboardDampak() {
       )}
 
       {ringkasan.data && (
-        <section aria-label="Ringkasan dampak" className="grid grid-cols-2 gap-3">
+        <section aria-label="Ringkasan dampak" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KartuMetrik
             label="Truk-km dihemat"
             nilai={ringkasan.data.truk_km_dihemat.nilai ?? null}

@@ -27,7 +27,7 @@ export default function BerandaPenerima() {
         <p className="text-base text-tanah/70">Kelola permintaan komoditas kamu</p>
       </header>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
         <KartuPintasan
           ke="/permintaan"
           ikon={ClipboardList}

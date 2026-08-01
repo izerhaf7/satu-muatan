@@ -22,7 +22,7 @@ export default function BerandaPetani() {
         <p className="text-base text-tanah/70">Slot yang sedang dibuka koperasi kamu</p>
       </header>
 
-      <section aria-label="Slot terbuka" className="flex flex-col gap-3">
+      <section aria-label="Slot terbuka" className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
         {daftarSlot.isLoading && <SkeletonKartu />}
         {daftarSlot.isError && (
           <KartuGalat pesan="Gagal memuat daftar slot." onCobaLagi={() => daftarSlot.refetch()} />

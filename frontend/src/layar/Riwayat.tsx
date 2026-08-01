@@ -53,7 +53,7 @@ export default function Riwayat() {
       )}
 
       {riwayat.data && riwayat.data.length > 0 && (
-        <ul className="flex flex-col gap-3">
+        <ul className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
           {riwayat.data.map((p) => (
             <BarisRiwayat key={p.id} partisipasi={p} />
           ))}

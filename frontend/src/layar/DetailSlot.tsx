@@ -53,60 +53,74 @@ export default function DetailSlot() {
     (detail.data?.atap_saya_per_kg === null || detail.data?.atap_saya_per_kg === undefined);
 
   return (
-    <div className={`flex flex-col gap-6 ${tampilkanCtaIkutKirim ? "pb-24" : ""}`}>
-      {detail.data ? (
-        <HeaderDetailSlot slot={detail.data} />
-      ) : (
-        <HeaderLayar judul="Detail slot" kembaliKe="/beranda" />
-      )}
+    <div
+      className={`flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start ${
+        tampilkanCtaIkutKirim ? "pb-24 lg:pb-0" : ""
+      }`}
+    >
+      <div className="lg:col-span-2">
+        {detail.data ? (
+          <HeaderDetailSlot slot={detail.data} />
+        ) : (
+          <HeaderLayar judul="Detail slot" kembaliKe="/beranda" />
+        )}
+      </div>
 
       {detail.isLoading && (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-6 lg:col-span-2">
           <SkeletonAngka className="kartu-hero" />
           <SkeletonKartu jumlah={4} />
         </div>
       )}
 
-      {detail.isError && <KartuGalat pesan="Gagal memuat detail slot." onCobaLagi={() => detail.refetch()} />}
+      {detail.isError && (
+        <div className="lg:col-span-2">
+          <KartuGalat pesan="Gagal memuat detail slot." onCobaLagi={() => detail.refetch()} />
+        </div>
+      )}
 
       {detail.data && (
         <>
-          {detail.data.status === "DIBUKA" && (
-            <div className="overflow-hidden rounded-xl shadow-sedang">
-              <HargaBerjalanHero hargaPerKg={detail.data.harga_berjalan_per_kg ?? null} />
-              {atapSaya && (
-                <KartuAtapSaya
-                  atapPerKg={detail.data.atap_saya_per_kg!}
-                  hematPerKg={detail.data.hemat_saya_per_kg ?? null}
-                  volumeSayaKg={detail.data.partisipasi
-                    .filter((p) => p.petani_id === pengguna!.id)
-                    .reduce((total, p) => total + p.volume_kg, 0)}
-                />
-              )}
-            </div>
-          )}
+          <div className="flex flex-col gap-6">
+            {detail.data.status === "DIBUKA" && (
+              <div className="overflow-hidden rounded-xl shadow-sedang">
+                <HargaBerjalanHero hargaPerKg={detail.data.harga_berjalan_per_kg ?? null} />
+                {atapSaya && (
+                  <KartuAtapSaya
+                    atapPerKg={detail.data.atap_saya_per_kg!}
+                    hematPerKg={detail.data.hemat_saya_per_kg ?? null}
+                    volumeSayaKg={detail.data.partisipasi
+                      .filter((p) => p.petani_id === pengguna!.id)
+                      .reduce((total, p) => total + p.volume_kg, 0)}
+                  />
+                )}
+              </div>
+            )}
 
-          <KapasitasTierBar
-            volumeKg={detail.data.volume_total_kg}
-            rencana={detail.data.rencana_saat_ini}
-            jumlahPeserta={detail.data.partisipasi.length}
-          />
+            <KapasitasTierBar
+              volumeKg={detail.data.volume_total_kg}
+              rencana={detail.data.rencana_saat_ini}
+              jumlahPeserta={detail.data.partisipasi.length}
+            />
+          </div>
 
-          <section aria-label="Peserta" className="flex flex-col gap-2">
-            <h2 className="text-subjudul text-tanah">Peserta</h2>
-            <DaftarPeserta partisipasi={detail.data.partisipasi} />
-          </section>
+          <div className="flex flex-col gap-6">
+            <section aria-label="Peserta" className="flex flex-col gap-2">
+              <h2 className="text-subjudul text-tanah">Peserta</h2>
+              <DaftarPeserta partisipasi={detail.data.partisipasi} />
+            </section>
 
-          {detail.data.status !== "DIBUKA" && pengguna && (
-            <RingkasanPenutupan slot={detail.data} peran={pengguna.peran} penggunaId={pengguna.id} />
-          )}
+            {detail.data.status !== "DIBUKA" && pengguna && (
+              <RingkasanPenutupan slot={detail.data} peran={pengguna.peran} penggunaId={pengguna.id} />
+            )}
 
-          {pengguna?.peran === "KOPERASI" && detail.data.status === "DIBUKA" && (
-            <PanelTutupSlot slotId={detail.data.id} />
-          )}
+            {pengguna?.peran === "KOPERASI" && detail.data.status === "DIBUKA" && (
+              <PanelTutupSlot slotId={detail.data.id} />
+            )}
+          </div>
 
           {tampilkanCtaIkutKirim && (
-            <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md border-t border-kabut bg-kertas/95 p-4 backdrop-blur-sm">
+            <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md border-t border-kabut bg-kertas/95 p-4 backdrop-blur-sm lg:static lg:col-span-2 lg:mx-0 lg:max-w-none lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
               <Tombol type="button" varian="aksi" className="w-full" onClick={() => setFormTerbuka(true)}>
                 Ikut kirim
               </Tombol>

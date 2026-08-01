@@ -47,7 +47,7 @@ export default function App() {
   if (!telahHidrasi) return <SplashLogo />;
 
   return (
-    <Suspense fallback={<div className="mx-auto max-w-md px-5 py-6"><SkeletonKartu /></div>}>
+    <Suspense fallback={<div className="mx-auto max-w-md px-5 py-6 lg:max-w-3xl xl:max-w-5xl"><SkeletonKartu /></div>}>
       <Routes>
         <Route path="/" element={token ? <Navigate to="/beranda" replace /> : <Landing />} />
         <Route path="/masuk" element={token ? <Navigate to="/beranda" replace /> : <Masuk />} />

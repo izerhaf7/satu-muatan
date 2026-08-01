@@ -23,11 +23,13 @@ export default function Permintaan() {
   const daftarPermintaan = useDaftarPermintaan();
 
   return (
-    <div className="flex flex-col gap-6">
-      <HeaderLayar
-        judul="Permintaan"
-        subjudul={isPenerima ? "Komoditas yang Anda butuhkan" : "Permintaan terbuka dari dapur penerima"}
-      />
+    <div className={`flex flex-col gap-6 ${isPenerima ? "lg:grid lg:grid-cols-2 lg:items-start" : ""}`}>
+      <div className={isPenerima ? "lg:col-span-2" : undefined}>
+        <HeaderLayar
+          judul="Permintaan"
+          subjudul={isPenerima ? "Komoditas yang Anda butuhkan" : "Permintaan terbuka dari dapur penerima"}
+        />
+      </div>
 
       {isPenerima && (
         <>
@@ -41,7 +43,10 @@ export default function Permintaan() {
         </>
       )}
 
-      <section aria-label="Daftar permintaan" className="flex flex-col gap-3">
+      <section
+        aria-label="Daftar permintaan"
+        className={`flex flex-col gap-3 ${isPenerima ? "" : "lg:grid lg:grid-cols-2 lg:items-start"}`}
+      >
         {daftarPermintaan.isLoading && <SkeletonKartu jumlah={3} />}
         {daftarPermintaan.isError && (
           <KartuGalat pesan="Gagal memuat daftar permintaan." onCobaLagi={() => daftarPermintaan.refetch()} />

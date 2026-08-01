@@ -79,13 +79,13 @@ export default function Lacak() {
       )}
 
       {!belumTutup && pengiriman.data && (
-        <>
+        <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
           <section aria-label="Status pengiriman" className="kartu-tonjol p-4">
             <TimelineLacak timeline={pengiriman.data.timeline} />
           </section>
 
           {tujuanDenganKoordinat.length > 0 && slot.data && (
-            <section aria-label="Peta rute">
+            <section aria-label="Peta rute" className="lg:row-span-3">
               <PetaLacak
                 gudang={{ lat: slot.data.koperasi.lat, lng: slot.data.koperasi.lng, label: slot.data.koperasi.nama }}
                 tujuan={tujuanDenganKoordinat}
@@ -132,7 +132,7 @@ export default function Lacak() {
               </p>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

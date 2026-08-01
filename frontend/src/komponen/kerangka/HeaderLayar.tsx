@@ -16,7 +16,7 @@ interface HeaderLayarProps {
 export default function HeaderLayar({ judul, subjudul, kembaliKe, aksi }: HeaderLayarProps) {
   const navigate = useNavigate();
   return (
-    <header className="sticky top-0 z-30 -mx-5 flex items-center gap-2 border-b border-kabut/70 bg-kertas/90 px-5 py-3 backdrop-blur-sm">
+    <header className="sticky top-0 z-30 -mx-5 flex items-center gap-2 border-b border-kabut/70 bg-kertas/90 px-5 py-3 backdrop-blur-sm lg:-mx-8 lg:px-8">
       {kembaliKe && (
         <button
           type="button"

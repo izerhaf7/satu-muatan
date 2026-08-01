@@ -36,7 +36,7 @@ export default function SerahTerima() {
 
   if (buktiTerpilih) {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:mx-auto lg:w-full lg:max-w-3xl">
         <HeaderLayar judul="Serah Terima" />
         <Tombol
           type="button"
@@ -67,8 +67,10 @@ export default function SerahTerima() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <HeaderLayar judul="Serah Terima" subjudul="Pilih lot yang sampai, atau masukkan kode QR-nya" />
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
+      <div className="lg:col-span-2">
+        <HeaderLayar judul="Serah Terima" subjudul="Pilih lot yang sampai, atau masukkan kode QR-nya" />
+      </div>
 
       <form onSubmit={cariBerdasarkanKode} className="kartu-datar flex flex-col gap-3 p-4">
         <InputTeks

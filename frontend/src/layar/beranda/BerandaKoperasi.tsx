@@ -24,17 +24,18 @@ export default function BerandaKoperasi() {
   const bulanIni = dampak.data?.find((d) => d.bulan === bulanSaatIni()) ?? null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1 pt-1">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
+      <header className="flex flex-col gap-1 pt-1 lg:col-span-2">
         <p className="text-keterangan font-bold uppercase tracking-wide text-daun">Beranda</p>
         <h1 className="text-judul text-tanah">Halo, {pengguna?.nama ?? "Bu/Pak"}</h1>
         <p className="text-base text-tanah/70">Slot pengiriman koperasi kamu</p>
       </header>
 
-      {dampak.isError ? (
-        <KartuGalat pesan="Ringkasan bulan ini gagal dimuat." onCobaLagi={() => dampak.refetch()} />
-      ) : (
-        <section aria-label="Ringkasan bulan ini" className="kartu-hero flex flex-col gap-4 p-5">
+      <div className="flex flex-col gap-6">
+        {dampak.isError ? (
+          <KartuGalat pesan="Ringkasan bulan ini gagal dimuat." onCobaLagi={() => dampak.refetch()} />
+        ) : (
+          <section aria-label="Ringkasan bulan ini" className="kartu-hero flex flex-col gap-4 p-5">
           <p className="text-keterangan font-bold uppercase tracking-wide text-kertas/70">
             Ringkasan {formatBulan(bulanSaatIni())}
           </p>
@@ -71,12 +72,13 @@ export default function BerandaKoperasi() {
               )}
             </ItemRingkasan>
           </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      <TombolTautan to="/slot/baru" ikon={Plus} varian="aksi" className="w-full">
-        Buka slot baru
-      </TombolTautan>
+        <TombolTautan to="/slot/baru" ikon={Plus} varian="aksi" className="w-full">
+          Buka slot baru
+        </TombolTautan>
+      </div>
 
       <section aria-label="Daftar slot" className="flex flex-col gap-3">
         <h2 className="text-subjudul text-tanah">Slot kamu</h2>

@@ -24,7 +24,7 @@ export default function BeritaAcara() {
   const beritaAcara = useBeritaAcara(id);
 
   return (
-    <div className="berita-acara flex flex-col gap-6">
+    <div className="berita-acara flex flex-col gap-6 lg:mx-auto lg:max-w-3xl">
       <div className="no-print">
         <HeaderLayar
           judul="Berita Acara"
