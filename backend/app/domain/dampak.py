@@ -87,3 +87,18 @@ def hitung_dampak(
         penghematan_ongkos_rp=penghematan_ongkos_rp,
         susut_dicegah_kg=susut_dicegah_kg,
     )
+
+
+def persen_penghematan_ongkos(partisipasi: list[PartisipasiDampak]) -> float | None:
+    """persen_penghematan (spec v2 §7.2):
+        (harga_atap_rata_tertimbang − harga_final_tertimbang) / atap_rata × 100
+        = (Σ atap_i×vol_i − Σ h_i×vol_i) / Σ atap_i×vol_i × 100
+
+    h_i per peserta (jaminan atap terhormat) — sama seperti penghematan_ongkos_rp.
+    None kalau belum ada data (total atap 0).
+    """
+    total_atap = sum(p.volume_kg * p.harga_atap_per_kg for p in partisipasi)
+    if total_atap <= 0:
+        return None
+    total_final = sum(p.volume_kg * p.harga_final_per_kg for p in partisipasi)
+    return (total_atap - total_final) / total_atap * 100

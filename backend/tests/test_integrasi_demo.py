@@ -314,15 +314,24 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
         assert baris["serah_terima"]["foto_bongkar"] is not None  # K10 amandemen pasca-beku
 
     # -----------------------------------------------------------------
-    # Langkah 12: Dashboard Dampak -- 4 kartu terisi (non-null, ada data).
+    # Langkah 12: Dashboard Dampak -- empat kartu semboyan (v2 §7.1) terisi.
     # -----------------------------------------------------------------
     r = client.get("/api/dampak/ringkasan", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     ringkasan = r.json()
-    assert ringkasan["truk_km_dihemat"]["nilai"] == pytest.approx(210.09, abs=0.05)  # (4-1) x 70,03
-    assert ringkasan["emisi_dihemat_kg_co2"]["nilai"] == pytest.approx(52.5225, abs=0.05)  # x faktor_emisi 0,25
-    assert ringkasan["penghematan_ongkos_rp"]["nilai"] == pytest.approx(845_980)  # Σ kembalian
-    assert ringkasan["susut_dicegah_kg"]["nilai"] == pytest.approx(7.8)  # 780 x 0,0025 x 4,0
+    # Biaya logistik: Σ(atap×vol − h_i×vol)/Σ(atap×vol) — atap tiap peserta
+    # dihitung dari skenario kirim SENDIRI (±1,5–2,4 ribu/kg), jadi penghematan
+    # terhadap atap ≈ 73,7% (Σ 845.980 / Σ 1.148.620).
+    assert ringkasan["biaya_logistik"]["nilai"] == pytest.approx(73.7, abs=0.1)
+    assert "→" in (ringkasan["biaya_logistik"]["sub_teks"] or "")
+    # Emisi: (4−1) × 70,03 km × faktor_emisi 0,25 = 52,5225 kg CO₂e.
+    assert ringkasan["emisi"]["nilai"] == pytest.approx(52.5225, abs=0.05)
+    assert "truk-km tidak jadi ditempuh" in (ringkasan["emisi"]["sub_teks"] or "")
+    # Transparansi: durasi terpanjang vs ambang rute 181 menit.
+    assert ringkasan["transparansi_perjalanan"]["nilai"] is not None
+    assert "181" in (ringkasan["transparansi_perjalanan"]["sub_teks"] or "")
+    # Keamanan pangan: sisa umur simpan terisi (telemetri, perjalanan singkat di test).
+    assert ringkasan["keamanan_pangan"]["nilai"] == pytest.approx(100, abs=1)
 
     r = client.get("/api/dampak/bulanan", headers=header_titik_kumpul)
     assert r.status_code == 200
@@ -334,10 +343,10 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
 
     # -----------------------------------------------------------------
     # Langkah 13: Panel Asumsi -- ubah faktor_emisi_kg_co2_per_km, dashboard
-    # dampak ikut berubah. Kartu emisi PERSIS berlipat dua (truk_km_dihemat
-    # tidak berubah, hanya faktor pengalinya).
+    # dampak ikut berubah. Kartu emisi PERSIS berlipat dua (truk-km-nya tidak
+    # berubah, hanya faktor pengalinya).
     # -----------------------------------------------------------------
-    emisi_awal = ringkasan["emisi_dihemat_kg_co2"]["nilai"]
+    emisi_awal = ringkasan["emisi"]["nilai"]
 
     r = client.get("/api/konfigurasi", headers=header_titik_kumpul)
     faktor_emisi_saat_ini = next(k for k in r.json() if k["kunci"] == "faktor_emisi_kg_co2_per_km")
@@ -351,13 +360,13 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
 
     r = client.get("/api/dampak/ringkasan", headers=header_titik_kumpul)
     assert r.status_code == 200
-    emisi_baru = r.json()["emisi_dihemat_kg_co2"]["nilai"]
+    emisi_baru = r.json()["emisi"]["nilai"]
     assert emisi_baru == pytest.approx(emisi_awal * 2, rel=1e-6)
     # kartu lain (tidak bergantung faktor_emisi) TIDAK ikut berubah -- bukti
     # bahwa perubahan Panel Asumsi terisolasi ke koefisien yang benar-benar
     # relevan, bukan efek samping global.
-    assert r.json()["truk_km_dihemat"]["nilai"] == pytest.approx(210.09, abs=0.05)
-    assert r.json()["penghematan_ongkos_rp"]["nilai"] == pytest.approx(845_980)
+    assert r.json()["biaya_logistik"]["nilai"] == pytest.approx(73.7, abs=0.1)
+    assert r.json()["transparansi_perjalanan"]["sub_teks"] == ringkasan["transparansi_perjalanan"]["sub_teks"]
 
 
 # ---------------------------------------------------------------------------

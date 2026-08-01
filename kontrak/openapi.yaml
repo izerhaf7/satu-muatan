@@ -947,8 +947,10 @@ paths:
       tags:
       - dampak
       summary: Dampak Ringkasan
-      description: 4 kartu, masing-masing dengan rumus + status_sumber. Tanpa data
-        = null -> '—'.
+      description: 'Empat kartu semboyan (spec v2 §7.1) — satu angka per semboyan,
+        masing-masing
+
+        dengan rumus + status_sumber. Tanpa data = null -> ''—''. Urutan JANGAN diubah.'
       operationId: dampak_ringkasan_api_dampak_ringkasan_get
       responses:
         '200':
@@ -1171,21 +1173,22 @@ components:
         (§9.2, K6).
     DampakRingkasanOut:
       properties:
-        truk_km_dihemat:
+        biaya_logistik:
           $ref: '#/components/schemas/KartuDampakOut'
-        emisi_dihemat_kg_co2:
+        emisi:
           $ref: '#/components/schemas/KartuDampakOut'
-        penghematan_ongkos_rp:
+        transparansi_perjalanan:
           $ref: '#/components/schemas/KartuDampakOut'
-        susut_dicegah_kg:
+        keamanan_pangan:
           $ref: '#/components/schemas/KartuDampakOut'
       type: object
       required:
-      - truk_km_dihemat
-      - emisi_dihemat_kg_co2
-      - penghematan_ongkos_rp
-      - susut_dicegah_kg
+      - biaya_logistik
+      - emisi
+      - transparansi_perjalanan
+      - keamanan_pangan
       title: DampakRingkasanOut
+      description: Empat kartu semboyan (spec v2 §7.1) — urutan JANGAN diubah.
     DemoResetOut:
       properties:
         pesan:
@@ -1292,6 +1295,11 @@ components:
           - type: string
           - type: 'null'
           title: Catatan Sumber
+        sub_teks:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sub Teks
       type: object
       required:
       - satuan

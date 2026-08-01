@@ -46,6 +46,7 @@ ambang_transit_menit = _dengan_fallback(_atribusi.ambang_transit_menit, _stub.am
 tentukan_atribusi = _dengan_fallback(_atribusi.tentukan_atribusi, _stub.tentukan_atribusi)
 
 hitung_dampak = _dengan_fallback(_dampak.hitung_dampak, _stub.hitung_dampak)
+persen_penghematan_ongkos = _dengan_fallback(_dampak.persen_penghematan_ongkos, _stub.persen_penghematan_ongkos)
 
 # Re-ekspor dataclass/exception domain supaya router hanya perlu `from app.services import mesin`.
 Tier = _armada.Tier

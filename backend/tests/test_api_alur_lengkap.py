@@ -170,15 +170,17 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     assert len(ba["rincian_ongkos"]) == 1
     assert ba["rincian_ongkos"][0]["nama_petani"] == "Asep"
 
-    # 11) Dashboard Dampak — satu peserta -> truk_km & penghematan = 0 (bukan null,
-    # karena ADA data), susut terisi dari jam_dihemat_per_kirim (K6).
+    # 11) Dashboard Dampak — empat kartu semboyan (v2 §7.1): satu peserta ->
+    # penghematan & emisi = 0 (bukan null, karena ADA data), transparansi &
+    # keamanan pangan terisi dari serah terima + telemetri.
     r = client.get("/api/dampak/ringkasan", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     ringkasan = r.json()
-    assert ringkasan["truk_km_dihemat"]["nilai"] == 0
-    assert ringkasan["penghematan_ongkos_rp"]["nilai"] == 0
-    assert ringkasan["susut_dicegah_kg"]["nilai"] is not None
-    assert ringkasan["susut_dicegah_kg"]["nilai"] == pytest.approx(800 * 0.00250 * 4.0)
+    assert ringkasan["biaya_logistik"]["nilai"] == pytest.approx(0)
+    assert ringkasan["emisi"]["nilai"] == pytest.approx(0)
+    assert ringkasan["transparansi_perjalanan"]["nilai"] is not None
+    assert ringkasan["keamanan_pangan"]["nilai"] is not None
+    assert ringkasan["keamanan_pangan"]["nilai"] == pytest.approx(100, abs=1)
 
     r = client.get("/api/dampak/bulanan", headers=header_titik_kumpul)
     assert r.status_code == 200

@@ -14,13 +14,16 @@ class KartuDampakOut(BaseModel):
     rumus: str  # tampil di tooltip (§7)
     status_sumber: StatusSumber  # ASUMSI diberi penanda visual berbeda
     catatan_sumber: str | None = None
+    sub_teks: str | None = None  # sub-teks kartu semboyan (spec v2 §7.1), mis. "Rp1.300 → Rp420 per kg"
 
 
 class DampakRingkasanOut(BaseModel):
-    truk_km_dihemat: KartuDampakOut
-    emisi_dihemat_kg_co2: KartuDampakOut
-    penghematan_ongkos_rp: KartuDampakOut
-    susut_dicegah_kg: KartuDampakOut
+    """Empat kartu semboyan (spec v2 §7.1) — urutan JANGAN diubah."""
+
+    biaya_logistik: KartuDampakOut
+    emisi: KartuDampakOut
+    transparansi_perjalanan: KartuDampakOut
+    keamanan_pangan: KartuDampakOut
 
 
 class DampakBulananOut(BaseModel):

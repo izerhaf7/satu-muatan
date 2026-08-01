@@ -23,6 +23,8 @@ interface KartuMetrikProps {
   catatanSumber?: string | null;
   /** "rupiah" pakai AngkaHarga (Rp di depan); "angka" pakai satuan di belakang angka. */
   tampilan?: TampilanKartuMetrik;
+  /** Sub-teks kecil di bawah angka (kartu semboyan, spec v2 §7.1). */
+  subTeks?: string | null;
 }
 
 export default function KartuMetrik({
@@ -33,6 +35,7 @@ export default function KartuMetrik({
   rumus,
   catatanSumber,
   tampilan = "angka",
+  subTeks,
 }: KartuMetrikProps) {
   const asumsi = statusSumber === "ASUMSI";
 
@@ -64,6 +67,8 @@ export default function KartuMetrik({
           <span className="ml-1 text-base font-normal text-tanah/70">{satuan}</span>
         </p>
       )}
+
+      {nilai !== null && subTeks && <p className="text-keterangan text-tanah/60">{subTeks}</p>}
 
       <BadgeSumber status={statusSumber} />
     </div>

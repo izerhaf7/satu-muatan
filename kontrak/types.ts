@@ -604,7 +604,8 @@ export interface paths {
         };
         /**
          * Dampak Ringkasan
-         * @description 4 kartu, masing-masing dengan rumus + status_sumber. Tanpa data = null -> '—'.
+         * @description Empat kartu semboyan (spec v2 §7.1) — satu angka per semboyan, masing-masing
+         *     dengan rumus + status_sumber. Tanpa data = null -> '—'. Urutan JANGAN diubah.
          */
         get: operations["dampak_ringkasan_api_dampak_ringkasan_get"];
         put?: never;
@@ -773,12 +774,15 @@ export interface components {
             /** Susut Kg */
             susut_kg?: number | null;
         };
-        /** DampakRingkasanOut */
+        /**
+         * DampakRingkasanOut
+         * @description Empat kartu semboyan (spec v2 §7.1) — urutan JANGAN diubah.
+         */
         DampakRingkasanOut: {
-            truk_km_dihemat: components["schemas"]["KartuDampakOut"];
-            emisi_dihemat_kg_co2: components["schemas"]["KartuDampakOut"];
-            penghematan_ongkos_rp: components["schemas"]["KartuDampakOut"];
-            susut_dicegah_kg: components["schemas"]["KartuDampakOut"];
+            biaya_logistik: components["schemas"]["KartuDampakOut"];
+            emisi: components["schemas"]["KartuDampakOut"];
+            transparansi_perjalanan: components["schemas"]["KartuDampakOut"];
+            keamanan_pangan: components["schemas"]["KartuDampakOut"];
         };
         /** DemoResetOut */
         DemoResetOut: {
@@ -838,6 +842,8 @@ export interface components {
             status_sumber: components["schemas"]["StatusSumber"];
             /** Catatan Sumber */
             catatan_sumber?: string | null;
+            /** Sub Teks */
+            sub_teks?: string | null;
         };
         /**
          * KeputusanSerahTerima
