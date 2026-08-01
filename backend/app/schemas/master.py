@@ -14,6 +14,8 @@ class KomoditasOut(BaseModel):
     harga_acuan_per_kg: int
     umur_simpan_jam: int
     laju_susut_per_jam: float
+    q10: float
+    suhu_acuan_c: float
     status_sumber: StatusSumber
     catatan_sumber: str | None = None
 

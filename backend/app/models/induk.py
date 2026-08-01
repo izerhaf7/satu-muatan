@@ -71,6 +71,9 @@ class Komoditas(Base):
     nama: Mapped[str] = mapped_column(Text, nullable=False)
     satuan: Mapped[str] = mapped_column(Text, default="kg", server_default="kg")
     harga_acuan_per_kg: Mapped[int] = mapped_column(Integer, nullable=False)
+    # §4/C1: parameter Q10 untuk sisa umur simpan (literatur postharvest, ASUMSI).
+    q10: Mapped[Decimal] = mapped_column(Numeric(4, 2), nullable=False, default=Decimal("2.0"), server_default="2.0")
+    suhu_acuan_c: Mapped[Decimal] = mapped_column(Numeric(4, 1), nullable=False, default=Decimal("25"), server_default="25")
     umur_simpan_jam: Mapped[int] = mapped_column(Integer, nullable=False)
     laju_susut_per_jam: Mapped[Decimal] = mapped_column(Numeric(6, 5), nullable=False)
     status_sumber: Mapped[StatusSumber] = mapped_column(Enum(StatusSumber, name="status_sumber"), nullable=False)

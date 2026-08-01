@@ -135,14 +135,19 @@ def seed_konfigurasi(db: Session) -> int:
 # ---------------------------------------------------------------------------
 # Data induk (spec §11.1 + KEPUTUSAN.md K9) — koordinat gudang ASUMSI (perkiraan)
 
-CATATAN_KOMODITAS = "Harga acuan perkiraan tim; WAJIB diganti data PIHPS sebelum final (spec §11.1)."
+CATATAN_KOMODITAS = (
+    "Harga acuan perkiraan tim; WAJIB diganti data PIHPS sebelum final (spec §11.1). "
+    "Parameter Q10 & umur simpan: literatur umum postharvest — Q10 organ penyimpanan "
+    "rendah, sayur daun tinggi (spec v2 §4.1, status ASUMSI)."
+)
 
-# nama, harga_acuan, umur_simpan_jam, laju_susut_per_jam
+# nama, harga_acuan, umur_simpan_jam (pada suhu acuan), laju_susut_per_jam, q10, suhu_acuan_c
 KOMODITAS_SEED = [
-    ("Kubis", 3_000, 168, Decimal("0.00250")),
-    ("Tomat", 5_000, 96, Decimal("0.00520")),
-    ("Sawi hijau", 4_000, 48, Decimal("0.00830")),
-    ("Wortel", 6_000, 240, Decimal("0.00180")),
+    ("Sawi hijau", 4_000, 36, Decimal("0.00830"), Decimal("3.5"), Decimal("25")),  # utama demo (§8.1)
+    ("Kangkung", 3_500, 36, Decimal("0.00830"), Decimal("3.5"), Decimal("25")),
+    ("Tomat", 5_000, 72, Decimal("0.00520"), Decimal("2.5"), Decimal("25")),
+    ("Kubis", 3_000, 96, Decimal("0.00250"), Decimal("2.0"), Decimal("25")),
+    ("Wortel", 6_000, 240, Decimal("0.00180"), Decimal("1.5"), Decimal("25")),
 ]
 
 # nama, lat, lng
@@ -234,7 +239,7 @@ def seed_induk(db: Session) -> int:
         if penerima_pertama is None:
             penerima_pertama = p  # SPPG Cibiru 3 — dapur Bu Rina (K9)
 
-    for nama, harga, umur, laju in KOMODITAS_SEED:
+    for nama, harga, umur, laju, q10, suhu_acuan in KOMODITAS_SEED:
         k = db.query(Komoditas).filter_by(nama=nama).one_or_none()
         if k is None:
             k = Komoditas(nama=nama)
@@ -244,6 +249,8 @@ def seed_induk(db: Session) -> int:
         k.harga_acuan_per_kg = harga
         k.umur_simpan_jam = umur
         k.laju_susut_per_jam = laju
+        k.q10 = q10
+        k.suhu_acuan_c = suhu_acuan
         k.status_sumber = StatusSumber.ASUMSI
         k.catatan_sumber = CATATAN_KOMODITAS
 
