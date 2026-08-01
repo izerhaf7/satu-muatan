@@ -21,6 +21,8 @@ RUTE_WAJIB = {
     ("PATCH", "/api/tier-kendaraan/{tier_id}"),
     ("GET", "/api/permintaan"),
     ("POST", "/api/permintaan"),
+    ("POST", "/api/kiriman"),
+    ("GET", "/api/kiriman/pratinjau"),
     ("GET", "/api/slot"),
     ("POST", "/api/slot"),
     ("POST", "/api/slot/pratinjau"),

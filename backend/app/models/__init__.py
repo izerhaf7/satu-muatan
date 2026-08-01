@@ -15,12 +15,13 @@ from app.models.enums import (
     TipeTitikKumpul,
 )
 from app.models.induk import Komoditas, Penerima, Pengguna, TitikKumpul
-from app.models.slot import Partisipasi, Permintaan, Slot, SlotTujuan
+from app.models.slot import Kiriman, Partisipasi, Permintaan, Slot, SlotTujuan
 
 __all__ = [
     "Atribusi",
     "JejakPosisi",
     "KeputusanSerahTerima",
+    "Kiriman",
     "Komoditas",
     "Konfigurasi",
     "Lot",

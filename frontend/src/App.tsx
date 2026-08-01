@@ -13,6 +13,7 @@ import { SkeletonKartu } from "./komponen/Skeleton";
 import Beranda from "./layar/Beranda";
 import BuatSlot from "./layar/BuatSlot";
 import DetailSlot from "./layar/DetailSlot";
+import KirimPanen from "./layar/KirimPanen";
 import Landing from "./layar/landing/Landing";
 import Masuk from "./layar/Masuk";
 import Muat from "./layar/Muat";
@@ -55,6 +56,14 @@ export default function App() {
         <Route element={<PerluMasuk />}>
           <Route element={<AppShell />}>
             <Route path="/beranda" element={<Beranda />} />
+            <Route
+              path="/kirim"
+              element={
+                <RuteDenganPeran peran={["PETANI"]}>
+                  <KirimPanen />
+                </RuteDenganPeran>
+              }
+            />
             <Route
               path="/slot/baru"
               element={

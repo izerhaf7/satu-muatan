@@ -207,6 +207,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/kiriman": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Kirim Panen
+         * @description Kirim panen — sistem cocokkan ke muatan (baru atau yang sudah ada, §3.4).
+         *     Menggantikan alur 'pilih slot → gabung' untuk petani.
+         */
+        post: operations["kirim_panen_api_kiriman_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/kiriman/pratinjau": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Pratinjau
+         * @description Pratinjau §3.4 langkah 3: atap + potensi penghematan SEBELUM berkomitmen.
+         */
+        get: operations["pratinjau_api_kiriman_pratinjau_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/slot": {
         parameters: {
             query?: never;
@@ -803,6 +844,63 @@ export interface components {
          * @enum {string}
          */
         KeputusanSerahTerima: "TERIMA" | "POTONG" | "TOLAK";
+        /** KirimanCreate */
+        KirimanCreate: {
+            /**
+             * Komoditas Id
+             * Format: uuid
+             */
+            komoditas_id: string;
+            /** Volume Kg */
+            volume_kg: number;
+            /**
+             * Tanggal Siap
+             * Format: date
+             */
+            tanggal_siap: string;
+            /** Lat Tujuan */
+            lat_tujuan: number;
+            /** Lng Tujuan */
+            lng_tujuan: number;
+            /** Alamat Tujuan */
+            alamat_tujuan: string;
+        };
+        /**
+         * KirimanPratinjauResponse
+         * @description Pratinjau §3.4 langkah 3: atap + potensi SEBELUM petani berkomitmen.
+         */
+        KirimanPratinjauResponse: {
+            /** Harga Atap Per Kg */
+            harga_atap_per_kg?: number | null;
+            /** Harga Potensial Per Kg */
+            harga_potensial_per_kg?: number | null;
+            /** Slot Cocok Ada */
+            slot_cocok_ada: boolean;
+            /** Penerima Terdekat Id */
+            penerima_terdekat_id?: string | null;
+            /** Nama Penerima Terdekat */
+            nama_penerima_terdekat?: string | null;
+            /** Jarak Ke Penerima Km */
+            jarak_ke_penerima_km?: number | null;
+            /** Pesan */
+            pesan?: string | null;
+        };
+        /** KirimanResponse */
+        KirimanResponse: {
+            /**
+             * Slot Id
+             * Format: uuid
+             */
+            slot_id: string;
+            /** Harga Atap Per Kg */
+            harga_atap_per_kg: number;
+            /** Harga Berjalan Per Kg */
+            harga_berjalan_per_kg?: number | null;
+            /** Jumlah Peserta */
+            jumlah_peserta: number;
+            /** Baru Dibuat */
+            baru_dibuat: boolean;
+        };
         /** KomoditasOut */
         KomoditasOut: {
             /**
@@ -1882,6 +1980,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PermintaanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    kirim_panen_api_kiriman_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KirimanCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KirimanResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pratinjau_api_kiriman_pratinjau_get: {
+        parameters: {
+            query: {
+                volume_kg: number;
+                lat: number;
+                lng: number;
+                tanggal: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KirimanPratinjauResponse"];
                 };
             };
             /** @description Validation Error */

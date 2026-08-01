@@ -276,6 +276,86 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
       security:
       - HTTPBearer: []
+  /api/kiriman:
+    post:
+      tags:
+      - kiriman
+      summary: Kirim Panen
+      description: 'Kirim panen — sistem cocokkan ke muatan (baru atau yang sudah
+        ada, §3.4).
+
+        Menggantikan alur ''pilih slot → gabung'' untuk petani.'
+      operationId: kirim_panen_api_kiriman_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/KirimanCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KirimanResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - HTTPBearer: []
+  /api/kiriman/pratinjau:
+    get:
+      tags:
+      - kiriman
+      summary: Pratinjau
+      description: 'Pratinjau §3.4 langkah 3: atap + potensi penghematan SEBELUM berkomitmen.'
+      operationId: pratinjau_api_kiriman_pratinjau_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: volume_kg
+        in: query
+        required: true
+        schema:
+          type: integer
+          exclusiveMinimum: 0
+          title: Volume Kg
+      - name: lat
+        in: query
+        required: true
+        schema:
+          type: number
+          title: Lat
+      - name: lng
+        in: query
+        required: true
+        schema:
+          type: number
+          title: Lng
+      - name: tanggal
+        in: query
+        required: true
+        schema:
+          type: string
+          format: date
+          title: Tanggal
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/KirimanPratinjauResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/slot:
     get:
       tags:
@@ -1225,6 +1305,107 @@ components:
       - POTONG
       - TOLAK
       title: KeputusanSerahTerima
+    KirimanCreate:
+      properties:
+        komoditas_id:
+          type: string
+          format: uuid
+          title: Komoditas Id
+        volume_kg:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Volume Kg
+        tanggal_siap:
+          type: string
+          format: date
+          title: Tanggal Siap
+        lat_tujuan:
+          type: number
+          title: Lat Tujuan
+        lng_tujuan:
+          type: number
+          title: Lng Tujuan
+        alamat_tujuan:
+          type: string
+          minLength: 1
+          title: Alamat Tujuan
+      type: object
+      required:
+      - komoditas_id
+      - volume_kg
+      - tanggal_siap
+      - lat_tujuan
+      - lng_tujuan
+      - alamat_tujuan
+      title: KirimanCreate
+    KirimanPratinjauResponse:
+      properties:
+        harga_atap_per_kg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Harga Atap Per Kg
+        harga_potensial_per_kg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Harga Potensial Per Kg
+        slot_cocok_ada:
+          type: boolean
+          title: Slot Cocok Ada
+        penerima_terdekat_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Penerima Terdekat Id
+        nama_penerima_terdekat:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nama Penerima Terdekat
+        jarak_ke_penerima_km:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Jarak Ke Penerima Km
+        pesan:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pesan
+      type: object
+      required:
+      - slot_cocok_ada
+      title: KirimanPratinjauResponse
+      description: 'Pratinjau §3.4 langkah 3: atap + potensi SEBELUM petani berkomitmen.'
+    KirimanResponse:
+      properties:
+        slot_id:
+          type: string
+          format: uuid
+          title: Slot Id
+        harga_atap_per_kg:
+          type: integer
+          title: Harga Atap Per Kg
+        harga_berjalan_per_kg:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Harga Berjalan Per Kg
+        jumlah_peserta:
+          type: integer
+          title: Jumlah Peserta
+        baru_dibuat:
+          type: boolean
+          title: Baru Dibuat
+      type: object
+      required:
+      - slot_id
+      - harga_atap_per_kg
+      - jumlah_peserta
+      - baru_dibuat
+      title: KirimanResponse
     KomoditasOut:
       properties:
         id:

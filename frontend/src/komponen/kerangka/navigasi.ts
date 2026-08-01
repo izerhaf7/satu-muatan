@@ -1,7 +1,7 @@
 /** Data navigasi bersama untuk NavBawah (ponsel) dan NavSamping (desktop ≥lg).
  *  Satu sumber kebenaran: item nav per peran + label peran untuk kartu akun. */
 
-import { BarChart3, ClipboardList, Home, ListChecks, PackageCheck, SlidersHorizontal } from "lucide-react";
+import { BarChart3, ClipboardList, Home, ListChecks, PackageCheck, PackagePlus, SlidersHorizontal } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export interface ItemNav {
@@ -18,6 +18,7 @@ export const NAV_PER_PERAN: Record<string, ItemNav[]> = {
   ],
   PETANI: [
     { ke: "/beranda", label: "Beranda", ikon: Home },
+    { ke: "/kirim", label: "Kirim", ikon: PackagePlus },
     { ke: "/riwayat", label: "Riwayat", ikon: ListChecks },
   ],
   PENERIMA: [

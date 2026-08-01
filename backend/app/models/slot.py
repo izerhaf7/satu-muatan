@@ -101,3 +101,24 @@ class Partisipasi(Base):
     bergabung_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     slot: Mapped[Slot] = relationship(back_populates="partisipasi")
+
+
+class Kiriman(Base):
+    """Kiriman panen dari petani (spec v2 §3/C0) — input pencocokan otomatis.
+    Petani TIDAK memilih slot; sistem mencocokkan kiriman ke muatan (baru atau
+    yang sudah ada) memakai aturan radius koridor + jendela tanggal."""
+
+    __tablename__ = "kiriman"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    petani_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pengguna.id"), nullable=False)
+    komoditas_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("komoditas.id"), nullable=False)
+    volume_kg: Mapped[int] = mapped_column(Integer, nullable=False)
+    tanggal_siap: Mapped[date] = mapped_column(Date, nullable=False)
+    lat_tujuan: Mapped[float] = mapped_column(nullable=False)
+    lng_tujuan: Mapped[float] = mapped_column(nullable=False)
+    alamat_tujuan: Mapped[str] = mapped_column(Text, nullable=False)
+    # Hasil pencocokan — terisi begitu kiriman masuk sebuah muatan.
+    slot_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("slot.id"))
+    partisipasi_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("partisipasi.id"))
+    dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

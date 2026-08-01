@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.config import get_settings
-from app.routers import asumsi, auth, berita, dampak, demo, lacak, lot, permintaan, riwayat, slot
+from app.routers import asumsi, auth, berita, dampak, demo, kiriman, lacak, lot, permintaan, riwayat, slot
 from app.routers import master as master_router
 
 app = FastAPI(
@@ -26,6 +26,7 @@ for r in (
     master_router.router,
     asumsi.router,
     permintaan.router,
+    kiriman.router,
     slot.router,
     lot.router,
     lacak.router,
