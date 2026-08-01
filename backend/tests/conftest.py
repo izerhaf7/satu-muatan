@@ -42,7 +42,7 @@ _SEMUA_TABEL = [
     "konfigurasi",
     "komoditas",
     "penerima",
-    "koperasi",
+    "titik_kumpul",
 ]
 
 
@@ -111,7 +111,7 @@ def client():
 @pytest.fixture()
 def data_dasar(db):
     """Konfigurasi + tier (dari seed/seed.py, tidak diubah) + master data minimal
-    (koperasi, penerima, komoditas) + 6 akun demo K9 untuk test API.
+    (titik_kumpul, penerima, komoditas) + 6 akun demo K9 untuk test API.
 
     Seed penuh (riwayat 8 slot dst.) adalah tugas agent infra-demo di Fase 3 — di
     sini kita hanya butuh cukup data supaya endpoint API bisa diuji end-to-end.
@@ -119,24 +119,24 @@ def data_dasar(db):
     from seed.seed import seed_konfigurasi, seed_tier
 
     from app.auth import hash_pin
-    from app.models import Komoditas, Koperasi, Penerima, Pengguna
+    from app.models import Komoditas, TitikKumpul, Penerima, Pengguna
     from app.models.enums import PeranPengguna, StatusSumber, TipePenerima
 
     seed_tier(db)
     seed_konfigurasi(db)
     db.commit()
 
-    koperasi = Koperasi(
+    titik_kumpul = TitikKumpul(
         nama="Koperasi Desa Mekarjaya",
         kode="CKJ",
         desa="Cikajang",
         kecamatan="Cikajang",
         kabupaten="Garut",
-        alamat_gudang="Jl. Raya Cikajang",
+        alamat="Jl. Raya Cikajang",
         lat=-7.3661,
         lng=107.7961,
     )
-    db.add(koperasi)
+    db.add(titik_kumpul)
     db.flush()
 
     penerima_cibiru = Penerima(
@@ -172,20 +172,20 @@ def data_dasar(db):
 
     pin_hash = hash_pin(PIN_DEMO)
     akun = {
-        "koperasi": Pengguna(
-            nama="Bu Nia", no_hp="081200000001", pin_hash=pin_hash, peran=PeranPengguna.KOPERASI, koperasi_id=koperasi.id
+        "titik_kumpul": Pengguna(
+            nama="Bu Nia", no_hp="081200000001", pin_hash=pin_hash, peran=PeranPengguna.PETUGAS, titik_kumpul_id=titik_kumpul.id
         ),
         "asep": Pengguna(
-            nama="Asep", no_hp="081200000011", pin_hash=pin_hash, peran=PeranPengguna.PETANI, koperasi_id=koperasi.id
+            nama="Asep", no_hp="081200000011", pin_hash=pin_hash, peran=PeranPengguna.PETANI, titik_kumpul_id=titik_kumpul.id
         ),
         "wati": Pengguna(
-            nama="Wati", no_hp="081200000012", pin_hash=pin_hash, peran=PeranPengguna.PETANI, koperasi_id=koperasi.id
+            nama="Wati", no_hp="081200000012", pin_hash=pin_hash, peran=PeranPengguna.PETANI, titik_kumpul_id=titik_kumpul.id
         ),
         "dedi": Pengguna(
-            nama="Dedi", no_hp="081200000013", pin_hash=pin_hash, peran=PeranPengguna.PETANI, koperasi_id=koperasi.id
+            nama="Dedi", no_hp="081200000013", pin_hash=pin_hash, peran=PeranPengguna.PETANI, titik_kumpul_id=titik_kumpul.id
         ),
         "ijah": Pengguna(
-            nama="Ijah", no_hp="081200000014", pin_hash=pin_hash, peran=PeranPengguna.PETANI, koperasi_id=koperasi.id
+            nama="Ijah", no_hp="081200000014", pin_hash=pin_hash, peran=PeranPengguna.PETANI, titik_kumpul_id=titik_kumpul.id
         ),
         "penerima_cibiru": Pengguna(
             nama="Bu Rina",
@@ -201,7 +201,7 @@ def data_dasar(db):
         db.refresh(p)
 
     return {
-        "koperasi": koperasi,
+        "titik_kumpul": titik_kumpul,
         "penerima": {"cibiru": penerima_cibiru, "ujungberung": penerima_ujungberung, "panyileukan": penerima_panyileukan},
         "komoditas": {"kubis": kubis, "tomat": tomat},
         "pengguna": akun,

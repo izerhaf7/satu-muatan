@@ -11,7 +11,7 @@ export interface ItemNav {
 }
 
 export const NAV_PER_PERAN: Record<string, ItemNav[]> = {
-  KOPERASI: [
+  PETUGAS: [
     { ke: "/beranda", label: "Beranda", ikon: Home },
     { ke: "/dampak", label: "Dampak", ikon: BarChart3 },
     { ke: "/asumsi", label: "Asumsi", ikon: SlidersHorizontal },
@@ -28,7 +28,7 @@ export const NAV_PER_PERAN: Record<string, ItemNav[]> = {
 };
 
 export const LABEL_PERAN: Record<string, string> = {
-  KOPERASI: "Pengurus Koperasi",
+  PETUGAS: "Petugas Titik Kumpul",
   PETANI: "Petani",
   PENERIMA: "Dapur Penerima",
 };

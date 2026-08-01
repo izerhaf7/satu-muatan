@@ -9,7 +9,7 @@ type PengirimanOut = components["schemas"]["PengirimanOut"];
 
 const INTERVAL_POLL_MS = 3000; // spec §3.1: polling 3 detik, bukan WebSocket.
 
-/** Info slot (kode, koperasi/gudang, daftar tujuan) — konteks header + titik peta. */
+/** Info slot (kode, titik kumpul, daftar tujuan) — konteks header + titik peta. */
 export function useSlotUntukLacak(slotId: string | undefined) {
   return useQuery({
     queryKey: ["slot", slotId, "ringkas-lacak"],

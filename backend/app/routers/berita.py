@@ -8,11 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_pengguna_aktif
 from app.database import get_db
-from app.models import Komoditas, Koperasi, Lot, Penerima, Pengguna, SerahTerima, Slot
+from app.models import Komoditas, Lot, Penerima, Pengguna, SerahTerima, Slot, TitikKumpul
 from app.models.enums import StatusPartisipasi
 from app.routers.lot import _ke_lot_out, _ke_serah_terima_out
 from app.schemas.berita import BeritaAcaraOut, LotBeritaOut, OngkosPetaniOut
-from app.schemas.master import KoperasiOut
+from app.schemas.master import TitikKumpulOut
 from app.schemas.slot import RuteSegmenOut
 from app.services.otorisasi import pastikan_bisa_lihat_slot
 
@@ -22,13 +22,13 @@ router = APIRouter(tags=["berita-acara"])
 @router.get("/slot/{slot_id}/berita-acara", response_model=BeritaAcaraOut)
 def berita_acara(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Session = Depends(get_db)):
     """Agregat: lot + foto muat & bongkar, keputusan, atribusi, rincian ongkos
-    per petani, subsidi koperasi. Tanda tangan = garis kosong cetak (K4)."""
+    per petani, selisih jaminan atap. Tanda tangan = garis kosong cetak (K4)."""
     slot = db.get(Slot, slot_id)
     if slot is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Slot tidak ditemukan")
     pastikan_bisa_lihat_slot(pengguna, slot)
 
-    koperasi = db.get(Koperasi, slot.koperasi_id)
+    titik_kumpul = db.get(TitikKumpul, slot.titik_kumpul_id)
 
     tujuan = []
     for t in sorted(slot.tujuan, key=lambda x: x.urutan):
@@ -73,12 +73,12 @@ def berita_acara(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Sessio
     return BeritaAcaraOut(
         kode_slot=slot.kode,
         tanggal_kirim=slot.tanggal_kirim,
-        koperasi=KoperasiOut.model_validate(koperasi),
+        titik_kumpul=TitikKumpulOut.model_validate(titik_kumpul),
         tujuan=tujuan,
         lot=lot_baris,
         rincian_ongkos=rincian_ongkos,
         biaya_total=slot.biaya_total,
         harga_final_per_kg=slot.harga_final_per_kg,
-        subsidi_koperasi=slot.subsidi_koperasi,
+        selisih_jaminan_atap=slot.selisih_jaminan_atap,
         dibuat_pada=datetime.now(timezone.utc),
     )

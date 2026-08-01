@@ -2,7 +2,7 @@
  *  `tier_kendaraan` yang menggerakkan mesin harga, dengan sumbernya masing-masing.
  *  Mengubah nilai di sini langsung mempengaruhi Beranda, Detail Slot, Dashboard
  *  Dampak, dst. (invalidasi query global — lihat `hooks/useAsumsi.ts`). Guard peran
- *  KOPERASI sudah terpusat di RuteDenganPeran (App.tsx). */
+ *  PETUGAS sudah terpusat di RuteDenganPeran (App.tsx). */
 
 import { SlidersHorizontal } from "lucide-react";
 

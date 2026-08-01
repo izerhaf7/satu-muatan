@@ -58,7 +58,7 @@ export default function App() {
             <Route
               path="/slot/baru"
               element={
-                <RuteDenganPeran peran={["KOPERASI"]}>
+                <RuteDenganPeran peran={["PETUGAS"]}>
                   <BuatSlot />
                 </RuteDenganPeran>
               }
@@ -67,7 +67,7 @@ export default function App() {
             <Route
               path="/slot/:id/muat"
               element={
-                <RuteDenganPeran peran={["KOPERASI"]}>
+                <RuteDenganPeran peran={["PETUGAS"]}>
                   <Muat />
                 </RuteDenganPeran>
               }
@@ -85,7 +85,7 @@ export default function App() {
             <Route
               path="/asumsi"
               element={
-                <RuteDenganPeran peran={["KOPERASI"]}>
+                <RuteDenganPeran peran={["PETUGAS"]}>
                   <PanelAsumsi />
                 </RuteDenganPeran>
               }

@@ -13,17 +13,17 @@ from app.models.enums import StatusPartisipasi, StatusSlot
 
 
 def _buat_slot_jarak_80(db, data_dasar, kode="SM-TEST-01"):
-    koperasi = data_dasar["koperasi"]
+    titik_kumpul = data_dasar["titik_kumpul"]
     cibiru = data_dasar["penerima"]["cibiru"]
     slot = Slot(
         kode=kode,
-        koperasi_id=koperasi.id,
+        titik_kumpul_id=titik_kumpul.id,
         tanggal_kirim=date.today() + timedelta(days=1),
         cutoff_at=datetime.now(timezone.utc) + timedelta(hours=6),
         status=StatusSlot.DIBUKA,
         jarak_km=Decimal("80.00"),
         volume_terkunci_kg=0,
-        subsidi_koperasi=0,
+        selisih_jaminan_atap=0,
     )
     db.add(slot)
     db.flush()
@@ -39,13 +39,13 @@ def _buat_slot_jarak_80(db, data_dasar, kode="SM-TEST-01"):
 
 
 def test_buka_slot_gabung_dan_detail_shape(client, data_dasar, masuk):
-    header_koperasi = masuk("081200000001")
+    header_titik_kumpul = masuk("081200000001")
     cibiru_id = str(data_dasar["penerima"]["cibiru"].id)
     ujungberung_id = str(data_dasar["penerima"]["ujungberung"].id)
 
     r = client.post(
         "/api/slot",
-        headers=header_koperasi,
+        headers=header_titik_kumpul,
         json={
             "tanggal_kirim": str(date.today() + timedelta(days=1)),
             "cutoff_at": (datetime.now(timezone.utc) + timedelta(hours=6)).isoformat(),
@@ -100,21 +100,21 @@ def test_gabung_komoditas_tidak_ditemukan(client, data_dasar, masuk, db):
     assert r.status_code == 404
 
 
-def test_gabung_ditolak_kalau_slot_bukan_milik_koperasi_petani(client, data_dasar, masuk, db):
+def test_gabung_ditolak_kalau_slot_bukan_milik_titik_kumpul_petani(client, data_dasar, masuk, db):
     from app.auth import hash_pin
-    from app.models import Koperasi, Pengguna
+    from app.models import TitikKumpul, Pengguna
     from app.models.enums import PeranPengguna
 
     slot = _buat_slot_jarak_80(db, data_dasar)
 
-    koperasi_lain = Koperasi(
-        nama="Koperasi Lain", kode="LAIN", alamat_gudang="Entah", lat=-7.0, lng=107.0
+    titik_kumpul_lain = TitikKumpul(
+        nama="Koperasi Lain", kode="LAIN", alamat="Entah", lat=-7.0, lng=107.0
     )
-    db.add(koperasi_lain)
+    db.add(titik_kumpul_lain)
     db.flush()
     petani_lain = Pengguna(
         nama="Petani Lain", no_hp="089111111111", pin_hash=hash_pin("123456"),
-        peran=PeranPengguna.PETANI, koperasi_id=koperasi_lain.id,
+        peran=PeranPengguna.PETANI, titik_kumpul_id=titik_kumpul_lain.id,
     )
     db.add(petani_lain)
     db.commit()
@@ -134,7 +134,7 @@ def test_gabung_ditolak_kalau_slot_bukan_milik_koperasi_petani(client, data_dasa
 
 def test_gabung_luapan_kapasitas_409(client, data_dasar, masuk, db):
     slot = _buat_slot_jarak_80(db, data_dasar)
-    # Slot alternatif: DIBUKA, koperasi & tanggal sama -> harus muncul di slot_alternatif_id.
+    # Slot alternatif: DIBUKA, titik_kumpul & tanggal sama -> harus muncul di slot_alternatif_id.
     slot_alt = _buat_slot_jarak_80(db, data_dasar, kode="SM-TEST-02")
     slot_alt.tanggal_kirim = slot.tanggal_kirim
     db.commit()
@@ -205,15 +205,15 @@ def test_tutup_slot_jaminan_atap_t11(client, data_dasar, masuk, db):
     slot.volume_terkunci_kg = 810
     db.commit()
 
-    header_koperasi = masuk("081200000001")
-    r = client.post(f"/api/slot/{slot.id}/tutup", headers=header_koperasi)
+    header_titik_kumpul = masuk("081200000001")
+    r = client.post(f"/api/slot/{slot.id}/tutup", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     body = r.json()
 
     assert body["status"] == "TERKUNCI"
     assert body["biaya_total"] == 543_000
     assert body["harga_final_per_kg"] == 671
-    assert body["subsidi_koperasi"] == 204_290
+    assert body["selisih_jaminan_atap"] == 204_290
 
     by_petani = {p["nama_petani"]: p for p in body["partisipasi"]}
     assert by_petani["Asep"]["harga_final_per_kg"] == 415
@@ -223,14 +223,14 @@ def test_tutup_slot_jaminan_atap_t11(client, data_dasar, masuk, db):
     assert by_petani["Wati"]["kembalian_rp"] == 264_290
 
     # Lot + Pengiriman dibuat saat tutup.
-    r2 = client.get(f"/api/slot/{slot.id}/lot", headers=header_koperasi)
+    r2 = client.get(f"/api/slot/{slot.id}/lot", headers=header_titik_kumpul)
     assert r2.status_code == 200
     assert len(r2.json()) == 2
     for lot in r2.json():
         assert lot["kode_qr"].startswith(f"LOT-{slot.kode}-")
         assert lot["penerima_id"] is not None
 
-    r3 = client.get(f"/api/slot/{slot.id}/pengiriman", headers=header_koperasi)
+    r3 = client.get(f"/api/slot/{slot.id}/pengiriman", headers=header_titik_kumpul)
     assert r3.status_code == 200, r3.text
     pengiriman = r3.json()
     assert pengiriman["vendor"] == "MOCK"
@@ -241,21 +241,21 @@ def test_tutup_slot_jaminan_atap_t11(client, data_dasar, masuk, db):
 
 def test_tutup_slot_kosong_ditolak(client, data_dasar, masuk, db):
     slot = _buat_slot_jarak_80(db, data_dasar)
-    header_koperasi = masuk("081200000001")
-    r = client.post(f"/api/slot/{slot.id}/tutup", headers=header_koperasi)
+    header_titik_kumpul = masuk("081200000001")
+    r = client.post(f"/api/slot/{slot.id}/tutup", headers=header_titik_kumpul)
     assert r.status_code == 422
 
 
 def test_daftar_slot_ter_scope_per_peran(client, data_dasar, masuk, db):
     _buat_slot_jarak_80(db, data_dasar)
 
-    header_koperasi = masuk("081200000001")
-    r_koperasi = client.get("/api/slot", headers=header_koperasi)
-    assert len(r_koperasi.json()) == 1
+    header_titik_kumpul = masuk("081200000001")
+    r_titik_kumpul = client.get("/api/slot", headers=header_titik_kumpul)
+    assert len(r_titik_kumpul.json()) == 1
 
     header_asep = masuk("081200000011")
     r_asep = client.get("/api/slot", headers=header_asep)
-    assert len(r_asep.json()) == 1  # petani satu koperasi -> ikut lihat
+    assert len(r_asep.json()) == 1  # petani satu titik_kumpul -> ikut lihat
 
     header_penerima = masuk("081200000021")
     r_penerima = client.get("/api/slot", headers=header_penerima)

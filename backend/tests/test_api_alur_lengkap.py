@@ -14,17 +14,17 @@ from app.models.enums import StatusSlot
 
 
 def _buat_slot_jarak_80(db, data_dasar, kode="SM-ALUR-01"):
-    koperasi = data_dasar["koperasi"]
+    titik_kumpul = data_dasar["titik_kumpul"]
     cibiru = data_dasar["penerima"]["cibiru"]
     slot = Slot(
         kode=kode,
-        koperasi_id=koperasi.id,
+        titik_kumpul_id=titik_kumpul.id,
         tanggal_kirim=date.today() + timedelta(days=1),
         cutoff_at=datetime.now(timezone.utc) + timedelta(hours=6),
         status=StatusSlot.DIBUKA,
         jarak_km=Decimal("80.00"),
         volume_terkunci_kg=0,
-        subsidi_koperasi=0,
+        selisih_jaminan_atap=0,
     )
     db.add(slot)
     db.flush()
@@ -38,12 +38,12 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     slot = _buat_slot_jarak_80(db, data_dasar)
     kubis_id = str(data_dasar["komoditas"]["kubis"].id)
 
-    header_koperasi = masuk("081200000001")
+    header_titik_kumpul = masuk("081200000001")
     header_asep = masuk("081200000011")
     header_penerima = masuk("081200000021")
 
     # 1) Asep gabung 800 kg kubis (VAN penuh persis -> biaya habis dibagi rata,
-    # subsidi_koperasi = 0 bersih; volume yang tidak habis dibagi wajar punya sisa
+    # selisih_jaminan_atap = 0 bersih; volume yang tidak habis dibagi wajar punya sisa
     # pembulatan kecil dari ceil() dan diuji terpisah, bukan di sini).
     r = client.post(
         f"/api/slot/{slot.id}/gabung", headers=header_asep, json={"komoditas_id": kubis_id, "volume_kg": 800}
@@ -53,15 +53,15 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     assert atap == 415  # K1 T4: 800 kg -> VAN 332.000 -> ceil(332000/800)=415
 
     # 2) Koperasi tutup slot -> harga final, lot, pengiriman.
-    r = client.post(f"/api/slot/{slot.id}/tutup", headers=header_koperasi)
+    r = client.post(f"/api/slot/{slot.id}/tutup", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     tutup = r.json()
     assert tutup["status"] == "TERKUNCI"
     assert tutup["harga_final_per_kg"] == atap  # satu peserta -> H_kasar == atap, tidak ada subsidi
-    assert tutup["subsidi_koperasi"] == 0
+    assert tutup["selisih_jaminan_atap"] == 0
     assert tutup["partisipasi"][0]["kembalian_rp"] == 0
 
-    r = client.get(f"/api/slot/{slot.id}/lot", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot.id}/lot", headers=header_titik_kumpul)
     lots = r.json()
     assert len(lots) == 1
     lot_id = lots[0]["id"]
@@ -72,25 +72,25 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     # 3) Muat: timbang + foto, tanpa cacat.
     r = client.patch(
         f"/api/lot/{lot_id}/muat",
-        headers=header_koperasi,
+        headers=header_titik_kumpul,
         json={"berat_aktual_kg": 795, "foto_muat_base64": "ZmFrZS1mb3RvLW11YXQ=", "cacat_terlihat": False, "catatan_muat": "kondisi baik"},
     )
     assert r.status_code == 200, r.text
     assert r.json()["berat_aktual_kg"] == 795
     assert r.json()["waktu_muat"]
 
-    r = client.get(f"/api/slot/{slot.id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot.id}", headers=header_titik_kumpul)
     assert r.json()["status"] == "DIMUAT"
 
     # 4) Selesai muat -> slot JALAN, pengiriman berangkat.
-    r = client.post(f"/api/slot/{slot.id}/selesai-muat", headers=header_koperasi)
+    r = client.post(f"/api/slot/{slot.id}/selesai-muat", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     assert r.json()[0]["waktu_muat"]
 
-    r = client.get(f"/api/slot/{slot.id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot.id}", headers=header_titik_kumpul)
     assert r.json()["status"] == "JALAN"
 
-    r = client.get(f"/api/slot/{slot.id}/pengiriman", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot.id}/pengiriman", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     pengiriman = r.json()
     assert pengiriman["status_vendor"] == "JALAN"
@@ -100,7 +100,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     pengiriman_id = pengiriman["id"]
 
     # 5) Majukan -> TIBA (sim K5), jejak posisi tercatat.
-    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_koperasi)
+    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     maju = r.json()
     assert maju["status_vendor"] == "TIBA"
@@ -109,7 +109,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     assert maju["jejak"][-1]["sumber"] == "SIMULASI"
 
     # Memanggil lagi setelah TIBA harus idempoten (tidak error).
-    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_koperasi)
+    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_titik_kumpul)
     assert r.status_code == 200
     assert r.json()["status_vendor"] == "TIBA"
 
@@ -147,7 +147,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     assert r_dobel.status_code == 409
 
     # 8) Slot & partisipasi selesai (semua lot sudah diserahterimakan).
-    r = client.get(f"/api/slot/{slot.id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot.id}", headers=header_titik_kumpul)
     detail = r.json()
     assert detail["status"] == "SELESAI"
     assert detail["partisipasi"][0]["status"] == "SELESAI"
@@ -161,7 +161,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     assert riwayat[0]["slot_kode"] == slot.kode
 
     # 10) Berita Acara.
-    r = client.get(f"/api/slot/{slot.id}/berita-acara", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot.id}/berita-acara", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     ba = r.json()
     assert ba["kode_slot"] == slot.kode
@@ -172,7 +172,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
 
     # 11) Dashboard Dampak — satu peserta -> truk_km & penghematan = 0 (bukan null,
     # karena ADA data), susut terisi dari jam_dihemat_per_kirim (K6).
-    r = client.get("/api/dampak/ringkasan", headers=header_koperasi)
+    r = client.get("/api/dampak/ringkasan", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     ringkasan = r.json()
     assert ringkasan["truk_km_dihemat"]["nilai"] == 0
@@ -180,7 +180,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     assert ringkasan["susut_dicegah_kg"]["nilai"] is not None
     assert ringkasan["susut_dicegah_kg"]["nilai"] == pytest.approx(800 * 0.00250 * 4.0)
 
-    r = client.get("/api/dampak/bulanan", headers=header_koperasi)
+    r = client.get("/api/dampak/bulanan", headers=header_titik_kumpul)
     assert r.status_code == 200
     bulanan = r.json()
     assert len(bulanan) == 1

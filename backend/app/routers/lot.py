@@ -134,13 +134,13 @@ def daftar_lot_slot(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Ses
 
 
 @router.patch("/lot/{lot_id}/muat", response_model=LotOut)
-def muat_lot(lot_id: UUID, body: MuatPatchRequest, pengguna=Depends(wajib_peran("KOPERASI")), db: Session = Depends(get_db)):
+def muat_lot(lot_id: UUID, body: MuatPatchRequest, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
     """Timbang + foto + checkbox 'Ada cacat terlihat' (input kunci atribusi §6)."""
     lot = _lot_atau_404(db, lot_id)
     partisipasi = db.get(Partisipasi, lot.partisipasi_id)
     slot = db.get(Slot, partisipasi.slot_id) if partisipasi else None
-    if slot is None or slot.koperasi_id != pengguna.koperasi_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Lot bukan milik koperasi Anda")
+    if slot is None or slot.titik_kumpul_id != pengguna.titik_kumpul_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Lot bukan milik titik kumpul Anda")
     if slot.status not in (StatusSlot.TERKUNCI, StatusSlot.DIMUAT):
         raise HTTPException(status.HTTP_409_CONFLICT, "Slot tidak dalam tahap pemuatan")
 
@@ -159,13 +159,13 @@ def muat_lot(lot_id: UUID, body: MuatPatchRequest, pengguna=Depends(wajib_peran(
 
 
 @router.post("/slot/{slot_id}/selesai-muat", response_model=list[LotOut])
-def selesai_muat(slot_id: UUID, pengguna=Depends(wajib_peran("KOPERASI")), db: Session = Depends(get_db)):
+def selesai_muat(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
     """Selesai muat -> slot JALAN, waktu berangkat tercatat (§9.5)."""
     slot = db.get(Slot, slot_id)
     if slot is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Slot tidak ditemukan")
-    if slot.koperasi_id != pengguna.koperasi_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Slot bukan milik koperasi Anda")
+    if slot.titik_kumpul_id != pengguna.titik_kumpul_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Slot bukan milik titik kumpul Anda")
     if slot.status not in (StatusSlot.TERKUNCI, StatusSlot.DIMUAT):
         raise HTTPException(status.HTTP_409_CONFLICT, "Slot tidak dalam tahap pemuatan")
 

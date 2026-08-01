@@ -63,7 +63,7 @@ export default function BeritaAcara() {
             rincian={beritaAcara.data.rincian_ongkos}
             biayaTotal={beritaAcara.data.biaya_total ?? null}
             hargaFinalPerKg={beritaAcara.data.harga_final_per_kg ?? null}
-            subsidiKoperasi={beritaAcara.data.subsidi_koperasi}
+            selisihJaminanAtap={beritaAcara.data.selisih_jaminan_atap}
           />
           <TandaTangan />
         </div>

@@ -77,14 +77,14 @@ def pengiriman_slot(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Ses
 
 
 @router.post("/pengiriman/{pengiriman_id}/majukan", response_model=PengirimanOut)
-def majukan_pengiriman(pengiriman_id: UUID, pengguna=Depends(wajib_peran("KOPERASI")), db: Session = Depends(get_db)):
+def majukan_pengiriman(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
     """Majukan state simulasi MockVendor satu langkah (K5) — deterministik, untuk demo."""
     pengiriman = db.get(Pengiriman, pengiriman_id)
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
     slot = db.get(Slot, pengiriman.slot_id)
-    if slot is None or slot.koperasi_id != pengguna.koperasi_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Pengiriman bukan milik koperasi Anda")
+    if slot is None or slot.titik_kumpul_id != pengguna.titik_kumpul_id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Pengiriman bukan milik titik kumpul Anda")
 
     saat_ini = pengiriman.status_vendor or "DIPESAN"
     idx = _URUTAN_STATUS.index(saat_ini) if saat_ini in _URUTAN_STATUS else 0

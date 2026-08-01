@@ -98,7 +98,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/koperasi/saya": {
+    "/api/titik-kumpul/saya": {
         parameters: {
             query?: never;
             header?: never;
@@ -106,10 +106,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Koperasi Saya
-         * @description Koperasi milik pengguna login (gudang = titik awal rute).
+         * Titik Kumpul Saya
+         * @description Titik kumpul milik pengguna login (titik awal rute). Rename v2 §2: dulu /koperasi/saya.
          */
-        get: operations["koperasi_saya_api_koperasi_saya_get"];
+        get: operations["titik_kumpul_saya_api_titik_kumpul_saya_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -195,7 +195,7 @@ export interface paths {
         };
         /**
          * Daftar Permintaan
-         * @description Ter-scope per peran (K6): PENERIMA -> miliknya; KOPERASI (& lainnya) -> semua yang terbuka.
+         * @description Ter-scope per peran (K6): PENERIMA -> miliknya; PETUGAS (& lainnya) -> semua yang terbuka.
          */
         get: operations["daftar_permintaan_api_permintaan_get"];
         put?: never;
@@ -216,7 +216,7 @@ export interface paths {
         };
         /**
          * Daftar Slot
-         * @description Ter-scope per peran (K6): KOPERASI -> miliknya; PETANI -> slot koperasinya;
+         * @description Ter-scope per peran (K6): PETUGAS -> miliknya; PETANI -> slot titik kumpulnya;
          *     PENERIMA -> slot yang tujuannya memuat dirinya.
          */
         get: operations["daftar_slot_api_slot_get"];
@@ -522,7 +522,7 @@ export interface paths {
         /**
          * Berita Acara
          * @description Agregat: lot + foto muat & bongkar, keputusan, atribusi, rincian ongkos
-         *     per petani, subsidi koperasi. Tanda tangan = garis kosong cetak (K4).
+         *     per petani, selisih jaminan atap. Tanda tangan = garis kosong cetak (K4).
          */
         get: operations["berita_acara_api_slot__slot_id__berita_acara_get"];
         put?: never;
@@ -604,11 +604,14 @@ export interface paths {
         put?: never;
         /**
          * Reset Demo
-         * @description Kembalikan database ke keadaan awal skenario demo. Idempoten, deterministik.
+         * @description Kembalikan database ke keadaan awal skenario demo (§11.2). Idempoten,
+         *     deterministik — memanggil fungsi bersama `reset_ke_awal_demo` (Fase 3,
+         *     `backend/seed/skenario_demo.py`) supaya CLI (`python seed/skenario_demo.py`)
+         *     dan endpoint ini TIDAK PERNAH berbeda perilaku.
          *
-         *     Fase 1: hapus seluruh data transaksional, pertahankan master (koperasi, penerima,
-         *     komoditas, pengguna) + konfigurasi/tier. Seed skenario penuh (§11.2) ditambahkan
-         *     agent infra-demo di Fase 3.
+         *     Data transaksional dikosongkan KECUALI 8 slot riwayat SELESAI (spec §11.1 —
+         *     sumber grafik Dashboard Dampak); master (koperasi, penerima, komoditas,
+         *     pengguna) + tier tetap utuh; konfigurasi dikembalikan ke nilai default seed.
          */
         post: operations["reset_demo_api_demo_reset_post"];
         delete?: never;
@@ -644,12 +647,12 @@ export interface components {
          *     Dedi & Ijah dipakai skenario demo langkah 5–6.
          * @enum {string}
          */
-        AkunDemo: "KOPERASI" | "PETANI_ASEP" | "PETANI_WATI" | "PETANI_DEDI" | "PETANI_IJAH" | "PENERIMA_CIBIRU";
+        AkunDemo: "PETUGAS" | "PETANI_ASEP" | "PETANI_WATI" | "PETANI_DEDI" | "PETANI_IJAH" | "PENERIMA_CIBIRU";
         /**
          * Atribusi
          * @enum {string}
          */
-        Atribusi: "PETANI" | "LOGISTIK" | "TIDAK_TERBUKTI";
+        Atribusi: "PETANI" | "LOGISTIK" | "TIDAK_TERBUKTI" | "NORMAL";
         /** BeritaAcaraOut */
         BeritaAcaraOut: {
             /** Kode Slot */
@@ -659,7 +662,7 @@ export interface components {
              * Format: date
              */
             tanggal_kirim: string;
-            koperasi: components["schemas"]["KoperasiOut"];
+            titik_kumpul: components["schemas"]["TitikKumpulOut"];
             /** Tujuan */
             tujuan: components["schemas"]["RuteSegmenOut"][];
             /** Lot */
@@ -670,8 +673,8 @@ export interface components {
             biaya_total?: number | null;
             /** Harga Final Per Kg */
             harga_final_per_kg?: number | null;
-            /** Subsidi Koperasi */
-            subsidi_koperasi: number;
+            /** Selisih Jaminan Atap */
+            selisih_jaminan_atap: number;
             /**
              * Dibuat Pada
              * Format: date-time
@@ -820,30 +823,6 @@ export interface components {
             /** Nilai */
             nilai: string;
         };
-        /** KoperasiOut */
-        KoperasiOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Nama */
-            nama: string;
-            /** Kode */
-            kode?: string | null;
-            /** Desa */
-            desa?: string | null;
-            /** Kecamatan */
-            kecamatan?: string | null;
-            /** Kabupaten */
-            kabupaten?: string | null;
-            /** Alamat Gudang */
-            alamat_gudang: string;
-            /** Lat */
-            lat: number;
-            /** Lng */
-            lng: number;
-        };
         /** LotBeritaOut */
         LotBeritaOut: {
             lot: components["schemas"]["LotOut"];
@@ -911,7 +890,7 @@ export interface components {
         MasukRequest: {
             /**
              * No Hp
-             * @example 81234567001
+             * @example 081234567001
              */
             no_hp: string;
             /**
@@ -1055,8 +1034,8 @@ export interface components {
             /** No Hp */
             no_hp: string;
             peran: components["schemas"]["PeranPengguna"];
-            /** Koperasi Id */
-            koperasi_id?: string | null;
+            /** Titik Kumpul Id */
+            titik_kumpul_id?: string | null;
             /** Penerima Id */
             penerima_id?: string | null;
         };
@@ -1090,7 +1069,7 @@ export interface components {
          * PeranPengguna
          * @enum {string}
          */
-        PeranPengguna: "PETANI" | "KOPERASI" | "PENERIMA";
+        PeranPengguna: "PETANI" | "PETUGAS" | "PENERIMA";
         /** PermintaanCreate */
         PermintaanCreate: {
             /**
@@ -1317,7 +1296,7 @@ export interface components {
             waktu_server: string;
             /** Jarak Km */
             jarak_km: number;
-            koperasi: components["schemas"]["KoperasiOut"];
+            titik_kumpul: components["schemas"]["TitikKumpulOut"];
             /** Tujuan */
             tujuan: components["schemas"]["RuteSegmenOut"][];
             /** Volume Total Kg */
@@ -1336,10 +1315,10 @@ export interface components {
             /** Harga Final Per Kg */
             harga_final_per_kg?: number | null;
             /**
-             * Subsidi Koperasi
+             * Selisih Jaminan Atap
              * @default 0
              */
-            subsidi_koperasi: number;
+            selisih_jaminan_atap: number;
         };
         /**
          * SlotItemOut
@@ -1466,6 +1445,38 @@ export interface components {
          * @enum {string}
          */
         TipePenerima: "SPPG" | "HOREKA" | "PENGOLAH" | "PASAR_INDUK";
+        /**
+         * TipeTitikKumpul
+         * @enum {string}
+         */
+        TipeTitikKumpul: "PETANI_UTAMA" | "GAPOKTAN" | "KOPERASI" | "MITRA";
+        /** TitikKumpulOut */
+        TitikKumpulOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Nama */
+            nama: string;
+            /** Kode */
+            kode?: string | null;
+            tipe: components["schemas"]["TipeTitikKumpul"];
+            /** Petugas Id */
+            petugas_id?: string | null;
+            /** Desa */
+            desa?: string | null;
+            /** Kecamatan */
+            kecamatan?: string | null;
+            /** Kabupaten */
+            kabupaten?: string | null;
+            /** Alamat */
+            alamat: string;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
         /** TokenResponse */
         TokenResponse: {
             /** Token */
@@ -1620,7 +1631,7 @@ export interface operations {
             };
         };
     };
-    koperasi_saya_api_koperasi_saya_get: {
+    titik_kumpul_saya_api_titik_kumpul_saya_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -1635,7 +1646,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["KoperasiOut"];
+                    "application/json": components["schemas"]["TitikKumpulOut"];
                 };
             };
         };

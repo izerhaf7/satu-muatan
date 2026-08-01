@@ -29,19 +29,19 @@ function kirim(res: Connect.OutgoingMessage & { statusCode?: number }, status: n
   res.end(JSON.stringify(body));
 }
 
-const AKUN_DEMO: Record<string, { id: string; nama: string; no_hp: string; peran: string; koperasi_id?: string; penerima_id?: string }> = {
-  KOPERASI: { id: "u-koperasi", nama: "Bu Nia", no_hp: "081200000001", peran: "KOPERASI", koperasi_id: "kop-1" },
-  PETANI_ASEP: { id: "u-asep", nama: "Asep", no_hp: "081200000011", peran: "PETANI", koperasi_id: "kop-1" },
-  PETANI_WATI: { id: "u-wati", nama: "Wati", no_hp: "081200000012", peran: "PETANI", koperasi_id: "kop-1" },
-  PETANI_DEDI: { id: "u-dedi", nama: "Dedi", no_hp: "081200000013", peran: "PETANI", koperasi_id: "kop-1" },
-  PETANI_IJAH: { id: "u-ijah", nama: "Ijah", no_hp: "081200000014", peran: "PETANI", koperasi_id: "kop-1" },
+const AKUN_DEMO: Record<string, { id: string; nama: string; no_hp: string; peran: string; titik_kumpul_id?: string; penerima_id?: string }> = {
+  PETUGAS: { id: "u-petugas", nama: "Bu Nia", no_hp: "081200000001", peran: "PETUGAS", titik_kumpul_id: "kop-1" },
+  PETANI_ASEP: { id: "u-asep", nama: "Asep", no_hp: "081200000011", peran: "PETANI", titik_kumpul_id: "kop-1" },
+  PETANI_WATI: { id: "u-wati", nama: "Wati", no_hp: "081200000012", peran: "PETANI", titik_kumpul_id: "kop-1" },
+  PETANI_DEDI: { id: "u-dedi", nama: "Dedi", no_hp: "081200000013", peran: "PETANI", titik_kumpul_id: "kop-1" },
+  PETANI_IJAH: { id: "u-ijah", nama: "Ijah", no_hp: "081200000014", peran: "PETANI", titik_kumpul_id: "kop-1" },
   PENERIMA_CIBIRU: { id: "u-rina", nama: "Bu Rina", no_hp: "081200000021", peran: "PENERIMA", penerima_id: "pnr-cibiru" },
 };
 
 const PENERIMA = [
-  { id: "pnr-panyileukan", nama: "SPPG Panyileukan 2", tipe: "SPPG", alamat: "Panyileukan, Bandung", lat: -6.9333, lng: 107.6989 },
-  { id: "pnr-ujungberung", nama: "SPPG Ujungberung 1", tipe: "SPPG", alamat: "Ujungberung, Bandung", lat: -6.9147, lng: 107.7 },
-  { id: "pnr-cibiru", nama: "SPPG Cibiru 3", tipe: "SPPG", alamat: "Cibiru, Bandung", lat: -6.9269, lng: 107.7189 },
+  { id: "pnr-panyileukan", nama: "Rumah Makan Panyileukan", tipe: "SPPG", alamat: "Panyileukan, Bandung", lat: -6.9333, lng: 107.6989 },
+  { id: "pnr-ujungberung", nama: "Pasar Ujungberung", tipe: "SPPG", alamat: "Ujungberung, Bandung", lat: -6.9147, lng: 107.7 },
+  { id: "pnr-cibiru", nama: "Dapur Katering Cibiru", tipe: "SPPG", alamat: "Cibiru, Bandung", lat: -6.9269, lng: 107.7189 },
 ];
 
 const KOMODITAS = [
@@ -100,11 +100,11 @@ export function mockApiPlugin(): Plugin {
         }
 
         if (path === "/api/auth/masuk" && method === "POST") {
-          return kirim(res, 200, { token: "mock-token-u-koperasi", pengguna: AKUN_DEMO.KOPERASI });
+          return kirim(res, 200, { token: "mock-token-u-koperasi", pengguna: AKUN_DEMO.PETUGAS });
         }
 
         if (path === "/api/auth/saya" && method === "GET") {
-          return kirim(res, 200, AKUN_DEMO.KOPERASI);
+          return kirim(res, 200, AKUN_DEMO.PETUGAS);
         }
 
         if (path === "/api/penerima" && method === "GET") {
@@ -123,7 +123,7 @@ export function mockApiPlugin(): Plugin {
 
         if (path === "/api/slot" && method === "POST") {
           const s = slotDibuka();
-          return kirim(res, 201, { ...s, waktu_server: new Date().toISOString(), koperasi: { id: "kop-1", nama: "Koperasi Desa Mekarjaya", kode: "CKJ", alamat_gudang: "Cikajang, Garut", lat: -7.3661, lng: 107.7961 }, tujuan: [], partisipasi: [], subsidi_koperasi: 0 });
+          return kirim(res, 201, { ...s, waktu_server: new Date().toISOString(), titik_kumpul: { id: "kop-1", nama: "Titik Kumpul Pak Asep", kode: "CKJ", tipe: "PETANI_UTAMA", alamat: "Cikajang, Garut", lat: -7.3661, lng: 107.7961 }, tujuan: [], partisipasi: [], selisih_jaminan_atap: 0 });
         }
 
         if (path === "/api/slot/pratinjau" && method === "POST") {

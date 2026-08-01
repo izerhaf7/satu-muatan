@@ -15,7 +15,7 @@ export default function CtaPenutup() {
       >
         <h2 className="text-judul text-kertas">Siap mengirim bersama?</h2>
         <p className="max-w-md text-base text-kertas/85">
-          Masuk sebagai koperasi, petani, atau penerima — coba langsung akun demo tanpa perlu daftar.
+          Masuk sebagai petugas, petani, atau penerima — coba langsung akun demo tanpa perlu daftar.
         </p>
         <TombolTautan to="/masuk" varian="sekunder" className="!border-kertas !text-kertas hover:!bg-kertas/10">
           Masuk

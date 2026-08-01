@@ -1,5 +1,5 @@
 /** Peta rute Lacak (§9.6) — Leaflet + OpenStreetMap, BUKAN Google Maps (spec §3.1, §9.6:
- *  tidak butuh API key). Marker gudang koperasi + tujuan penerima, garis rute, dan posisi
+ *  tidak butuh API key). Marker titik kumpul + tujuan penerima, garis rute, dan posisi
  *  terakhir kalau ada jejak. Tanpa ikon default Leaflet (path asetnya patah di bundler Vite) —
  *  dipakai divIcon sederhana dari palet desain, warna lewat custom property (temuan audit:
  *  hex hardcode + box-shadow tebal dihapus). */

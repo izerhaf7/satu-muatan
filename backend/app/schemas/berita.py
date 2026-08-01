@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.schemas.lot import LotOut, SerahTerimaOut
-from app.schemas.master import KoperasiOut
+from app.schemas.master import TitikKumpulOut
 from app.schemas.slot import RuteSegmenOut
 
 
@@ -32,11 +32,11 @@ class LotBeritaOut(BaseModel):
 class BeritaAcaraOut(BaseModel):
     kode_slot: str
     tanggal_kirim: date
-    koperasi: KoperasiOut
+    titik_kumpul: TitikKumpulOut
     tujuan: list[RuteSegmenOut]
     lot: list[LotBeritaOut]
     rincian_ongkos: list[OngkosPetaniOut]
     biaya_total: int | None = None
     harga_final_per_kg: int | None = None
-    subsidi_koperasi: int  # baris "Selisih ditanggung koperasi" (§5.5)
+    selisih_jaminan_atap: int  # baris "Selisih dijamin platform" (§5.5, rename v2 §2)
     dibuat_pada: datetime

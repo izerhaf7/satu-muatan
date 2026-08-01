@@ -1,12 +1,19 @@
-"""Enum domain — nilai persis mengikuti spec §4.2."""
+"""Enum domain — nilai persis mengikuti spec §4.2 + spec delta v2 §2/§5/§6."""
 
 import enum
 
 
 class PeranPengguna(str, enum.Enum):
     PETANI = "PETANI"
-    KOPERASI = "KOPERASI"
+    PETUGAS = "PETUGAS"  # dulu KOPERASI — petani yang ditunjuk di titik kumpul (§2.3)
     PENERIMA = "PENERIMA"
+
+
+class TipeTitikKumpul(str, enum.Enum):
+    PETANI_UTAMA = "PETANI_UTAMA"  # rumah/lahan salah satu petani (DEFAULT, §2.2)
+    GAPOKTAN = "GAPOKTAN"
+    KOPERASI = "KOPERASI"
+    MITRA = "MITRA"  # warung, gudang sewa, agen
 
 
 class TipePenerima(str, enum.Enum):
@@ -62,9 +69,16 @@ class Atribusi(str, enum.Enum):
     PETANI = "PETANI"
     LOGISTIK = "LOGISTIK"
     TIDAK_TERBUKTI = "TIDAK_TERBUKTI"
+    NORMAL = "NORMAL"  # §6 (C3): tidak ada penurunan mutu — tidak perlu atribusi
 
 
 class SumberPosisi(str, enum.Enum):
     HP_PENGAWAL = "HP_PENGAWAL"
     WEBHOOK_VENDOR = "WEBHOOK_VENDOR"
     SIMULASI = "SIMULASI"
+
+
+class SumberTelemetri(str, enum.Enum):
+    SIMULASI = "SIMULASI"
+    SENSOR = "SENSOR"
+    HP_PETUGAS = "HP_PETUGAS"

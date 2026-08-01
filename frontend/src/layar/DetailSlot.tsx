@@ -114,7 +114,7 @@ export default function DetailSlot() {
               <RingkasanPenutupan slot={detail.data} peran={pengguna.peran} penggunaId={pengguna.id} />
             )}
 
-            {pengguna?.peran === "KOPERASI" && detail.data.status === "DIBUKA" && (
+            {pengguna?.peran === "PETUGAS" && detail.data.status === "DIBUKA" && (
               <PanelTutupSlot slotId={detail.data.id} />
             )}
           </div>

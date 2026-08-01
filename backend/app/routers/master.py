@@ -3,8 +3,8 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_pengguna_aktif
 from app.database import get_db
-from app.models import Komoditas, Koperasi, Penerima
-from app.schemas.master import KomoditasOut, KoperasiOut, PenerimaOut
+from app.models import Komoditas, Penerima, TitikKumpul
+from app.schemas.master import KomoditasOut, PenerimaOut, TitikKumpulOut
 
 router = APIRouter(tags=["master"])
 
@@ -19,12 +19,12 @@ def daftar_penerima(pengguna=Depends(get_pengguna_aktif), db: Session = Depends(
     return db.query(Penerima).order_by(Penerima.nama).all()
 
 
-@router.get("/koperasi/saya", response_model=KoperasiOut)
-def koperasi_saya(pengguna=Depends(get_pengguna_aktif), db: Session = Depends(get_db)):
-    """Koperasi milik pengguna login (gudang = titik awal rute)."""
-    if pengguna.koperasi_id is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengguna ini tidak terhubung ke koperasi")
-    koperasi = db.get(Koperasi, pengguna.koperasi_id)
-    if koperasi is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Koperasi tidak ditemukan")
-    return koperasi
+@router.get("/titik-kumpul/saya", response_model=TitikKumpulOut)
+def titik_kumpul_saya(pengguna=Depends(get_pengguna_aktif), db: Session = Depends(get_db)):
+    """Titik kumpul milik pengguna login (titik awal rute). Rename v2 §2: dulu /koperasi/saya."""
+    if pengguna.titik_kumpul_id is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengguna ini tidak terhubung ke titik kumpul")
+    titik_kumpul = db.get(TitikKumpul, pengguna.titik_kumpul_id)
+    if titik_kumpul is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Titik kumpul tidak ditemukan")
+    return titik_kumpul

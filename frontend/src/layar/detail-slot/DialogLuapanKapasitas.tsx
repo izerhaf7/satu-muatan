@@ -1,7 +1,7 @@
 /** Dialog dua pilihan saat gabung memicu LUAPAN_KAPASITAS (§5.5, §9.4 butir 5).
  *  Bukan edge case teoretis — terjadi ketika volume baru mendorong H_kasar
  *  melewati atap peserta yang sudah bergabung. Dua jalan keluar:
- *  gabung ke slot berikutnya, atau minta koperasi buka slot kedua.
+ *  gabung ke slot berikutnya, atau minta petugas buka slot kedua.
  *  Logika/hook TIDAK diubah — hanya bahasa tampilan (§K12). */
 
 import { TriangleAlert } from "lucide-react";
@@ -45,7 +45,7 @@ export default function DialogLuapanKapasitas({ info, onTutup }: DialogLuapanKap
             <p>
               Ini memengaruhi harga atap{" "}
               <span className="angka font-semibold text-tanah">{info.jumlah_atap_terdampak}</span> petani yang sudah
-              bergabung — koperasi akan menanggung selisihnya.
+              bergabung — selisihnya dijamin platform.
             </p>
           </div>
 
@@ -67,14 +67,14 @@ export default function DialogLuapanKapasitas({ info, onTutup }: DialogLuapanKap
               <p className="text-keterangan text-tanah/60">Belum ada slot berikutnya di hari yang sama.</p>
             )}
             <Tombol type="button" varian="sekunder" onClick={() => setMintaInfo(true)}>
-              Minta koperasi buka slot kedua
+              Minta petugas buka slot kedua
             </Tombol>
           </div>
         </div>
       ) : (
         <div className="flex flex-col gap-4">
           <p className="text-base text-tanah/80">
-            Sampaikan ke pengurus koperasi kamu: slot ini sudah penuh, minta dibukakan slot kedua di hari yang sama
+            Sampaikan ke petugas titik kumpul kamu: slot ini sudah penuh, minta dibukakan slot kedua di hari yang sama
             supaya harga atap peserta yang sudah bergabung tetap terjaga.
           </p>
           <Tombol type="button" varian="sekunder" onClick={tutup}>

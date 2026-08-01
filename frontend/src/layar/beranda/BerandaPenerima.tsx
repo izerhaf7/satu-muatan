@@ -32,7 +32,7 @@ export default function BerandaPenerima() {
           ke="/permintaan"
           ikon={ClipboardList}
           judul="Permintaan"
-          keterangan="Ajukan kebutuhan komoditas ke koperasi"
+          keterangan="Ajukan kebutuhan komoditas ke titik kumpul"
           jumlah={permintaanAktif}
           labelJumlah="aktif"
         />

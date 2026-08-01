@@ -1,5 +1,5 @@
 /** Kartu satu lot pada layar Muat (§9.5) — timbang, foto, cacat terlihat, catatan, QR.
- *  Form lokal per lot (bukan auto-save) supaya petugas gudang bisa isi semua field dulu
+ *  Form lokal per lot (bukan auto-save) supaya petugas titik kumpul bisa isi semua field dulu
  *  baru menekan "Simpan timbangan" satu kali per lot. */
 
 import { useEffect, useState } from "react";

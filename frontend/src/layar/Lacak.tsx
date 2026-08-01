@@ -1,5 +1,5 @@
 /** Layar Lacak (§9.6, semua peran) — timeline status, peta rute, estimasi tiba,
- *  dan tombol simulasi "Majukan (demo)" khusus Koperasi (K5). Poll 3 detik selama belum TIBA. */
+ *  dan tombol simulasi "Majukan (demo)" khusus Petugas (K5). Poll 3 detik selama belum TIBA. */
 
 import { Timer } from "lucide-react";
 import { useParams } from "react-router-dom";
@@ -87,7 +87,7 @@ export default function Lacak() {
           {tujuanDenganKoordinat.length > 0 && slot.data && (
             <section aria-label="Peta rute" className="lg:row-span-3">
               <PetaLacak
-                gudang={{ lat: slot.data.koperasi.lat, lng: slot.data.koperasi.lng, label: slot.data.koperasi.nama }}
+                gudang={{ lat: slot.data.titik_kumpul.lat, lng: slot.data.titik_kumpul.lng, label: slot.data.titik_kumpul.nama }}
                 tujuan={tujuanDenganKoordinat}
                 posisiTerakhir={posisiTerakhir}
               />
@@ -112,7 +112,7 @@ export default function Lacak() {
             </p>
           </section>
 
-          {pengguna?.peran === "KOPERASI" && !sudahTiba && (
+          {pengguna?.peran === "PETUGAS" && !sudahTiba && (
             <div className="flex flex-col gap-1.5">
               {majukan.isError && (
                 <p role="alert" className="text-keterangan text-tanah-liat">

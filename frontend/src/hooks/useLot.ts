@@ -1,4 +1,4 @@
-/** Hook layar Muat (§9.5, peran Koperasi) — daftar lot slot, timbang per lot, selesai muat. */
+/** Hook layar Muat (§9.5, peran Petugas) — daftar lot slot, timbang per lot, selesai muat. */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 

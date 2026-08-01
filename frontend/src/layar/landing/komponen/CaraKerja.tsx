@@ -14,8 +14,8 @@ interface Langkah {
 const LANGKAH: Langkah[] = [
   {
     ikon: Warehouse,
-    judul: "Koperasi buka slot kirim",
-    keterangan: "Pengurus koperasi membuka slot untuk satu tujuan dan memilih armada yang dipakai.",
+    judul: "Titik kumpul buka slot kirim",
+    keterangan: "Petugas titik kumpul membuka slot untuk satu tujuan dan memilih armada yang dipakai.",
   },
   {
     ikon: Users,

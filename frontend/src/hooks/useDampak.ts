@@ -1,4 +1,4 @@
-/** Hook dampak — sumber "ringkasan bulan ini" Beranda Koperasi (§9.2, K6) dan
+/** Hook dampak — sumber "ringkasan bulan ini" Beranda Petugas (§9.2, K6) dan
  *  Dashboard Dampak (§9.10): 4 kartu ringkasan + grafik batang per bulan. */
 
 import { useQuery } from "@tanstack/react-query";

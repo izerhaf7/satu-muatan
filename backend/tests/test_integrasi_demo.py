@@ -17,12 +17,12 @@ KEPUTUSAN.md K2 sudah mengoreksinya):
 
   Tutup slot @780 kg -> VAN (kapasitas 800), biaya_total 302.090, H_kasar 388.
   Atap individu semua peserta (1.007 / 1.511 / 1.679 / 2.421) > 388, jadi jaminan
-  atap TIDAK aktif untuk siapa pun -> H_i = 388 untuk semua. subsidi_koperasi
+  atap TIDAK aktif untuk siapa pun -> H_i = 388 untuk semua. selisih_jaminan_atap
   dari mesin adalah biaya_total - Σ(volume_i x 388) = 302.090 - 302.640 = -550
   (bukan 0!) -- konsekuensi pembulatan ceil() pada H_kasar, diverifikasi lewat
   perhitungan exhaustive terhadap app.domain.harga sebelum ditulis di sini
-  (lihat catatan temuan penguji: subsidi_koperasi negatif tidak pernah
-  diantisipasi narasi "selisih ditanggung koperasi" di §5.5/§9.8).
+  (lihat catatan temuan penguji: selisih_jaminan_atap negatif tidak pernah
+  diantisipasi narasi "selisih ditanggung titik_kumpul" di §5.5/§9.8).
 
 Dampak (4 peserta, 1 slot SELESAI):
   truk_km_dihemat      = (4-1) x 70,03           = 210,09
@@ -68,7 +68,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     tujuan = _tujuan_3_sppg(data_dasar)
 
     header_rina = masuk("081200000021")  # PENERIMA_CIBIRU (Kepala Dapur)
-    header_koperasi = masuk("081200000001")  # Bu Nia
+    header_titik_kumpul = masuk("081200000001")  # Bu Nia
     header_asep = masuk("081200000011")
     header_wati = masuk("081200000012")
     header_dedi = masuk("081200000013")
@@ -95,7 +95,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     # membuka slot -- keduanya harus sepakat (mesin yang sama).
     # -----------------------------------------------------------------
     r = client.post(
-        "/api/slot/pratinjau", headers=header_koperasi, json={"tujuan": tujuan, "skenario_volume": [300]}
+        "/api/slot/pratinjau", headers=header_titik_kumpul, json={"tujuan": tujuan, "skenario_volume": [300]}
     )
     assert r.status_code == 200, r.text
     pratinjau = r.json()
@@ -104,7 +104,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
 
     r = client.post(
         "/api/slot",
-        headers=header_koperasi,
+        headers=header_titik_kumpul,
         json={
             "tanggal_kirim": str(_besok()),
             "cutoff_at": _cutoff(),
@@ -140,7 +140,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     )
     assert r.status_code == 201, r.text
 
-    r = client.get(f"/api/slot/{slot_id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.json()["harga_berjalan_per_kg"] == 605
 
     r = client.get(f"/api/slot/{slot_id}", headers=header_asep)
@@ -155,7 +155,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     )
     assert r.status_code == 201, r.text
 
-    r = client.get(f"/api/slot/{slot_id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.json()["harga_berjalan_per_kg"] == 445
 
     r = client.get(f"/api/slot/{slot_id}", headers=header_asep)
@@ -170,7 +170,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     )
     assert r.status_code == 201, r.text
 
-    r = client.get(f"/api/slot/{slot_id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.json()["volume_total_kg"] == 780
     assert r.json()["harga_berjalan_per_kg"] == 388
 
@@ -183,16 +183,16 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     # Langkah 7: Bu Nia tutup slot -> sistem memilih VAN, harga final
     # Rp388/kg, kembalian Asep = 300 x 619 = Rp185.700.
     # -----------------------------------------------------------------
-    r = client.post(f"/api/slot/{slot_id}/tutup", headers=header_koperasi)
+    r = client.post(f"/api/slot/{slot_id}/tutup", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     tutup = r.json()
     assert tutup["status"] == "TERKUNCI"
     assert tutup["harga_final_per_kg"] == 388
     assert tutup["biaya_total"] == 302_090
     assert [t["kode"] for t in tutup["rencana_saat_ini"]["tier"]] == ["VAN"]
-    # subsidi_koperasi TERUKUR -550 (bukan 0/positif) -- lihat catatan modul
+    # selisih_jaminan_atap TERUKUR -550 (bukan 0/positif) -- lihat catatan modul
     # di atas: konsekuensi pembulatan ceil() saat H_kasar dikali volume genap.
-    assert tutup["subsidi_koperasi"] == -550
+    assert tutup["selisih_jaminan_atap"] == -550
 
     by_petani = {p["nama_petani"]: p for p in tutup["partisipasi"]}
     assert by_petani["Asep"]["kembalian_rp"] == 185_700
@@ -201,7 +201,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     assert by_petani["Dedi"]["kembalian_rp"] == 232_380
     assert by_petani["Ijah"]["kembalian_rp"] == 203_300
 
-    r = client.get(f"/api/slot/{slot_id}/lot", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}/lot", headers=header_titik_kumpul)
     assert r.status_code == 200
     lots = r.json()
     assert len(lots) == 4
@@ -216,7 +216,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     for nama, lot in lot_by_petani.items():
         r = client.patch(
             f"/api/lot/{lot['id']}/muat",
-            headers=header_koperasi,
+            headers=header_titik_kumpul,
             json={
                 "berat_aktual_kg": berat[nama],
                 "foto_muat_base64": "ZmFrZS1mb3RvLW11YXQ=",
@@ -228,17 +228,17 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
         assert r.json()["berat_aktual_kg"] == berat[nama]
         assert r.json()["foto_muat"] is not None
 
-    r = client.get(f"/api/slot/{slot_id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.json()["status"] == "DIMUAT"
 
-    r = client.post(f"/api/slot/{slot_id}/selesai-muat", headers=header_koperasi)
+    r = client.post(f"/api/slot/{slot_id}/selesai-muat", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     assert all(lot["waktu_muat"] for lot in r.json())
 
-    r = client.get(f"/api/slot/{slot_id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.json()["status"] == "JALAN"
 
-    r = client.get(f"/api/slot/{slot_id}/pengiriman", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}/pengiriman", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     pengiriman = r.json()
     assert pengiriman["status_vendor"] == "JALAN"
@@ -247,7 +247,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     # -----------------------------------------------------------------
     # Langkah 9: Lacak -- maju ke TIBA (K5: state simulasi eksplisit).
     # -----------------------------------------------------------------
-    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_koperasi)
+    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     assert r.json()["status_vendor"] == "TIBA"
 
@@ -293,18 +293,18 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
         assert isinstance(st["penjelasan"], str) and len(st["penjelasan"]) > 20
         assert "tidak terbukti" in st["penjelasan"].lower()
 
-    r = client.get(f"/api/slot/{slot_id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.json()["status"] == "SELESAI"
 
     # -----------------------------------------------------------------
     # Langkah 11: Berita Acara -- rincian ongkos, subsidi, foto muat+bongkar.
     # -----------------------------------------------------------------
-    r = client.get(f"/api/slot/{slot_id}/berita-acara", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}/berita-acara", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     ba = r.json()
     assert ba["kode_slot"] == slot["kode"]
     assert len(ba["rincian_ongkos"]) == 4
-    assert ba["subsidi_koperasi"] == -550
+    assert ba["selisih_jaminan_atap"] == -550
     assert ba["harga_final_per_kg"] == 388
     assert len(ba["lot"]) == 4
     for baris in ba["lot"]:
@@ -315,7 +315,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     # -----------------------------------------------------------------
     # Langkah 12: Dashboard Dampak -- 4 kartu terisi (non-null, ada data).
     # -----------------------------------------------------------------
-    r = client.get("/api/dampak/ringkasan", headers=header_koperasi)
+    r = client.get("/api/dampak/ringkasan", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     ringkasan = r.json()
     assert ringkasan["truk_km_dihemat"]["nilai"] == pytest.approx(210.09, abs=0.05)  # (4-1) x 70,03
@@ -323,7 +323,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     assert ringkasan["penghematan_ongkos_rp"]["nilai"] == pytest.approx(845_980)  # Σ kembalian
     assert ringkasan["susut_dicegah_kg"]["nilai"] == pytest.approx(7.8)  # 780 x 0,0025 x 4,0
 
-    r = client.get("/api/dampak/bulanan", headers=header_koperasi)
+    r = client.get("/api/dampak/bulanan", headers=header_titik_kumpul)
     assert r.status_code == 200
     bulanan = r.json()
     assert len(bulanan) >= 1
@@ -338,17 +338,17 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     # -----------------------------------------------------------------
     emisi_awal = ringkasan["emisi_dihemat_kg_co2"]["nilai"]
 
-    r = client.get("/api/konfigurasi", headers=header_koperasi)
+    r = client.get("/api/konfigurasi", headers=header_titik_kumpul)
     faktor_emisi_saat_ini = next(k for k in r.json() if k["kunci"] == "faktor_emisi_kg_co2_per_km")
     nilai_baru = float(faktor_emisi_saat_ini["nilai"]) * 2
 
     r = client.patch(
-        "/api/konfigurasi/faktor_emisi_kg_co2_per_km", headers=header_koperasi, json={"nilai": str(nilai_baru)}
+        "/api/konfigurasi/faktor_emisi_kg_co2_per_km", headers=header_titik_kumpul, json={"nilai": str(nilai_baru)}
     )
     assert r.status_code == 200, r.text
     assert float(r.json()["nilai"]) == pytest.approx(nilai_baru)
 
-    r = client.get("/api/dampak/ringkasan", headers=header_koperasi)
+    r = client.get("/api/dampak/ringkasan", headers=header_titik_kumpul)
     assert r.status_code == 200
     emisi_baru = r.json()["emisi_dihemat_kg_co2"]["nilai"]
     assert emisi_baru == pytest.approx(emisi_awal * 2, rel=1e-6)
@@ -370,14 +370,14 @@ def test_harga_atap_tidak_pernah_berubah_meski_peserta_lain_bergabung(client, da
     kubis_id = str(data_dasar["komoditas"]["kubis"].id)
     tujuan = _tujuan_3_sppg(data_dasar)
 
-    header_koperasi = masuk("081200000001")
+    header_titik_kumpul = masuk("081200000001")
     header_asep = masuk("081200000011")
     header_wati = masuk("081200000012")
     header_dedi = masuk("081200000013")
 
     r = client.post(
         "/api/slot",
-        headers=header_koperasi,
+        headers=header_titik_kumpul,
         json={"tanggal_kirim": str(_besok()), "cutoff_at": _cutoff(), "tujuan": tujuan},
     )
     slot_id = r.json()["id"]
@@ -406,7 +406,7 @@ def test_harga_atap_tidak_pernah_berubah_meski_peserta_lain_bergabung(client, da
 
     # Sampai penutupan slot: field partisipasi Asep di respons tutup masih
     # membawa harga_atap_per_kg yang identik dengan saat gabung.
-    r = client.post(f"/api/slot/{slot_id}/tutup", headers=header_koperasi)
+    r = client.post(f"/api/slot/{slot_id}/tutup", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
     partisipasi_asep = next(p for p in r.json()["partisipasi"] if p["nama_petani"] == "Asep")
     assert partisipasi_asep["harga_atap_per_kg"] == atap_terkunci
@@ -425,13 +425,13 @@ def test_luapan_kapasitas_409_body_lengkap(client, data_dasar, masuk):
     kubis_id = str(data_dasar["komoditas"]["kubis"].id)
     tujuan = _tujuan_3_sppg(data_dasar)
 
-    header_koperasi = masuk("081200000001")
+    header_titik_kumpul = masuk("081200000001")
     header_asep = masuk("081200000011")
     header_wati = masuk("081200000012")
 
     r = client.post(
         "/api/slot",
-        headers=header_koperasi,
+        headers=header_titik_kumpul,
         json={"tanggal_kirim": str(_besok()), "cutoff_at": _cutoff(), "tujuan": tujuan},
     )
     assert r.status_code == 201, r.text
@@ -439,11 +439,11 @@ def test_luapan_kapasitas_409_body_lengkap(client, data_dasar, masuk):
     jarak_km = r.json()["jarak_km"]
     assert jarak_km == pytest.approx(70.03, abs=0.1)
 
-    # Slot alternatif: DIBUKA, koperasi & tanggal sama -> harus muncul di
+    # Slot alternatif: DIBUKA, titik_kumpul & tanggal sama -> harus muncul di
     # slot_alternatif_id (dua pilihan dialog: "gabung slot berikutnya").
     r_alt = client.post(
         "/api/slot",
-        headers=header_koperasi,
+        headers=header_titik_kumpul,
         json={"tanggal_kirim": str(_besok()), "cutoff_at": _cutoff(), "tujuan": tujuan},
     )
     assert r_alt.status_code == 201, r_alt.text
@@ -471,7 +471,7 @@ def test_luapan_kapasitas_409_body_lengkap(client, data_dasar, masuk):
     assert isinstance(body["pesan"], str) and len(body["pesan"]) > 10
 
     # Wati belum tercatat -- 409 tidak membuat partisipasi baru.
-    r = client.get(f"/api/slot/{slot_id}", headers=header_koperasi)
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert len(r.json()["partisipasi"]) == 1
 
     # Dialog "bisa diselesaikan": Wati memilih jalan keluar -- gabung ke slot

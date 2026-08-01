@@ -6,7 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import StatusPartisipasi, StatusSlot
-from app.schemas.master import KoperasiOut
+from app.schemas.master import TitikKumpulOut
 
 
 class SlotCreate(BaseModel):
@@ -96,7 +96,7 @@ class SlotDetailOut(BaseModel):
     cutoff_at: datetime
     waktu_server: datetime
     jarak_km: float
-    koperasi: KoperasiOut
+    titik_kumpul: TitikKumpulOut
     tujuan: list[RuteSegmenOut]
     volume_total_kg: int
     harga_berjalan_per_kg: int | None = None
@@ -106,7 +106,7 @@ class SlotDetailOut(BaseModel):
     hemat_saya_per_kg: int | None = None  # atap_saya − harga_berjalan, tak pernah negatif
     biaya_total: int | None = None
     harga_final_per_kg: int | None = None
-    subsidi_koperasi: int = 0  # "Selisih ditanggung koperasi" (§5.5)
+    selisih_jaminan_atap: int = 0  # "Selisih dijamin platform" (§5.5, rename v2 §2)
 
 
 class GabungRequest(BaseModel):

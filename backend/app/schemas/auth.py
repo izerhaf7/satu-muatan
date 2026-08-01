@@ -15,7 +15,7 @@ class AkunDemo(str, enum.Enum):
     """6 akun seed (KEPUTUSAN.md K6). UI menampilkan 4 tombol utama (§9.1);
     Dedi & Ijah dipakai skenario demo langkah 5–6."""
 
-    KOPERASI = "KOPERASI"
+    PETUGAS = "PETUGAS"
     PETANI_ASEP = "PETANI_ASEP"
     PETANI_WATI = "PETANI_WATI"
     PETANI_DEDI = "PETANI_DEDI"
@@ -34,7 +34,7 @@ class PenggunaOut(BaseModel):
     nama: str
     no_hp: str
     peran: PeranPengguna
-    koperasi_id: UUID | None = None
+    titik_kumpul_id: UUID | None = None
     penerima_id: UUID | None = None
 
 

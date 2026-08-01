@@ -8,7 +8,7 @@ import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { useAuthStore } from "@/stores/authStore";
 
 const LABEL: Record<string, string> = {
-  KOPERASI: "pengurus koperasi",
+  PETUGAS: "petugas titik kumpul",
   PETANI: "petani",
   PENERIMA: "dapur penerima",
 };

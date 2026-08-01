@@ -9,10 +9,12 @@ from app.models.enums import (
     StatusSlot,
     StatusSumber,
     SumberPosisi,
+    SumberTelemetri,
     TipeKonfigurasi,
     TipePenerima,
+    TipeTitikKumpul,
 )
-from app.models.induk import Komoditas, Koperasi, Penerima, Pengguna
+from app.models.induk import Komoditas, Penerima, Pengguna, TitikKumpul
 from app.models.slot import Partisipasi, Permintaan, Slot, SlotTujuan
 
 __all__ = [
@@ -21,7 +23,6 @@ __all__ = [
     "KeputusanSerahTerima",
     "Komoditas",
     "Konfigurasi",
-    "Koperasi",
     "Lot",
     "Partisipasi",
     "Penerima",
@@ -37,7 +38,10 @@ __all__ = [
     "StatusSlot",
     "StatusSumber",
     "SumberPosisi",
+    "SumberTelemetri",
     "TierKendaraan",
     "TipeKonfigurasi",
     "TipePenerima",
+    "TipeTitikKumpul",
+    "TitikKumpul",
 ]

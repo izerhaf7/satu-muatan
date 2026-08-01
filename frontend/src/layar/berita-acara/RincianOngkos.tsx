@@ -1,6 +1,6 @@
 /** Rincian ongkos per petani (§9.8) + ringkasan biaya total, harga final/kg,
- *  dan selisih yang ditanggung koperasi (KEPUTUSAN.md K3, domain/harga.py butir 5).
- *  `subsidi_koperasi` negatif = sisa pembulatan ceil per petani, BUKAN subsidi
+ *  dan selisih jaminan atap (KEPUTUSAN.md K3, domain/harga.py butir 5, rename v2 §2).
+ *  `selisih_jaminan_atap` negatif = sisa pembulatan ceil per petani, BUKAN subsidi
  *  sungguhan — diberi label kecil "(pembulatan)" supaya tidak menyesatkan. */
 
 import type { ReactNode } from "react";
@@ -15,14 +15,14 @@ interface RincianOngkosProps {
   rincian: OngkosPetaniOut[];
   biayaTotal: number | null;
   hargaFinalPerKg: number | null;
-  subsidiKoperasi: number;
+  selisihJaminanAtap: number;
 }
 
-export default function RincianOngkos({ rincian, biayaTotal, hargaFinalPerKg, subsidiKoperasi }: RincianOngkosProps) {
+export default function RincianOngkos({ rincian, biayaTotal, hargaFinalPerKg, selisihJaminanAtap }: RincianOngkosProps) {
   // formatRupiah tidak menangani minus secara khusus ("Rp-130") — susun manual
   // supaya terbaca wajar ala Indonesia ("-Rp130").
-  const tampilanSubsidi =
-    subsidiKoperasi < 0 ? `-${formatRupiah(Math.abs(subsidiKoperasi))}` : formatRupiah(subsidiKoperasi);
+  const tampilanSelisih =
+    selisihJaminanAtap < 0 ? `-${formatRupiah(Math.abs(selisihJaminanAtap))}` : formatRupiah(selisihJaminanAtap);
 
   return (
     <section aria-label="Rincian ongkos per petani" className="flex flex-col gap-2">
@@ -64,11 +64,11 @@ export default function RincianOngkos({ rincian, biayaTotal, hargaFinalPerKg, su
         <BarisRingkasan label="Harga final/kg">
           {hargaFinalPerKg !== null ? formatRupiah(hargaFinalPerKg) : "—"}
         </BarisRingkasan>
-        {/* K11: negatif = surplus pembulatan ceil (masuk kas koperasi), bukan subsidi */}
+        {/* K11: negatif = surplus pembulatan ceil (masuk kas titik kumpul), bukan subsidi */}
         <BarisRingkasan
-          label={subsidiKoperasi > 0 ? "Selisih ditanggung koperasi" : "Sisa pembulatan (masuk kas koperasi)"}
+          label={selisihJaminanAtap > 0 ? "Selisih dijamin platform" : "Sisa pembulatan (masuk kas titik kumpul)"}
         >
-          <span className="flex items-baseline gap-1.5">{tampilanSubsidi}</span>
+          <span className="flex items-baseline gap-1.5">{tampilanSelisih}</span>
         </BarisRingkasan>
       </dl>
     </section>

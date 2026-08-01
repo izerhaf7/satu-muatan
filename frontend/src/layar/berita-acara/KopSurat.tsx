@@ -1,4 +1,4 @@
-/** Kop surat Berita Acara (§9.8) — kode slot, tanggal, koperasi, daftar tujuan.
+/** Kop surat Berita Acara (§9.8) — kode slot, tanggal, titik kumpul, daftar tujuan.
  *  Judul dokumen terpusat (kop resmi), rincian di bawahnya sebagai daftar deskripsi. */
 
 import type { components } from "@/api/client";
@@ -11,10 +11,10 @@ interface KopSuratProps {
 }
 
 export default function KopSurat({ data }: KopSuratProps) {
-  const lokasiKoperasi = [
-    data.koperasi.desa && `Desa ${data.koperasi.desa}`,
-    data.koperasi.kecamatan && `Kec. ${data.koperasi.kecamatan}`,
-    data.koperasi.kabupaten && `Kab. ${data.koperasi.kabupaten}`,
+  const lokasiTitikKumpul = [
+    data.titik_kumpul.desa && `Desa ${data.titik_kumpul.desa}`,
+    data.titik_kumpul.kecamatan && `Kec. ${data.titik_kumpul.kecamatan}`,
+    data.titik_kumpul.kabupaten && `Kab. ${data.titik_kumpul.kabupaten}`,
   ]
     .filter(Boolean)
     .join(", ");
@@ -33,10 +33,10 @@ export default function KopSurat({ data }: KopSuratProps) {
         <dt className="text-keterangan font-medium text-tanah/60">Tanggal kirim</dt>
         <dd>{formatTanggal(data.tanggal_kirim)}</dd>
 
-        <dt className="text-keterangan font-medium text-tanah/60">Koperasi</dt>
+        <dt className="text-keterangan font-medium text-tanah/60">Titik Kumpul</dt>
         <dd>
-          {data.koperasi.nama}
-          {lokasiKoperasi && <span className="text-tanah/70">, {lokasiKoperasi}</span>}
+          {data.titik_kumpul.nama}
+          {lokasiTitikKumpul && <span className="text-tanah/70">, {lokasiTitikKumpul}</span>}
         </dd>
 
         <dt className="text-keterangan font-medium text-tanah/60">Tujuan</dt>

@@ -1,4 +1,4 @@
-/** Tombol + dialog konfirmasi "Tutup slot" (§5.4, peran Koperasi). Menetapkan harga
+/** Tombol + dialog konfirmasi "Tutup slot" (§5.4, peran Petugas). Menetapkan harga
  *  final + jaminan atap, mengunci rencana armada, membuat lot, memesan ke vendor —
  *  aksi tidak bisa dibatalkan makanya wajib konfirmasi. Logika/hook TIDAK diubah,
  *  hanya menambah toast keberhasilan (§K12: "sukses mutasi → useToast"). */
@@ -30,7 +30,7 @@ export default function PanelTutupSlot({ slotId }: PanelTutupSlotProps) {
         <div className="flex flex-col gap-4">
           <p className="text-base text-tanah/80">
             Harga final akan ditetapkan dari volume yang terkumpul sekarang. Petani yang sudah bergabung tidak akan
-            ditagih di atas harga atapnya — kalau ada selisih, koperasi yang menanggung. Slot yang sudah ditutup
+            ditagih di atas harga atapnya — kalau ada selisih, selisihnya dijamin platform. Slot yang sudah ditutup Slot yang sudah ditutup
             tidak bisa dibuka kembali.
           </p>
           {tutupSlot.isError && <p className="text-keterangan text-tanah-liat">Gagal menutup slot. Coba lagi.</p>}

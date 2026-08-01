@@ -11,7 +11,7 @@ type StatusSlot = components["schemas"]["StatusSlot"];
 type PratinjauSlotRequest = components["schemas"]["PratinjauSlotRequest"];
 type PratinjauSlotResponse = components["schemas"]["PratinjauSlotResponse"];
 
-/** Ter-scope per peran oleh server (K6): KOPERASI -> miliknya, PETANI -> koperasinya,
+/** Ter-scope per peran oleh server (K6): PETUGAS -> miliknya, PETANI -> titik kumpulnya,
  *  PENERIMA -> slot yang menuju dirinya. */
 export function useDaftarSlot(status?: StatusSlot) {
   return useQuery({

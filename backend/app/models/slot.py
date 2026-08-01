@@ -30,7 +30,7 @@ class Slot(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     kode: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
-    koperasi_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("koperasi.id"), nullable=False)
+    titik_kumpul_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("titik_kumpul.id"), nullable=False)
     tanggal_kirim: Mapped[date] = mapped_column(Date, nullable=False)
     cutoff_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[StatusSlot] = mapped_column(
@@ -44,7 +44,7 @@ class Slot(Base):
     rencana_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     biaya_total: Mapped[int | None] = mapped_column(Integer)
     harga_final_per_kg: Mapped[int | None] = mapped_column(Integer)
-    subsidi_koperasi: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    selisih_jaminan_atap: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     volume_terkunci_kg: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

@@ -1,4 +1,4 @@
-/** Beranda Koperasi (§9.2) — sapaan, ringkasan bulan ini sebagai kartu-hero,
+/** Beranda Petugas (§9.2) — sapaan, ringkasan bulan ini sebagai kartu-hero,
  *  tombol buka slot baru, dan daftar slot. Data & hook sama persis dengan
  *  sebelum rombakan visual (§K12) — hanya bahasa tampilan yang berubah. */
 
@@ -16,7 +16,7 @@ import { bulanSaatIni, formatAngka, formatBulan, formatRupiah } from "@/utils/fo
 
 import KartuSlotDaftar from "./KartuSlotDaftar";
 
-export default function BerandaKoperasi() {
+export default function BerandaPetugas() {
   const pengguna = useAuthStore((s) => s.pengguna);
   const daftarSlot = useDaftarSlot();
   const dampak = useDampakBulanan();
@@ -28,7 +28,7 @@ export default function BerandaKoperasi() {
       <header className="flex flex-col gap-1 pt-1 lg:col-span-2">
         <p className="text-keterangan font-bold uppercase tracking-wide text-daun">Beranda</p>
         <h1 className="text-judul text-tanah">Halo, {pengguna?.nama ?? "Bu/Pak"}</h1>
-        <p className="text-base text-tanah/70">Slot pengiriman koperasi kamu</p>
+        <p className="text-base text-tanah/70">Slot pengiriman titik kumpul kamu</p>
       </header>
 
       <div className="flex flex-col gap-6">

@@ -45,7 +45,7 @@ from app.domain.harga import PartisipasiHarga, harga_atap_per_kg, harga_berjalan
 from app.models import (  # noqa: E402
     JejakPosisi,
     Konfigurasi,
-    Koperasi,
+    TitikKumpul,
     Lot,
     Partisipasi,
     Penerima,
@@ -172,7 +172,7 @@ def _cocok(live, referensi, toleransi: float = 0) -> str:
 def bangun_cheat_sheet(db: Session) -> str:
     """Langkah 1-13 (§11.2) dengan angka dihitung ulang live dari mesin harga +
     koordinat seed saat fungsi ini dipanggil — bukan disalin dari dokumen."""
-    koperasi = db.query(Koperasi).filter_by(kode="CKJ").one()
+    titik_kumpul = db.query(TitikKumpul).filter_by(kode="CKJ").one()
     cibiru = db.query(Penerima).filter_by(nama="SPPG Cibiru 3").one()
     ujungberung = db.query(Penerima).filter_by(nama="SPPG Ujungberung 1").one()
     panyileukan = db.query(Penerima).filter_by(nama="SPPG Panyileukan 2").one()
@@ -188,12 +188,12 @@ def bangun_cheat_sheet(db: Session) -> str:
         TujuanInput(penerima_id=ujungberung.id, lat=ujungberung.lat, lng=ujungberung.lng),
         TujuanInput(penerima_id=panyileukan.id, lat=panyileukan.lat, lng=panyileukan.lng),
     ]
-    urutan = urutkan_tujuan_nearest_neighbor((koperasi.lat, koperasi.lng), tujuan_input, faktor_jalan)
+    urutan = urutkan_tujuan_nearest_neighbor((titik_kumpul.lat, titik_kumpul.lng), tujuan_input, faktor_jalan)
     jarak_km = sum(t.jarak_segmen_km for t in urutan)
     ambang_menit = ambang_transit_menit(jarak_km, kecepatan, toleransi_transit)
 
     nama_by_id = {cibiru.id: cibiru.nama, ujungberung.id: ujungberung.nama, panyileukan.id: panyileukan.nama}
-    rute_teks = " -> ".join(["Gudang koperasi"] + [nama_by_id[t.penerima_id] for t in urutan])
+    rute_teks = " -> ".join(["Gudang titik_kumpul"] + [nama_by_id[t.penerima_id] for t in urutan])
 
     # Volume individual PERSIS spec §11.2 asli (300 / +200 / +180 / +100 kg),
     # kumulatif 300/500/680/780 — HARGA yang berubah karena rute dikoreksi K2
@@ -232,7 +232,7 @@ def bangun_cheat_sheet(db: Session) -> str:
     add("Langkah 1. Login Kepala Dapur SPPG Cibiru 3 -> input permintaan 300 kg Kubis, besok.")
     add("")
     add(
-        f"Langkah 2. Login Koperasi -> buka slot, pilih 3 tujuan (Cibiru 3, Ujungberung 1, "
+        f"Langkah 2. Login Petugas -> buka slot, pilih 3 tujuan (Cibiru 3, Ujungberung 1, "
         f"Panyileukan 2)."
     )
     add(f"  -> jarak rute = {round(jarak_km, 2)} km; pratinjau kalau 300 kg = {_rp(atap_by_nama['Asep'])}/kg")
@@ -250,10 +250,10 @@ def bangun_cheat_sheet(db: Session) -> str:
     add(f"    [{_cocok(hemat_asep_per_kg, _K2_REFERENSI['hemat_asep_per_kg'])} vs K2 per-kg, "
         f"{_cocok(hemat_asep_rp, _K2_REFERENSI['hemat_asep_rp'])} vs K2 total]")
     add("")
-    add(f"Langkah 7. Koperasi tutup slot -> sistem memilih {tier_ringkas} untuk {kumulatif} kg total.")
+    add(f"Langkah 7. Petugas tutup slot -> sistem memilih {tier_ringkas} untuk {kumulatif} kg total.")
     add(f"  [{_cocok(tier_ringkas, _K2_REFERENSI['tier_final'])} vs K2 (VAN untuk 780 kg)]")
     add(f"  harga_final_per_kg = {_rp(hasil.harga_final_per_kg)}, biaya_total = {_rp(hasil.biaya_total)}, "
-        f"subsidi_koperasi = {_rp(hasil.subsidi_koperasi)}")
+        f"selisih_jaminan_atap = {_rp(hasil.subsidi_koperasi)}")
     if hasil.subsidi_koperasi < 0:
         add("  (subsidi negatif = surplus kecil akibat pembulatan ke atas/ceil per partisipan, bukan bug)")
     add("")

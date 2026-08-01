@@ -21,6 +21,7 @@ const labelAtribusi: Record<Atribusi, string> = {
   PETANI: "Petani",
   LOGISTIK: "Logistik",
   TIDAK_TERBUKTI: "Tidak terbukti",
+  NORMAL: "Normal",
 };
 
 interface TabelLotProps {

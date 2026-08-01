@@ -15,7 +15,7 @@ interface HeaderDetailSlotProps {
 }
 
 export default function HeaderDetailSlot({ slot }: HeaderDetailSlotProps) {
-  const asal = slot.koperasi.kecamatan ?? slot.koperasi.desa ?? slot.koperasi.nama;
+  const asal = slot.titik_kumpul.kecamatan ?? slot.titik_kumpul.desa ?? slot.titik_kumpul.nama;
   const jumlahTujuan = slot.tujuan.length;
 
   return (

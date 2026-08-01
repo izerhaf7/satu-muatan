@@ -1,6 +1,6 @@
 /** Kartu slot untuk daftar Beranda (§9.2) — pola sama dengan komponen/KartuSlot
  *  (frozen) tapi "diangkat" ke bahasa kartu K12 (kartu-datar) + ikon Users pada
- *  jumlah petani. Dipakai varian Koperasi & Petani supaya bahasa kartunya sama. */
+ *  jumlah petani. Dipakai varian Petugas & Petani supaya bahasa kartunya sama. */
 
 import { Users } from "lucide-react";
 import { Link } from "react-router-dom";

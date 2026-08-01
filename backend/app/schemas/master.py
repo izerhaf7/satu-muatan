@@ -2,7 +2,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.enums import StatusSumber, TipePenerima
+from app.models.enums import StatusSumber, TipePenerima, TipeTitikKumpul
 
 
 class KomoditasOut(BaseModel):
@@ -29,15 +29,17 @@ class PenerimaOut(BaseModel):
     lng: float
 
 
-class KoperasiOut(BaseModel):
+class TitikKumpulOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     nama: str
     kode: str | None = None
+    tipe: TipeTitikKumpul
+    petugas_id: UUID | None = None
     desa: str | None = None
     kecamatan: str | None = None
     kabupaten: str | None = None
-    alamat_gudang: str
+    alamat: str
     lat: float
     lng: float

@@ -1,5 +1,5 @@
 /** Ringkasan setelah slot tidak lagi DIBUKA (§5.4, §5.5) — dibaca beda per peran:
- *  Koperasi lihat subsidi + rincian tagihan/kembalian tiap peserta + tautan lanjutan
+ *  Petugas lihat selisih + rincian tagihan/kembalian tiap peserta + tautan lanjutan
  *  (Muat/Lacak/Berita Acara). Petani lihat harga final & kembalian miliknya sendiri.
  *  Penerima lihat status pengiriman saja. Status BATAL tidak menampilkan apa pun
  *  di luar catatan pembatalan — tidak ada proses lanjutan untuk ditautkan.
@@ -37,14 +37,14 @@ export default function RingkasanPenutupan({ slot, peran, penggunaId }: Ringkasa
         <AngkaHarga nilai={slot.harga_final_per_kg ?? null} ukuran="sedang" satuan="/kg" />
       </div>
 
-      {peran === "KOPERASI" && (
+      {peran === "PETUGAS" && (
         <>
-          {slot.subsidi_koperasi !== 0 && (
+          {slot.selisih_jaminan_atap !== 0 && (
             <p className="text-base text-tanah/80">
-              {/* K11: negatif = surplus pembulatan ceil (masuk kas koperasi), bukan subsidi */}
-              {slot.subsidi_koperasi > 0 ? "Selisih ditanggung koperasi:" : "Sisa pembulatan (masuk kas koperasi):"}{" "}
-              <span className={`angka font-semibold ${slot.subsidi_koperasi > 0 ? "text-tanah-liat" : "text-tanah/70"}`}>
-                {formatRupiah(Math.abs(slot.subsidi_koperasi))}
+              {/* K11: negatif = surplus pembulatan ceil (masuk kas titik kumpul), bukan subsidi */}
+              {slot.selisih_jaminan_atap > 0 ? "Selisih dijamin platform:" : "Sisa pembulatan (masuk kas titik kumpul):"}{" "}
+              <span className={`angka font-semibold ${slot.selisih_jaminan_atap > 0 ? "text-tanah-liat" : "text-tanah/70"}`}>
+                {formatRupiah(Math.abs(slot.selisih_jaminan_atap))}
               </span>
             </p>
           )}

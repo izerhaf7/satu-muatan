@@ -1,4 +1,4 @@
-/** Kartu ringkas satu permintaan — daftar Permintaan (§9.7 alur Penerima & varian Koperasi). */
+/** Kartu ringkas satu permintaan — daftar Permintaan (§9.7 alur Penerima & varian Petugas). */
 
 import { CalendarClock } from "lucide-react";
 
@@ -12,7 +12,7 @@ type PermintaanOut = components["schemas"]["PermintaanOut"];
 
 interface KartuPermintaanProps {
   permintaan: PermintaanOut;
-  /** Tampilkan nama penerima (berguna untuk varian Koperasi yang melihat semua permintaan terbuka). */
+  /** Tampilkan nama penerima (berguna untuk varian Petugas yang melihat semua permintaan terbuka). */
   tampilkanPenerima?: boolean;
 }
 

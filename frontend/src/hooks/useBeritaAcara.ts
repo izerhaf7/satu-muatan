@@ -1,5 +1,5 @@
 /** Hook Berita Acara (§9.8) — agregat lot, foto muat & bongkar, rincian ongkos,
- *  subsidi koperasi. Tanda tangan = garis kosong cetak (K4), tanpa capture digital. */
+ *  selisih jaminan atap. Tanda tangan = garis kosong cetak (K4), tanpa capture digital. */
 
 import { useQuery } from "@tanstack/react-query";
 

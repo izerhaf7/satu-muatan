@@ -32,13 +32,13 @@ def _validasi_nilai(nilai: str, tipe: TipeKonfigurasi) -> None:
 
 
 @router.get("/konfigurasi", response_model=list[KonfigurasiOut])
-def daftar_konfigurasi(pengguna=Depends(wajib_peran("KOPERASI")), db: Session = Depends(get_db)):
+def daftar_konfigurasi(pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
     return db.query(Konfigurasi).order_by(Konfigurasi.kunci).all()
 
 
 @router.patch("/konfigurasi/{kunci}", response_model=KonfigurasiOut)
 def ubah_konfigurasi(
-    kunci: str, body: KonfigurasiPatch, pengguna=Depends(wajib_peran("KOPERASI")), db: Session = Depends(get_db)
+    kunci: str, body: KonfigurasiPatch, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)
 ):
     konf = db.get(Konfigurasi, kunci)
     if konf is None:
@@ -51,13 +51,13 @@ def ubah_konfigurasi(
 
 
 @router.get("/tier-kendaraan", response_model=list[TierKendaraanOut])
-def daftar_tier(pengguna=Depends(wajib_peran("KOPERASI")), db: Session = Depends(get_db)):
+def daftar_tier(pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
     return db.query(TierKendaraan).order_by(TierKendaraan.urutan).all()
 
 
 @router.patch("/tier-kendaraan/{tier_id}", response_model=TierKendaraanOut)
 def ubah_tier(
-    tier_id: UUID, body: TierKendaraanPatch, pengguna=Depends(wajib_peran("KOPERASI")), db: Session = Depends(get_db)
+    tier_id: UUID, body: TierKendaraanPatch, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)
 ):
     tier = db.get(TierKendaraan, tier_id)
     if tier is None:

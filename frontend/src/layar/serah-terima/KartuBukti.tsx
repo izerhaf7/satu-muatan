@@ -41,14 +41,17 @@ const labelAtribusi: Record<Atribusi, string> = {
   PETANI: "Petani",
   LOGISTIK: "Logistik",
   TIDAK_TERBUKTI: "Tidak terbukti",
+  NORMAL: "Normal",
 };
 
 // Tiga nada palet, satu per hasil (K12): PETANI = fault terbukti di titik muat (tanah-liat),
 // LOGISTIK = fault di perjalanan, bukan salah petani (kabut, netral), TIDAK_TERBUKTI = bersih (daun).
+// NORMAL (§6/C3): tidak ada penurunan mutu — netral (kabut).
 const kelasAtribusi: Record<Atribusi, string> = {
   PETANI: "border-tanah-liat/40 bg-tanah-liat/5 text-tanah-liat",
   LOGISTIK: "border-kabut bg-kabut/30 text-tanah",
   TIDAK_TERBUKTI: "border-daun/40 bg-daun/5 text-daun",
+  NORMAL: "border-kabut bg-kabut/30 text-tanah",
 };
 
 function formatWaktu(waktu: string): string {

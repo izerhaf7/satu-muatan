@@ -1,4 +1,4 @@
-/** Beranda Petani (§9.2 varian) — sapaan + daftar slot terbuka koperasinya.
+/** Beranda Petani (§9.2 varian) — sapaan + daftar slot terbuka titik kumpulnya.
  *  Ikut kirim terjadi di Detail Slot, belum di sini. Data/hook sama persis dengan
  *  sebelum rombakan visual (§K12) — hanya bahasa tampilan yang berubah. */
 
@@ -19,7 +19,7 @@ export default function BerandaPetani() {
       <header className="flex flex-col gap-1 pt-1">
         <p className="text-keterangan font-bold uppercase tracking-wide text-daun">Beranda</p>
         <h1 className="text-judul text-tanah">Halo, {pengguna?.nama ?? "Kamu"}</h1>
-        <p className="text-base text-tanah/70">Slot yang sedang dibuka koperasi kamu</p>
+        <p className="text-base text-tanah/70">Slot yang sedang dibuka titik kumpul kamu</p>
       </header>
 
       <section aria-label="Slot terbuka" className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
@@ -28,7 +28,7 @@ export default function BerandaPetani() {
           <KartuGalat pesan="Gagal memuat daftar slot." onCobaLagi={() => daftarSlot.refetch()} />
         )}
         {daftarSlot.data?.length === 0 && (
-          <KeadaanKosong pesan="Belum ada slot dibuka. Slot baru akan muncul di sini begitu koperasi membukanya." />
+          <KeadaanKosong pesan="Belum ada slot dibuka. Slot baru akan muncul di sini begitu titik kumpul membukanya." />
         )}
         {daftarSlot.data?.map((slot) => <KartuSlotDaftar key={slot.id} slot={slot} />)}
       </section>

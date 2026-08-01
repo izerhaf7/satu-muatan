@@ -40,7 +40,7 @@ export default function BuatSlot() {
   }
 
   /** Pilih permintaan sekaligus pra-pilih penerimanya di daftar tujuan (kalau belum dipilih) —
-   *  supaya koperasi tidak perlu mencentang dua kali untuk hal yang sama. */
+   *  supaya petugas tidak perlu mencentang dua kali untuk hal yang sama. */
   function togglePermintaan(permintaanId: string, penerimaId: string) {
     setPermintaanTerpilih((prev) => {
       const sudahTerpilih = prev.includes(permintaanId);

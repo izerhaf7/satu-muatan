@@ -5,7 +5,7 @@ export default function TandaTangan() {
   return (
     <section aria-label="Tanda tangan" className="tanda-tangan flex flex-col gap-6 pt-4">
       <div className="grid grid-cols-2 gap-6">
-        <KotakTandaTangan label="Pengurus Koperasi" />
+        <KotakTandaTangan label="Petugas Titik Kumpul" />
         <KotakTandaTangan label="Penerima" />
       </div>
     </section>

@@ -6,7 +6,7 @@ def test_masuk_berhasil(client, data_dasar):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["pengguna"]["nama"] == "Bu Nia"
-    assert body["pengguna"]["peran"] == "KOPERASI"
+    assert body["pengguna"]["peran"] == "PETUGAS"
     assert body["token"]
 
 
@@ -22,7 +22,7 @@ def test_masuk_nomor_tidak_terdaftar(client, data_dasar):
 
 def test_masuk_demo_semua_akun_k9(client, data_dasar):
     pemetaan = {
-        "KOPERASI": ("Bu Nia", "KOPERASI"),
+        "PETUGAS": ("Bu Nia", "PETUGAS"),
         "PETANI_ASEP": ("Asep", "PETANI"),
         "PETANI_WATI": ("Wati", "PETANI"),
         "PETANI_DEDI": ("Dedi", "PETANI"),
@@ -42,7 +42,7 @@ def test_masuk_demo_dimatikan_saat_demo_mode_false(client, data_dasar, monkeypat
     monkeypatch.setenv("DEMO_MODE", "false")
     get_settings.cache_clear()
     try:
-        r = client.post("/api/auth/masuk-demo", json={"akun": "KOPERASI"})
+        r = client.post("/api/auth/masuk-demo", json={"akun": "PETUGAS"})
         assert r.status_code == 403
     finally:
         monkeypatch.setenv("DEMO_MODE", "true")

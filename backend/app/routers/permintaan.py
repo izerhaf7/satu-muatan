@@ -30,7 +30,7 @@ def _ke_out(p: Permintaan, db: Session) -> PermintaanOut:
 
 @router.get("", response_model=list[PermintaanOut])
 def daftar_permintaan(pengguna=Depends(get_pengguna_aktif), db: Session = Depends(get_db)):
-    """Ter-scope per peran (K6): PENERIMA -> miliknya; KOPERASI (& lainnya) -> semua yang terbuka."""
+    """Ter-scope per peran (K6): PENERIMA -> miliknya; PETUGAS (& lainnya) -> semua yang terbuka."""
     if pengguna.peran == PeranPengguna.PENERIMA:
         q = db.query(Permintaan).filter_by(penerima_id=pengguna.penerima_id)
     else:

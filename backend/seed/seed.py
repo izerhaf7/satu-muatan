@@ -1,5 +1,5 @@
 """Seed: konfigurasi + tier_kendaraan (Fase 0, spec §4.2 + KEPUTUSAN.md K6),
-plus data induk (koperasi, penerima, komoditas, pengguna K9) untuk Fase 2,
+plus data induk (titik_kumpul, penerima, komoditas, pengguna K9) untuk Fase 2,
 plus 8 slot riwayat SELESAI (Fase 3, spec §11.1) supaya Dashboard Dampak &
 Beranda punya grafik terisi saat demo.
 
@@ -29,7 +29,7 @@ from app.models import (  # noqa: E402
     KeputusanSerahTerima,
     Komoditas,
     Konfigurasi,
-    Koperasi,
+    TitikKumpul,
     Lot,
     Partisipasi,
     Penerima,
@@ -154,7 +154,7 @@ PENERIMA_SEED = [
 
 # K9 — akun kanonik. (nama, no_hp, peran)
 PENGGUNA_SEED = [
-    ("Bu Nia", "081200000001", PeranPengguna.KOPERASI),
+    ("Bu Nia", "081200000001", PeranPengguna.PETUGAS),
     ("Asep", "081200000011", PeranPengguna.PETANI),
     ("Wati", "081200000012", PeranPengguna.PETANI),
     ("Dedi", "081200000013", PeranPengguna.PETANI),
@@ -205,18 +205,18 @@ RIWAYAT_SLOT_KODE = [f"SM-{tanggal:%Y%m%d}-CKJ-01" for tanggal, *_ in RIWAYAT_SE
 def seed_induk(db: Session) -> int:
     baru = 0
 
-    koperasi = db.query(Koperasi).filter_by(kode="CKJ").one_or_none()
-    if koperasi is None:
-        koperasi = Koperasi(kode="CKJ")
-        db.add(koperasi)
+    titik_kumpul = db.query(TitikKumpul).filter_by(kode="CKJ").one_or_none()
+    if titik_kumpul is None:
+        titik_kumpul = TitikKumpul(kode="CKJ")
+        db.add(titik_kumpul)
         baru += 1
-    koperasi.nama = "Koperasi Desa Mekarjaya"
-    koperasi.desa = "Mekarjaya"
-    koperasi.kecamatan = "Cikajang"
-    koperasi.kabupaten = "Garut"
-    koperasi.alamat_gudang = "Jl. Raya Cikajang No. 12, Desa Mekarjaya"
-    koperasi.lat = -7.3661  # ASUMSI — perkiraan lokasi gudang (spec §11.1)
-    koperasi.lng = 107.7961
+    titik_kumpul.nama = "Koperasi Desa Mekarjaya"
+    titik_kumpul.desa = "Mekarjaya"
+    titik_kumpul.kecamatan = "Cikajang"
+    titik_kumpul.kabupaten = "Garut"
+    titik_kumpul.alamat = "Jl. Raya Cikajang No. 12, Desa Mekarjaya"
+    titik_kumpul.lat = -7.3661  # ASUMSI — perkiraan lokasi gudang (spec §11.1)
+    titik_kumpul.lng = 107.7961
     db.flush()
 
     penerima_pertama = None
@@ -258,7 +258,7 @@ def seed_induk(db: Session) -> int:
         u.nama = nama
         u.peran = peran
         u.aktif = True
-        u.koperasi_id = koperasi.id if peran in (PeranPengguna.KOPERASI, PeranPengguna.PETANI) else None
+        u.titik_kumpul_id = titik_kumpul.id if peran in (PeranPengguna.PETUGAS, PeranPengguna.PETANI) else None
         u.penerima_id = penerima_pertama.id if peran is PeranPengguna.PENERIMA else None
 
     return baru
@@ -274,9 +274,9 @@ def seed_riwayat(db: Session) -> int:
     `konfigurasi`/`tier_kendaraan` saat fungsi ini dijalankan — tidak ada angka
     bisnis hardcoded di sini (CLAUDE.md aturan #1).
     """
-    koperasi = db.query(Koperasi).filter_by(kode="CKJ").one_or_none()
-    if koperasi is None:
-        raise RuntimeError("seed_riwayat() butuh koperasi CKJ — jalankan seed_induk() dulu")
+    titik_kumpul = db.query(TitikKumpul).filter_by(kode="CKJ").one_or_none()
+    if titik_kumpul is None:
+        raise RuntimeError("seed_riwayat() butuh titik_kumpul CKJ — jalankan seed_induk() dulu")
 
     penerima_by_nama = {p.nama: p for p in db.query(Penerima).all()}
     komoditas_by_nama = {k.nama: k for k in db.query(Komoditas).all()}
@@ -302,7 +302,7 @@ def seed_riwayat(db: Session) -> int:
         tujuan_penerima = [penerima_by_nama[n] for n in nama_tujuan_list]
 
         tujuan_input = [TujuanInput(penerima_id=p.id, lat=p.lat, lng=p.lng) for p in tujuan_penerima]
-        urutan = urutkan_tujuan_nearest_neighbor((koperasi.lat, koperasi.lng), tujuan_input, faktor_jalan)
+        urutan = urutkan_tujuan_nearest_neighbor((titik_kumpul.lat, titik_kumpul.lng), tujuan_input, faktor_jalan)
         jarak_total = sum(t.jarak_segmen_km for t in urutan)
 
         cutoff_at = datetime.combine(tanggal, time(11, 0), tzinfo=timezone.utc)  # 18:00 WIB (jam_cutoff_default)
@@ -310,13 +310,13 @@ def seed_riwayat(db: Session) -> int:
         volume_total = sum(v for _, v in petani_volume)
         slot = Slot(
             kode=kode_slot,
-            koperasi_id=koperasi.id,
+            titik_kumpul_id=titik_kumpul.id,
             tanggal_kirim=tanggal,
             cutoff_at=cutoff_at,
             status=StatusSlot.SELESAI,
             jarak_km=Decimal(str(round(jarak_total, 2))),
             volume_terkunci_kg=volume_total,
-            subsidi_koperasi=0,
+            selisih_jaminan_atap=0,
             dibuat_pada=cutoff_at - timedelta(days=1),
         )
         db.add(slot)
@@ -363,7 +363,7 @@ def seed_riwayat(db: Session) -> int:
         tier_dominan = max(hasil.rencana.tier, key=lambda t: t.kapasitas_kg)
         slot.biaya_total = hasil.biaya_total
         slot.harga_final_per_kg = hasil.harga_final_per_kg
-        slot.subsidi_koperasi = hasil.subsidi_koperasi
+        slot.selisih_jaminan_atap = hasil.subsidi_koperasi
         slot.tier_terpilih_id = tier_row_by_kode[tier_dominan.kode].id
         slot.jumlah_kendaraan = len(hasil.rencana.tier)
         slot.rencana_json = {

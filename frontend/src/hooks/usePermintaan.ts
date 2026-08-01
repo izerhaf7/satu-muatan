@@ -1,6 +1,6 @@
 /** Hook permintaan komoditas — dipakai layar Permintaan (alur Penerima) dan
  *  Buat Slot §9.3 ("Penuhi permintaan dapur"). Ter-scope per peran oleh server
- *  (K6): PENERIMA → miliknya, KOPERASI → semua yang TERBUKA. */
+ *  (K6): PENERIMA → miliknya, PETUGAS → semua yang TERBUKA. */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 

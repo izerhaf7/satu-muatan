@@ -3,14 +3,14 @@
 
 import { useAuthStore } from "@/stores/authStore";
 
-import BerandaKoperasi from "./beranda/BerandaKoperasi";
+import BerandaPetugas from "./beranda/BerandaPetugas";
 import BerandaPenerima from "./beranda/BerandaPenerima";
 import BerandaPetani from "./beranda/BerandaPetani";
 
 export default function Beranda() {
   const pengguna = useAuthStore((s) => s.pengguna);
 
-  if (pengguna?.peran === "KOPERASI") return <BerandaKoperasi />;
+  if (pengguna?.peran === "PETUGAS") return <BerandaPetugas />;
   if (pengguna?.peran === "PETANI") return <BerandaPetani />;
   if (pengguna?.peran === "PENERIMA") return <BerandaPenerima />;
   return null;

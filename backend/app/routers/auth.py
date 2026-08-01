@@ -11,7 +11,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Akun demo kanonik (KEPUTUSAN.md K9) — identitas tetap, bukan koefisien bisnis.
 _NO_HP_AKUN_DEMO: dict[AkunDemo, str] = {
-    AkunDemo.KOPERASI: "081200000001",
+    AkunDemo.PETUGAS: "081200000001",
     AkunDemo.PETANI_ASEP: "081200000011",
     AkunDemo.PETANI_WATI: "081200000012",
     AkunDemo.PETANI_DEDI: "081200000013",

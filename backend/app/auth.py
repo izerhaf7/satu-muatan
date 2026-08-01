@@ -55,7 +55,7 @@ def get_pengguna_aktif(
 
 def wajib_peran(*peran: str):
     """Dependency factory: batasi endpoint ke peran tertentu.
-    Contoh: Depends(wajib_peran("KOPERASI"))"""
+    Contoh: Depends(wajib_peran("PETUGAS"))"""
 
     def _cek(pengguna=Depends(get_pengguna_aktif)):
         if pengguna.peran.value not in peran:

@@ -1,5 +1,5 @@
-/** Layar Muat (§9.5, peran Koperasi) — timbang tiap lot, foto, cacat terlihat, QR,
- *  lalu "Selesai muat" memberangkatkan slot (status -> JALAN). Guard peran KOPERASI
+/** Layar Muat (§9.5, peran Petugas) — timbang tiap lot, foto, cacat terlihat, QR,
+ *  lalu "Selesai muat" memberangkatkan slot (status -> JALAN). Guard peran PETUGAS
  *  sudah terpusat di RuteDenganPeran (App.tsx). */
 
 import { CheckCircle2, Truck } from "lucide-react";

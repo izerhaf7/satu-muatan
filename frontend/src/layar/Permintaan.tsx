@@ -1,5 +1,5 @@
 /** Layar Permintaan (§9.7 alur Penerima) — daftar permintaan sendiri + form buat baru.
- *  Varian Koperasi: daftar baca-saja permintaan terbuka (API sudah men-scope otomatis, K6). */
+ *  Varian Petugas: daftar baca-saja permintaan terbuka (API sudah men-scope otomatis, K6). */
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
@@ -54,7 +54,7 @@ export default function Permintaan() {
         {daftarPermintaan.data?.length === 0 &&
           (isPenerima ? (
             <KeadaanKosong
-              pesan="Belum ada permintaan. Buat permintaan pertama supaya koperasi tahu kebutuhan Anda."
+              pesan="Belum ada permintaan. Buat permintaan pertama supaya titik kumpul tahu kebutuhan Anda."
               teksAksi={formTerbuka ? undefined : "Buat permintaan pertama"}
               onAksi={formTerbuka ? undefined : () => setFormTerbuka(true)}
             />

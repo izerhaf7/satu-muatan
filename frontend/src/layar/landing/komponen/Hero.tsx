@@ -54,7 +54,7 @@ export default function Hero() {
     <section className="mx-auto grid min-h-[88vh] max-w-6xl grid-cols-1 items-center gap-10 px-5 py-14 lg:grid-cols-2 lg:gap-12 lg:py-0">
       <div className="flex flex-col items-center gap-5 text-center lg:items-start lg:text-left">
         <p className="text-keterangan font-bold uppercase tracking-wide text-daun">
-          Koperasi desa · Kirim bersama
+          Titik kumpul · Kirim bersama
         </p>
         <h1 className="text-display text-tanah">
           Satu muatan penuh.
@@ -62,7 +62,7 @@ export default function Hero() {
           <span className="text-daun">Ongkos turun sampai 75%.</span>
         </h1>
         <p className="max-w-md text-base text-tanah/70">
-          Koperasi desa menggabungkan panen beberapa petani jadi satu pengiriman. Begitu Anda ikut, harga
+          Titik kumpul menggabungkan panen beberapa petani jadi satu pengiriman. Begitu Anda ikut, harga
           atap langsung terkunci — tidak pernah naik lagi walau slotnya makin penuh.
         </p>
         <div className="mt-2 flex flex-col gap-3 sm:flex-row">

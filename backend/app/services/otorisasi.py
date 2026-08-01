@@ -8,8 +8,8 @@ from app.models.enums import PeranPengguna, StatusSlot
 
 
 def slot_terlihat_oleh(pengguna, slot: Slot) -> bool:
-    if pengguna.peran in (PeranPengguna.KOPERASI, PeranPengguna.PETANI):
-        return slot.koperasi_id == pengguna.koperasi_id
+    if pengguna.peran in (PeranPengguna.PETUGAS, PeranPengguna.PETANI):
+        return slot.titik_kumpul_id == pengguna.titik_kumpul_id
     if pengguna.peran == PeranPengguna.PENERIMA:
         return any(t.penerima_id == pengguna.penerima_id for t in slot.tujuan)
     return False
@@ -22,14 +22,14 @@ def pastikan_bisa_lihat_slot(pengguna, slot: Slot) -> None:
 
 def query_slot_untuk_peran(db: Session, pengguna, status_filter: StatusSlot | None = None):
     """GET /api/slot — ter-scope per peran (K6):
-    KOPERASI -> miliknya; PETANI -> slot koperasinya; PENERIMA -> slot yang tujuannya
+    PETUGAS -> miliknya; PETANI -> slot titik kumpulnya; PENERIMA -> slot yang tujuannya
     memuat dirinya."""
     q = db.query(Slot)
     if status_filter is not None:
         q = q.filter(Slot.status == status_filter)
 
-    if pengguna.peran in (PeranPengguna.KOPERASI, PeranPengguna.PETANI):
-        q = q.filter(Slot.koperasi_id == pengguna.koperasi_id)
+    if pengguna.peran in (PeranPengguna.PETUGAS, PeranPengguna.PETANI):
+        q = q.filter(Slot.titik_kumpul_id == pengguna.titik_kumpul_id)
         return q.order_by(Slot.dibuat_pada.desc()).all()
 
     if pengguna.peran == PeranPengguna.PENERIMA:

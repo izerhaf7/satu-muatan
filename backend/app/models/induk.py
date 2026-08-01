@@ -1,4 +1,5 @@
-"""Tabel induk: koperasi, pengguna, penerima, komoditas (spec §4.2 + KEPUTUSAN.md K6)."""
+"""Tabel induk: titik_kumpul, pengguna, penerima, komoditas
+(spec §4.2 + KEPUTUSAN.md K6, rename v2 §2: koperasi → titik_kumpul)."""
 
 import uuid
 from datetime import datetime
@@ -9,20 +10,31 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.enums import PeranPengguna, StatusSumber, TipePenerima
+from app.models.enums import PeranPengguna, StatusSumber, TipePenerima, TipeTitikKumpul
 
 
-class Koperasi(Base):
-    __tablename__ = "koperasi"
+class TitikKumpul(Base):
+    """Titik kumpul (§2): tempat panen ditimbang & difoto sebelum berangkat.
+    Bisa rumah petani utama (default), gapoktan, koperasi, atau mitra."""
+
+    __tablename__ = "titik_kumpul"
 
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     nama: Mapped[str] = mapped_column(Text, nullable=False)
     # K6: kode singkat untuk kode slot "SM-YYYYMMDD-CKJ-NN"
     kode: Mapped[str | None] = mapped_column(Text, unique=True)
+    tipe: Mapped[TipeTitikKumpul] = mapped_column(
+        Enum(TipeTitikKumpul, name="tipe_titik_kumpul"),
+        nullable=False,
+        default=TipeTitikKumpul.PETANI_UTAMA,
+        server_default="PETANI_UTAMA",
+    )
+    # Petani yang ditunjuk menimbang/memfoto/memberi grade di titik ini (§2.3).
+    petugas_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("pengguna.id"))
     desa: Mapped[str | None] = mapped_column(Text)
     kecamatan: Mapped[str | None] = mapped_column(Text)
     kabupaten: Mapped[str | None] = mapped_column(Text)
-    alamat_gudang: Mapped[str] = mapped_column(Text, nullable=False)
+    alamat: Mapped[str] = mapped_column(Text, nullable=False)
     lat: Mapped[float] = mapped_column(nullable=False)
     lng: Mapped[float] = mapped_column(nullable=False)
     dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -47,7 +59,7 @@ class Pengguna(Base):
     no_hp: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     pin_hash: Mapped[str] = mapped_column(Text, nullable=False)
     peran: Mapped[PeranPengguna] = mapped_column(Enum(PeranPengguna, name="peran_pengguna"), nullable=False)
-    koperasi_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("koperasi.id"))
+    titik_kumpul_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("titik_kumpul.id"))
     penerima_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("penerima.id"))
     aktif: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 

@@ -14,7 +14,7 @@ RUTE_WAJIB = {
     ("GET", "/api/auth/saya"),
     ("GET", "/api/komoditas"),
     ("GET", "/api/penerima"),
-    ("GET", "/api/koperasi/saya"),
+    ("GET", "/api/titik-kumpul/saya"),
     ("GET", "/api/konfigurasi"),
     ("PATCH", "/api/konfigurasi/{kunci}"),
     ("GET", "/api/tier-kendaraan"),

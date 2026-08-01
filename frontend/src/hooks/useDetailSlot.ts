@@ -1,6 +1,6 @@
 /** Hook Detail Slot (§9.4) — layar utama demo. Polling 3 detik lewat `refetchInterval`
  *  (aturan keras/§12: polling, bukan WebSocket) supaya harga berjalan & daftar peserta
- *  ikut bergerak tanpa aksi pengguna. Juga menyediakan mutasi "Tutup slot" (koperasi). */
+ *  ikut bergerak tanpa aksi pengguna. Juga menyediakan mutasi "Tutup slot" (petugas). */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -17,7 +17,7 @@ export function useDetailSlot(slotId: string | undefined) {
   });
 }
 
-/** Tutup slot (§5.4, peran Koperasi): tetapkan harga final + jaminan atap, kunci
+/** Tutup slot (§5.4, peran Petugas): tetapkan harga final + jaminan atap, kunci
  *  rencana armada, buat lot, pesan ke vendor. */
 export function useTutupSlot(slotId: string | undefined) {
   const queryClient = useQueryClient();
