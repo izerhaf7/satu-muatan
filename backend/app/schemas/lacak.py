@@ -1,11 +1,12 @@
-"""Skema pelacakan (§9.6): timeline Dipesan → Dimuat → Jalan → Tiba."""
+"""Skema pelacakan (§9.6): timeline Dipesan → Dimuat → Jalan → Tiba,
++ telemetri suhu/kelembapan (spec v2 §5/C2)."""
 
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel
 
-from app.models.enums import SumberPosisi
+from app.models.enums import SumberPosisi, SumberTelemetri
 
 
 class PosisiOut(BaseModel):
@@ -32,3 +33,29 @@ class PengirimanOut(BaseModel):
     estimasi_tiba: datetime | None = None  # dari ambang_transit_menit
     ambang_transit_menit: int
     jejak: list[PosisiOut]
+
+
+class TelemetriSampelOut(BaseModel):
+    waktu: datetime
+    suhu_c: float
+    kelembapan_persen: float
+    lat: float | None = None
+    lng: float | None = None
+    sumber: SumberTelemetri
+
+
+class TelemetriRingkasanOut(BaseModel):
+    """Ringkasan paparan perjalanan — bahan 3 kartu + garis ambang di grafik (§5.4)."""
+
+    suhu_maks_c: float
+    suhu_rata_c: float
+    kelembapan_rata_persen: float
+    jam_ekivalen: float
+    sisa_umur_simpan_persen: int
+    suhu_acuan_c: float  # garis ambang di grafik suhu
+    nama_komoditas: str | None = None  # komoditas dominan (basis q10/umur simpan)
+
+
+class TelemetriOut(BaseModel):
+    sampel: list[TelemetriSampelOut]
+    ringkasan: TelemetriRingkasanOut | None = None  # None sebelum berangkat

@@ -3,15 +3,16 @@
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, Numeric, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.enums import Atribusi, KeputusanSerahTerima, SumberPosisi
+from app.models.enums import Atribusi, KeputusanSerahTerima, SumberPosisi, SumberTelemetri
 
 
 class Lot(Base):
@@ -73,3 +74,21 @@ class JejakPosisi(Base):
     lng: Mapped[float | None] = mapped_column()
     waktu: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     sumber: Mapped[SumberPosisi] = mapped_column(Enum(SumberPosisi, name="sumber_posisi"), nullable=False)
+
+
+class Telemetri(Base):
+    """Sampel suhu/kelembapan per pengiriman (spec v2 §5/C2).
+
+    Sumber SIMULASI dibangkitkan deterministik oleh services/telemetri.py;
+    SENSOR/HP_PETUGAS disiapkan untuk masa depan (roadmap, bukan demo)."""
+
+    __tablename__ = "telemetri"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    pengiriman_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pengiriman.id"), nullable=False)
+    waktu: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    suhu_c: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    kelembapan_persen: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)
+    lat: Mapped[float | None] = mapped_column()
+    lng: Mapped[float | None] = mapped_column()
+    sumber: Mapped[SumberTelemetri] = mapped_column(Enum(SumberTelemetri, name="sumber_telemetri"), nullable=False)

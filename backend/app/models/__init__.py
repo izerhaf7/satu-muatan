@@ -1,5 +1,5 @@
 from app.models.acuan import Konfigurasi, TierKendaraan
-from app.models.bukti import JejakPosisi, Lot, Pengiriman, SerahTerima
+from app.models.bukti import JejakPosisi, Lot, Pengiriman, SerahTerima, Telemetri
 from app.models.enums import (
     Atribusi,
     KeputusanSerahTerima,
@@ -39,6 +39,7 @@ __all__ = [
     "StatusSumber",
     "SumberPosisi",
     "SumberTelemetri",
+    "Telemetri",
     "TierKendaraan",
     "TipeKonfigurasi",
     "TipePenerima",

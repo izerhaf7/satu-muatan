@@ -492,6 +492,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lacak/{slot_id}/telemetri": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Telemetri Slot
+         * @description Sampel telemetri + ringkasan paparan (§5.3). Lazy-generate deterministik
+         *     saat pertama dipanggil (SIMULASI, berlabel di UI).
+         */
+        get: operations["telemetri_slot_api_lacak__slot_id__telemetri_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pengiriman/{pengiriman_id}/majukan": {
         parameters: {
             query?: never;
@@ -799,6 +820,10 @@ export interface components {
             umur_simpan_jam: number;
             /** Laju Susut Per Jam */
             laju_susut_per_jam: number;
+            /** Q10 */
+            q10: number;
+            /** Suhu Acuan C */
+            suhu_acuan_c: number;
             status_sumber: components["schemas"]["StatusSumber"];
             /** Catatan Sumber */
             catatan_sumber?: string | null;
@@ -1379,6 +1404,54 @@ export interface components {
          * @enum {string}
          */
         SumberPosisi: "HP_PENGAWAL" | "WEBHOOK_VENDOR" | "SIMULASI";
+        /**
+         * SumberTelemetri
+         * @enum {string}
+         */
+        SumberTelemetri: "SIMULASI" | "SENSOR" | "HP_PETUGAS";
+        /** TelemetriOut */
+        TelemetriOut: {
+            /** Sampel */
+            sampel: components["schemas"]["TelemetriSampelOut"][];
+            ringkasan?: components["schemas"]["TelemetriRingkasanOut"] | null;
+        };
+        /**
+         * TelemetriRingkasanOut
+         * @description Ringkasan paparan perjalanan — bahan 3 kartu + garis ambang di grafik (§5.4).
+         */
+        TelemetriRingkasanOut: {
+            /** Suhu Maks C */
+            suhu_maks_c: number;
+            /** Suhu Rata C */
+            suhu_rata_c: number;
+            /** Kelembapan Rata Persen */
+            kelembapan_rata_persen: number;
+            /** Jam Ekivalen */
+            jam_ekivalen: number;
+            /** Sisa Umur Simpan Persen */
+            sisa_umur_simpan_persen: number;
+            /** Suhu Acuan C */
+            suhu_acuan_c: number;
+            /** Nama Komoditas */
+            nama_komoditas?: string | null;
+        };
+        /** TelemetriSampelOut */
+        TelemetriSampelOut: {
+            /**
+             * Waktu
+             * Format: date-time
+             */
+            waktu: string;
+            /** Suhu C */
+            suhu_c: number;
+            /** Kelembapan Persen */
+            kelembapan_persen: number;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
+            sumber: components["schemas"]["SumberTelemetri"];
+        };
         /** TierKendaraanOut */
         TierKendaraanOut: {
             /**
@@ -2284,6 +2357,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PengirimanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    telemetri_slot_api_lacak__slot_id__telemetri_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TelemetriOut"];
                 };
             };
             /** @description Validation Error */

@@ -10,11 +10,12 @@ import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { Skeleton } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
 import { useDaftarPenerima } from "@/hooks/usePenerima";
-import { useMajukanPengiriman, usePengirimanSlot, useSlotUntukLacak } from "@/hooks/useLacak";
+import { useMajukanPengiriman, usePengirimanSlot, useSlotUntukLacak, useTelemetriSlot } from "@/hooks/useLacak";
 import { useAuthStore } from "@/stores/authStore";
 import { formatAngka } from "@/utils/format";
 
 import PetaLacak from "./lacak/PetaLacak";
+import GrafikSuhu from "./lacak/GrafikSuhu";
 import TimelineLacak from "./lacak/TimelineLacak";
 
 function formatWaktu(waktu: string): string {
@@ -56,6 +57,7 @@ export default function Lacak() {
       : null;
 
   const sudahTiba = Boolean(pengiriman.data?.timeline.tiba);
+  const telemetri = useTelemetriSlot(slotId, sudahTiba);
 
   return (
     <div className="flex flex-col gap-6">
@@ -111,6 +113,34 @@ export default function Lacak() {
               Ambang rute ini: <span className="angka">{formatAngka(pengiriman.data.ambang_transit_menit)}</span> menit
             </p>
           </section>
+
+          {telemetri.data?.ringkasan && (
+            <section aria-label="Telemetri suhu" className="kartu-tonjol flex flex-col gap-4 p-4 lg:col-span-2">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <p className="angka text-2xl font-bold text-tanah-liat">
+                    {telemetri.data.ringkasan.suhu_maks_c.toFixed(1)}°
+                  </p>
+                  <p className="text-keterangan text-tanah/60">Suhu maks</p>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <p className="angka text-2xl font-bold text-tanah">
+                    {telemetri.data.ringkasan.suhu_rata_c.toFixed(1)}°
+                  </p>
+                  <p className="text-keterangan text-tanah/60">Suhu rata-rata</p>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <p className="angka text-2xl font-bold text-daun">
+                    {telemetri.data.ringkasan.sisa_umur_simpan_persen}%
+                  </p>
+                  <p className="text-keterangan text-tanah/60">
+                    Sisa umur simpan{telemetri.data.ringkasan.nama_komoditas ? ` · ${telemetri.data.ringkasan.nama_komoditas}` : ""}
+                  </p>
+                </div>
+              </div>
+              <GrafikSuhu telemetri={telemetri.data} />
+            </section>
+          )}
 
           {pengguna?.peran === "PETUGAS" && !sudahTiba && (
             <div className="flex flex-col gap-1.5">

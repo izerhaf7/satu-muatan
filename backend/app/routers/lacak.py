@@ -1,4 +1,4 @@
-"""Endpoint pelacakan (§9.6)."""
+"""Endpoint pelacakan (§9.6) + telemetri suhu/kelembapan (spec v2 §5/C2)."""
 
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
@@ -8,12 +8,21 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_pengguna_aktif, wajib_peran
 from app.database import get_db
-from app.models import JejakPosisi, Lot, Partisipasi, Penerima, Pengiriman, Slot
-from app.models.enums import SumberPosisi
-from app.schemas.lacak import PengirimanOut, PosisiOut, TimelineOut
+from app.domain.paparan import SampelTelemetri, hitung_paparan
+from app.models import JejakPosisi, Komoditas, Lot, Partisipasi, Penerima, Pengiriman, Slot
+from app.models.enums import StatusPartisipasi, SumberPosisi
+from app.schemas.lacak import (
+    PengirimanOut,
+    PosisiOut,
+    TelemetriOut,
+    TelemetriRingkasanOut,
+    TelemetriSampelOut,
+    TimelineOut,
+)
 from app.services import mesin
 from app.services.konfigurasi import baca_konfigurasi
 from app.services.otorisasi import pastikan_bisa_lihat_slot
+from app.services.telemetri import pastikan_telemetri
 
 router = APIRouter(tags=["lacak"])
 
@@ -74,6 +83,72 @@ def pengiriman_slot(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Ses
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Slot ini belum punya pengiriman (belum ditutup)")
     return _ke_pengiriman_out(pengiriman, slot, db)
+
+
+@router.get("/lacak/{slot_id}/telemetri", response_model=TelemetriOut)
+def telemetri_slot(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Session = Depends(get_db)):
+    """Sampel telemetri + ringkasan paparan (§5.3). Lazy-generate deterministik
+    saat pertama dipanggil (SIMULASI, berlabel di UI)."""
+    slot = db.get(Slot, slot_id)
+    if slot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Slot tidak ditemukan")
+    pastikan_bisa_lihat_slot(pengguna, slot)
+    pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one_or_none()
+    if pengiriman is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Slot ini belum punya pengiriman (belum ditutup)")
+
+    baris = pastikan_telemetri(db, pengiriman, slot)
+    sampel_out = [
+        TelemetriSampelOut(
+            waktu=r.waktu,
+            suhu_c=float(r.suhu_c),
+            kelembapan_persen=float(r.kelembapan_persen),
+            lat=r.lat,
+            lng=r.lng,
+            sumber=r.sumber,
+        )
+        for r in baris
+    ]
+    if not baris:
+        return TelemetriOut(sampel=[], ringkasan=None)
+
+    # Komoditas dominan by volume — basis parameter Q10/umur simpan ringkasan.
+    volume_per_komoditas: dict = {}
+    for p in slot.partisipasi:
+        if p.status != StatusPartisipasi.BATAL:
+            volume_per_komoditas[p.komoditas_id] = volume_per_komoditas.get(p.komoditas_id, 0) + p.volume_kg
+    komoditas = None
+    if volume_per_komoditas:
+        komoditas_id = max(volume_per_komoditas, key=volume_per_komoditas.get)
+        komoditas = db.get(Komoditas, komoditas_id)
+
+    sampel_domain = []
+    waktu_sebelumnya = None
+    for r in baris:
+        menit = 0 if waktu_sebelumnya is None else int((r.waktu - waktu_sebelumnya).total_seconds() // 60)
+        sampel_domain.append(
+            SampelTelemetri(suhu_c=float(r.suhu_c), kelembapan_persen=float(r.kelembapan_persen), menit_sejak_sebelumnya=menit)
+        )
+        waktu_sebelumnya = r.waktu
+
+    q10 = float(komoditas.q10) if komoditas else 2.0
+    suhu_acuan = float(komoditas.suhu_acuan_c) if komoditas else 25.0
+    umur = komoditas.umur_simpan_jam if komoditas else 72
+    hasil = hitung_paparan(sampel_domain, q10, suhu_acuan, umur)
+    kelembapan_rata = round(sum(float(r.kelembapan_persen) for r in baris) / len(baris), 2)
+
+    return TelemetriOut(
+        sampel=sampel_out,
+        ringkasan=TelemetriRingkasanOut(
+            suhu_maks_c=round(hasil.suhu_maks_c, 2),
+            suhu_rata_c=round(hasil.suhu_rata_c, 2),
+            kelembapan_rata_persen=kelembapan_rata,
+            jam_ekivalen=round(hasil.jam_ekivalen, 2),
+            sisa_umur_simpan_persen=hasil.sisa_umur_simpan_persen,
+            suhu_acuan_c=suhu_acuan,
+            nama_komoditas=komoditas.nama if komoditas else None,
+        ),
+    )
 
 
 @router.post("/pengiriman/{pengiriman_id}/majukan", response_model=PengirimanOut)

@@ -92,6 +92,24 @@ KONFIGURASI_SEED = [
     # K6 — §5.2 meng-hardcode 4; dipindah ke konfigurasi sesuai aturan §4.1
     ("maks_kendaraan", "4", TipeKonfigurasi.INT, "Jumlah kendaraan maksimum per slot", "unit",
      StatusSumber.ASUMSI, None),
+    # v2 §3.3 — pencocokan otomatis (C0)
+    ("radius_koridor_km", "15", TipeKonfigurasi.FLOAT, "Radius pengelompokan tujuan", "km",
+     StatusSumber.ASUMSI, "Perkiraan tim untuk koridor kecamatan; belum diverifikasi."),
+    ("jendela_hari", "1", TipeKonfigurasi.INT, "Toleransi selisih tanggal kirim", "hari",
+     StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
+    # v2 §5.2 — generator telemetri dummy (C2)
+    ("suhu_dasar_c", "26", TipeKonfigurasi.FLOAT, "Suhu dasar kurva harian telemetri", "°C",
+     StatusSumber.ASUMSI, "Perkiraan iklim Jawa Barat; belum diverifikasi."),
+    ("amplitudo_suhu_c", "8", TipeKonfigurasi.FLOAT, "Amplitudo suhu kurva harian telemetri", "°C",
+     StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
+    ("interval_telemetri_menit", "10", TipeKonfigurasi.INT, "Interval sampel telemetri simulasi", "menit",
+     StatusSumber.ASUMSI, None),
+    # v2 §6.4 — atribusi 3-input (C3)
+    ("ambang_grade_asal", "3", TipeKonfigurasi.INT, "Grade minimum agar barang boleh dimuat", None,
+     StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
+    ("ambang_paparan_persen", "50", TipeKonfigurasi.INT,
+     "Batas sisa umur simpan dianggap paparan berlebih", "%",
+     StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
 ]
 
 

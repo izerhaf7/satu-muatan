@@ -6,6 +6,7 @@ import { api, type components } from "@/api/client";
 
 type SlotDetailOut = components["schemas"]["SlotDetailOut"];
 type PengirimanOut = components["schemas"]["PengirimanOut"];
+type TelemetriOut = components["schemas"]["TelemetriOut"];
 
 const INTERVAL_POLL_MS = 3000; // spec §3.1: polling 3 detik, bukan WebSocket.
 
@@ -28,6 +29,17 @@ export function usePengirimanSlot(slotId: string | undefined) {
   });
 }
 
+/** Telemetri suhu/kelembapan (spec v2 §5) — SIMULASI berlabel. Poll 3 detik
+ *  selama belum TIBA (sampel bertambah per interval). */
+export function useTelemetriSlot(slotId: string | undefined, sudahTiba: boolean) {
+  return useQuery({
+    queryKey: ["slot", slotId, "telemetri"],
+    queryFn: () => api<TelemetriOut>(`/api/lacak/${slotId}/telemetri`),
+    enabled: Boolean(slotId),
+    refetchInterval: sudahTiba ? false : INTERVAL_POLL_MS,
+  });
+}
+
 export function useMajukanPengiriman(slotId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
@@ -35,6 +47,7 @@ export function useMajukanPengiriman(slotId: string | undefined) {
       api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/majukan`, { method: "POST" }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "pengiriman"] });
+      void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "telemetri"] });
     },
   });
 }

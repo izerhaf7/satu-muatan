@@ -766,6 +766,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/lacak/{slot_id}/telemetri:
+    get:
+      tags:
+      - lacak
+      summary: Telemetri Slot
+      description: 'Sampel telemetri + ringkasan paparan (§5.3). Lazy-generate deterministik
+
+        saat pertama dipanggil (SIMULASI, berlabel di UI).'
+      operationId: telemetri_slot_api_lacak__slot_id__telemetri_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: slot_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Slot Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TelemetriOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/pengiriman/{pengiriman_id}/majukan:
     post:
       tags:
@@ -1214,6 +1246,12 @@ components:
         laju_susut_per_jam:
           type: number
           title: Laju Susut Per Jam
+        q10:
+          type: number
+          title: Q10
+        suhu_acuan_c:
+          type: number
+          title: Suhu Acuan C
         status_sumber:
           $ref: '#/components/schemas/StatusSumber'
         catatan_sumber:
@@ -1229,6 +1267,8 @@ components:
       - harga_acuan_per_kg
       - umur_simpan_jam
       - laju_susut_per_jam
+      - q10
+      - suhu_acuan_c
       - status_sumber
       title: KomoditasOut
     KonfigurasiOut:
@@ -2187,6 +2227,95 @@ components:
       - WEBHOOK_VENDOR
       - SIMULASI
       title: SumberPosisi
+    SumberTelemetri:
+      type: string
+      enum:
+      - SIMULASI
+      - SENSOR
+      - HP_PETUGAS
+      title: SumberTelemetri
+    TelemetriOut:
+      properties:
+        sampel:
+          items:
+            $ref: '#/components/schemas/TelemetriSampelOut'
+          type: array
+          title: Sampel
+        ringkasan:
+          anyOf:
+          - $ref: '#/components/schemas/TelemetriRingkasanOut'
+          - type: 'null'
+      type: object
+      required:
+      - sampel
+      title: TelemetriOut
+    TelemetriRingkasanOut:
+      properties:
+        suhu_maks_c:
+          type: number
+          title: Suhu Maks C
+        suhu_rata_c:
+          type: number
+          title: Suhu Rata C
+        kelembapan_rata_persen:
+          type: number
+          title: Kelembapan Rata Persen
+        jam_ekivalen:
+          type: number
+          title: Jam Ekivalen
+        sisa_umur_simpan_persen:
+          type: integer
+          title: Sisa Umur Simpan Persen
+        suhu_acuan_c:
+          type: number
+          title: Suhu Acuan C
+        nama_komoditas:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Nama Komoditas
+      type: object
+      required:
+      - suhu_maks_c
+      - suhu_rata_c
+      - kelembapan_rata_persen
+      - jam_ekivalen
+      - sisa_umur_simpan_persen
+      - suhu_acuan_c
+      title: TelemetriRingkasanOut
+      description: Ringkasan paparan perjalanan — bahan 3 kartu + garis ambang di
+        grafik (§5.4).
+    TelemetriSampelOut:
+      properties:
+        waktu:
+          type: string
+          format: date-time
+          title: Waktu
+        suhu_c:
+          type: number
+          title: Suhu C
+        kelembapan_persen:
+          type: number
+          title: Kelembapan Persen
+        lat:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Lat
+        lng:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Lng
+        sumber:
+          $ref: '#/components/schemas/SumberTelemetri'
+      type: object
+      required:
+      - waktu
+      - suhu_c
+      - kelembapan_persen
+      - sumber
+      title: TelemetriSampelOut
     TierKendaraanOut:
       properties:
         id:
