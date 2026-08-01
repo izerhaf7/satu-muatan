@@ -1,6 +1,4 @@
-"""Mesin atribusi mutu (spec §6).
-
-Fase 0: signature beku. Implementasi oleh agent domain-engine (Fase 1), test-first.
+"""Mesin atribusi mutu — logika 3-input (spec v2 §6/C3).
 
 ATURAN YANG TIDAK BOLEH DIUBAH (CLAUDE.md #4): cabang TIDAK_TERBUKTI wajib ada
 dan wajib ditampilkan di UI apa adanya. Sistem yang selalu bisa menunjuk pihak
@@ -23,26 +21,34 @@ def ambang_transit_menit(jarak_km: float, kecepatan_kmh: int, faktor_toleransi: 
 
 
 def tentukan_atribusi(
-    cacat_terlihat_saat_muat: bool,
+    grade_asal: int,
+    grade_tiba: int,
     durasi_transit_menit: int,
     ambang_menit: int,
-) -> Literal["PETANI", "LOGISTIK", "TIDAK_TERBUKTI"]:
-    """Tabel keputusan (spec §6 — jangan disederhanakan):
+    sisa_umur_simpan_persen: int,
+    ambang_grade_asal: int,
+    ambang_paparan_persen: int,
+) -> Literal["PETANI", "LOGISTIK", "TIDAK_TERBUKTI", "NORMAL"]:
+    """Tabel keputusan 3-input (spec v2 §6.2 — urutan JANGAN diubah):
 
-    1. cacat terlihat saat muat            → PETANI
-    2. durasi transit > ambang             → LOGISTIK
-    3. selain itu                          → TIDAK_TERBUKTI
+    1. grade_asal < ambang_grade_asal   → PETANI. Sudah di bawah standar sebelum berangkat.
+    2. grade_tiba >= grade_asal         → NORMAL. Tidak ada penurunan; tidak perlu atribusi.
+    3. Penurunan + bukti paparan berlebih:
+         durasi_transit > ambang ATAU sisa_umur_simpan < ambang_paparan → LOGISTIK.
+    4. Selain itu                       → TIDAK_TERBUKTI (residual model — WAJIB ada).
 
-    UI menampilkan PENJELASAN, bukan cuma label, mis.:
-    "Tidak terbukti — tidak ada cacat di foto muat, dan waktu tempuh 178 menit
-    masih di dalam ambang 181 menit untuk rute ini."
+    UI menampilkan PENJELASAN kalimat, bukan cuma label (§6.3).
     """
-    # Pembanding: cabang 1 — bukti visual langsung saat muat mengalahkan segalanya.
-    if cacat_terlihat_saat_muat:
+    # Pembanding: cabang 1 — mutu awal di bawah standar mengalahkan segalanya.
+    if grade_asal < ambang_grade_asal:
         return "PETANI"
-    # Pembanding: cabang 2 — transit lebih lama dari ambang wajar rute ini.
-    if durasi_transit_menit > ambang_menit:
+    # Pembanding: cabang 2 — tidak ada penurunan, tidak ada yang perlu diatribusi.
+    if grade_tiba >= grade_asal:
+        return "NORMAL"
+    # Pembanding: cabang 3 — ada penurunan DAN ada bukti paparan berlebih
+    # (waktu melewati ambang rute, atau umur simpan terkikis berlebih).
+    if durasi_transit_menit > ambang_menit or sisa_umur_simpan_persen < ambang_paparan_persen:
         return "LOGISTIK"
-    # Pembanding: cabang 3 — tidak ada cacat saat muat DAN transit masih wajar;
-    # tidak ada bukti untuk menuding siapa pun. WAJIB ada (CLAUDE.md #4).
+    # Pembanding: cabang 4 — ada penurunan yang tidak dijelaskan data terpantau.
+    # WAJIB ada (CLAUDE.md #4): residual jujur, bukan paksa menuding pihak mana pun.
     return "TIDAK_TERBUKTI"

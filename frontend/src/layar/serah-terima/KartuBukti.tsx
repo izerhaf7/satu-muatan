@@ -22,6 +22,7 @@ import AmbilFoto from "@/komponen/AmbilFoto";
 import AreaTeks from "@/komponen/AreaTeks";
 import Penggeser from "@/komponen/Penggeser";
 import Tombol from "@/komponen/Tombol";
+import PilihGrade, { LABEL_GRADE } from "@/komponen/PilihGrade";
 import type { components } from "@/api/client";
 import { formatAngka } from "@/utils/format";
 
@@ -63,6 +64,8 @@ export default function KartuBukti({ bukti, onKirim, sedangMengirim, gagalMengir
   const [persenPotongan, setPersenPotongan] = useState(10);
   const [alasan, setAlasan] = useState("");
   const [fotoBongkar, setFotoBongkar] = useState<string | null>(null);
+  // Default: sama seperti grade saat muat — penerima menurunkannya kalau mutu turun.
+  const [gradeTiba, setGradeTiba] = useState(bukti.lot.grade_asal);
 
   const { lot } = bukti;
 
@@ -76,6 +79,7 @@ export default function KartuBukti({ bukti, onKirim, sedangMengirim, gagalMengir
       persen_potongan: keputusan === "TOLAK" ? 100 : keputusan === "POTONG" ? persenPotongan : 0,
       alasan: alasan.trim() || null,
       foto_bongkar_base64: fotoBongkar,
+      grade_tiba: gradeTiba,
     });
   }
 
@@ -105,6 +109,8 @@ export default function KartuBukti({ bukti, onKirim, sedangMengirim, gagalMengir
   return (
     <div className="kartu-tonjol flex flex-col gap-4 p-4">
       <BuktiRingkas lot={lot} bukti={bukti} />
+
+      <PilihGrade label="Grade mutu saat tiba" nilai={gradeTiba} onUbah={setGradeTiba} />
 
       {!keputusan && (
         <div className="flex flex-col gap-2.5">
@@ -210,12 +216,15 @@ function BuktiRingkas({ lot, bukti }: { lot: BuktiLotOut["lot"]; bukti: BuktiLot
             ? `${formatAngka(bukti.durasi_transit_berjalan_menit)} / ${formatAngka(bukti.ambang_transit_menit)} mnt`
             : `— / ${formatAngka(bukti.ambang_transit_menit)} mnt`}
         </BarisFakta>
+        <BarisFakta ikon={Sprout} label="Grade saat muat">
+          {LABEL_GRADE[lot.grade_asal] ?? lot.grade_asal}
+        </BarisFakta>
       </div>
 
-      {lot.cacat_terlihat && (
+      {lot.grade_asal < 3 && (
         <p className="flex items-center gap-2 rounded-lg border-2 border-tanah-liat/40 bg-tanah-liat/5 px-3 py-2 text-keterangan font-medium text-tanah-liat">
           <AlertTriangle aria-hidden className="h-4 w-4 shrink-0" />
-          Ada cacat terlihat sejak muat
+          Grade saat muat sudah di bawah standar ({LABEL_GRADE[lot.grade_asal]})
         </p>
       )}
     </div>

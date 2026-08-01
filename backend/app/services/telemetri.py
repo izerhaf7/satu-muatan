@@ -11,7 +11,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.models import Penerima, Telemetri, TitikKumpul
+from app.domain.paparan import SampelTelemetri, hitung_paparan
+from app.models import Komoditas, Penerima, Telemetri, TitikKumpul
 from app.models.enums import SumberTelemetri
 from app.models.slot import Slot
 from app.models.bukti import Pengiriman
@@ -136,3 +137,40 @@ def pastikan_telemetri(db: Session, pengiriman: Pengiriman, slot: Slot) -> list[
     db.add_all(baris)
     db.commit()
     return baris
+
+
+def sampel_domain_dari_baris(baris: list[Telemetri]) -> list[SampelTelemetri]:
+    """Ubah baris telemetri menjadi sampel domain paparan (durasi = selisih
+    antar-sampel; sampel pertama 0 menit)."""
+    sampel: list[SampelTelemetri] = []
+    waktu_sebelumnya = None
+    for r in baris:
+        menit = 0 if waktu_sebelumnya is None else int((r.waktu - waktu_sebelumnya).total_seconds() // 60)
+        sampel.append(
+            SampelTelemetri(
+                suhu_c=float(r.suhu_c),
+                kelembapan_persen=float(r.kelembapan_persen),
+                menit_sejak_sebelumnya=menit,
+            )
+        )
+        waktu_sebelumnya = r.waktu
+    return sampel
+
+
+def sisa_umur_simpan_persen(
+    db: Session, pengiriman: Pengiriman, slot: Slot, komoditas: Komoditas | None
+) -> int | None:
+    """Sisa umur simpan (%) untuk satu pengiriman menurut parameter Q10 komoditas
+    yang diberikan. None kalau belum ada sampel telemetri / komoditas tak ada."""
+    if komoditas is None:
+        return None
+    baris = pastikan_telemetri(db, pengiriman, slot)
+    if not baris:
+        return None
+    hasil = hitung_paparan(
+        sampel_domain_dari_baris(baris),
+        float(komoditas.q10),
+        float(komoditas.suhu_acuan_c),
+        komoditas.umur_simpan_jam,
+    )
+    return hasil.sisa_umur_simpan_persen

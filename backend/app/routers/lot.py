@@ -14,6 +14,7 @@ from app.schemas.lot import BuktiLotOut, LotOut, MuatPatchRequest, SerahTerimaCr
 from app.services import mesin
 from app.services.konfigurasi import baca_konfigurasi
 from app.services.otorisasi import pastikan_bisa_lihat_slot
+from app.services.telemetri import sisa_umur_simpan_persen
 
 router = APIRouter(tags=["lot"])
 
@@ -41,29 +42,55 @@ def _ke_lot_out(lot: Lot, db: Session) -> LotOut:
         foto_muat=lot.foto_muat,
         waktu_muat=lot.waktu_muat,
         catatan_muat=lot.catatan_muat,
-        cacat_terlihat=lot.cacat_terlihat,
+        grade_asal=lot.grade_asal,
     )
 
 
-def _bangun_penjelasan(atribusi: str, durasi_menit: int, ambang_menit: int) -> str:
+_LABEL_GRADE = {5: "Sangat baik", 4: "Baik", 3: "Cukup", 2: "Kurang", 1: "Tidak layak"}
+
+
+def _bangun_penjelasan(
+    atribusi: str,
+    durasi_menit: int,
+    ambang_menit: int,
+    grade_asal: int | None,
+    grade_tiba: int | None,
+    sisa_persen: int | None,
+    ambang_paparan: int,
+) -> str:
+    """Kalimat penjelasan (spec v2 §6.3) — bukan cuma label."""
+    asal = _LABEL_GRADE.get(grade_asal or 5, "Sangat baik")
+    tiba = _LABEL_GRADE.get(grade_tiba or 5, "Sangat baik")
+    sisa_teks = sisa_persen if sisa_persen is not None else 100
+
     if atribusi == Atribusi.PETANI.value:
-        return (
-            f"Petani — cacat sudah terlihat sejak muat, sebelum barang berangkat. "
-            f"Waktu tempuh {durasi_menit} menit (ambang rute ini {ambang_menit} menit)."
-        )
+        return f"Mutu saat muat sudah di bawah standar ({asal}), sebelum barang berangkat."
+    if atribusi == Atribusi.NORMAL.value:
+        return "Tidak ada penurunan mutu."
     if atribusi == Atribusi.LOGISTIK.value:
-        return (
-            f"Logistik — tidak ada cacat di foto muat, tetapi waktu tempuh {durasi_menit} menit "
-            f"melewati ambang {ambang_menit} menit untuk rute ini."
-        )
+        if durasi_menit > ambang_menit:
+            bukti = f"Waktu tempuh {durasi_menit} menit melewati ambang {ambang_menit} menit untuk rute ini."
+        else:
+            bukti = f"Sisa umur simpan {sisa_teks}% di bawah ambang wajar {ambang_paparan}%."
+        return f"Mutu turun dari {asal} ke {tiba}. {bukti}"
     return (
-        f"Tidak terbukti — tidak ada cacat di foto muat, dan waktu tempuh {durasi_menit} menit "
-        f"masih di dalam ambang {ambang_menit} menit untuk rute ini."
+        f"Mutu turun dari {asal} ke {tiba}, tetapi waktu tempuh {durasi_menit} menit masih di dalam "
+        f"ambang {ambang_menit} menit dan sisa umur simpan {sisa_teks}% masih wajar. "
+        "Penyebabnya tidak terekam sistem."
     )
 
 
-def _ke_serah_terima_out(st: SerahTerima) -> SerahTerimaOut:
-    penjelasan = _bangun_penjelasan(st.atribusi.value, st.durasi_transit_menit, st.ambang_transit_menit)
+def _ke_serah_terima_out(st: SerahTerima, lot: Lot, db: Session) -> SerahTerimaOut:
+    ambang_paparan = baca_konfigurasi(db, "ambang_paparan_persen")
+    penjelasan = _bangun_penjelasan(
+        st.atribusi.value,
+        st.durasi_transit_menit,
+        st.ambang_transit_menit,
+        lot.grade_asal,
+        st.grade_tiba,
+        st.sisa_umur_simpan_persen,
+        ambang_paparan,
+    )
     return SerahTerimaOut(
         id=st.id,
         lot_id=st.lot_id,
@@ -77,6 +104,9 @@ def _ke_serah_terima_out(st: SerahTerima) -> SerahTerimaOut:
         atribusi=st.atribusi,
         penjelasan=penjelasan,
         foto_bongkar=st.foto_bongkar,  # K10
+        grade_asal=lot.grade_asal,
+        grade_tiba=st.grade_tiba,
+        sisa_umur_simpan_persen=st.sisa_umur_simpan_persen,
     )
 
 
@@ -103,7 +133,7 @@ def _bukti_lot_out(lot: Lot, db: Session) -> BuktiLotOut:
         lot=lot_out,
         durasi_transit_berjalan_menit=durasi_berjalan,
         ambang_transit_menit=ambang,
-        serah_terima=_ke_serah_terima_out(st) if st is not None else None,
+        serah_terima=_ke_serah_terima_out(st, lot, db) if st is not None else None,
     )
 
 
@@ -135,7 +165,7 @@ def daftar_lot_slot(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Ses
 
 @router.patch("/lot/{lot_id}/muat", response_model=LotOut)
 def muat_lot(lot_id: UUID, body: MuatPatchRequest, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
-    """Timbang + foto + checkbox 'Ada cacat terlihat' (input kunci atribusi §6)."""
+    """Timbang + foto + grade mutu 1–5 (input kunci atribusi 3-input, spec v2 §6)."""
     lot = _lot_atau_404(db, lot_id)
     partisipasi = db.get(Partisipasi, lot.partisipasi_id)
     slot = db.get(Slot, partisipasi.slot_id) if partisipasi else None
@@ -146,7 +176,7 @@ def muat_lot(lot_id: UUID, body: MuatPatchRequest, pengguna=Depends(wajib_peran(
 
     lot.berat_aktual_kg = body.berat_aktual_kg
     lot.foto_muat = body.foto_muat_base64
-    lot.cacat_terlihat = body.cacat_terlihat
+    lot.grade_asal = body.grade_asal
     lot.catatan_muat = body.catatan_muat
     lot.waktu_muat = datetime.now(timezone.utc)
 
@@ -246,7 +276,24 @@ def serah_terima(
     sekarang = datetime.now(timezone.utc)
     durasi_transit_menit = max(0, int((sekarang - pengiriman.waktu_berangkat).total_seconds() // 60))
     ambang_menit = _ambang_slot(db, slot)
-    atribusi_str = mesin.tentukan_atribusi(lot.cacat_terlihat, durasi_transit_menit, ambang_menit)
+
+    # Atribusi 3-input (spec v2 §6.2): grade asal vs grade tiba + bukti paparan
+    # (transit lewat ambang ATAU sisa umur simpan terkikis).
+    ambang_grade = baca_konfigurasi(db, "ambang_grade_asal")
+    ambang_paparan = baca_konfigurasi(db, "ambang_paparan_persen")
+    komoditas = db.get(Komoditas, partisipasi.komoditas_id) if partisipasi else None
+    sisa_persen = sisa_umur_simpan_persen(db, pengiriman, slot, komoditas)
+    # Tanpa sampel telemetri: anggap penuh (100%) supaya cabang paparan tidak keliru aktif.
+    sisa_untuk_atribusi = sisa_persen if sisa_persen is not None else 100
+    atribusi_str = mesin.tentukan_atribusi(
+        lot.grade_asal,
+        body.grade_tiba,
+        durasi_transit_menit,
+        ambang_menit,
+        sisa_untuk_atribusi,
+        ambang_grade,
+        ambang_paparan,
+    )
 
     st = SerahTerima(
         lot_id=lot.id,
@@ -259,6 +306,8 @@ def serah_terima(
         durasi_transit_menit=durasi_transit_menit,
         ambang_transit_menit=ambang_menit,
         atribusi=Atribusi(atribusi_str),
+        grade_tiba=body.grade_tiba,
+        sisa_umur_simpan_persen=sisa_untuk_atribusi,
     )
     db.add(st)
 
@@ -305,4 +354,4 @@ def serah_terima(
 
     db.commit()
     db.refresh(st)
-    return _ke_serah_terima_out(st)
+    return _ke_serah_terima_out(st, lot, db)

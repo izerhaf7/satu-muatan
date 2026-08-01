@@ -166,13 +166,19 @@ def ambang_transit_menit(jarak_km: float, kecepatan_kmh: int, faktor_toleransi: 
 
 
 def tentukan_atribusi(
-    cacat_terlihat_saat_muat: bool,
+    grade_asal: int,
+    grade_tiba: int,
     durasi_transit_menit: int,
     ambang_menit: int,
-) -> Literal["PETANI", "LOGISTIK", "TIDAK_TERBUKTI"]:
-    if cacat_terlihat_saat_muat:
+    sisa_umur_simpan_persen: int,
+    ambang_grade_asal: int,
+    ambang_paparan_persen: int,
+) -> Literal["PETANI", "LOGISTIK", "TIDAK_TERBUKTI", "NORMAL"]:
+    if grade_asal < ambang_grade_asal:
         return "PETANI"
-    if durasi_transit_menit > ambang_menit:
+    if grade_tiba >= grade_asal:
+        return "NORMAL"
+    if durasi_transit_menit > ambang_menit or sisa_umur_simpan_persen < ambang_paparan_persen:
         return "LOGISTIK"
     return "TIDAK_TERBUKTI"
 

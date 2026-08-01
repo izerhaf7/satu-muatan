@@ -11,6 +11,7 @@ import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { SkeletonKartu } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
+import { LABEL_GRADE } from "@/komponen/PilihGrade";
 import type { components } from "@/api/client";
 import { useCariLotQr, useKirimSerahTerima, useLotMasuk } from "@/hooks/useSerahTerima";
 import { formatAngka } from "@/utils/format";
@@ -112,10 +113,10 @@ export default function SerahTerima() {
           >
             <div className="flex items-center justify-between gap-2">
               <p className="text-base font-semibold text-tanah">{bukti.lot.nama_petani}</p>
-              {bukti.lot.cacat_terlihat && (
+              {bukti.lot.grade_asal < 3 && (
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-tanah-liat/10 px-2.5 py-0.5 text-keterangan font-semibold text-tanah-liat">
                   <AlertTriangle aria-hidden className="h-3.5 w-3.5" />
-                  Cacat terlihat
+                  Grade {LABEL_GRADE[bukti.lot.grade_asal]}
                 </span>
               )}
             </div>

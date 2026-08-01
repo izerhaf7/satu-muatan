@@ -564,7 +564,7 @@ def tutup_slot(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Sess
             partisipasi_id=p.id,
             kode_qr=f"LOT-{slot.kode}-{idx:02d}",
             penerima_id=penerima_id,
-            cacat_terlihat=False,
+            grade_asal=5,  # default optimis — grade riil dinilai petugas saat muat (§6.1)
         )
         db.add(lot)
 

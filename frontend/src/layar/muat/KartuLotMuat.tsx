@@ -1,14 +1,14 @@
-/** Kartu satu lot pada layar Muat (§9.5) — timbang, foto, cacat terlihat, catatan, QR.
- *  Form lokal per lot (bukan auto-save) supaya petugas titik kumpul bisa isi semua field dulu
- *  baru menekan "Simpan timbangan" satu kali per lot. */
+/** Kartu satu lot pada layar Muat (§9.5 + v2 §6.1) — timbang, foto, grade mutu 1–5,
+ *  catatan, QR. Form lokal per lot (bukan auto-save) supaya petugas titik kumpul
+ *  bisa isi semua field dulu baru menekan "Simpan timbangan" satu kali per lot. */
 
 import { useEffect, useState } from "react";
-import { AlertCircle, AlertTriangle, CheckCircle2, Save, Sprout } from "lucide-react";
+import { AlertCircle, CheckCircle2, Save, Sprout } from "lucide-react";
 
 import AmbilFoto from "@/komponen/AmbilFoto";
 import AreaTeks from "@/komponen/AreaTeks";
 import InputTeks from "@/komponen/InputTeks";
-import KotakCentang from "@/komponen/KotakCentang";
+import PilihGrade from "@/komponen/PilihGrade";
 import Tombol from "@/komponen/Tombol";
 import type { components } from "@/api/client";
 import { formatAngka } from "@/utils/format";
@@ -29,7 +29,7 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
 
   const [beratAktual, setBeratAktual] = useState(String(lot.berat_aktual_kg ?? lot.volume_kg));
   const [foto, setFoto] = useState<string | null>(lot.foto_muat ?? null);
-  const [cacatTerlihat, setCacatTerlihat] = useState(lot.cacat_terlihat);
+  const [gradeAsal, setGradeAsal] = useState(lot.grade_asal);
   const [catatan, setCatatan] = useState(lot.catatan_muat ?? "");
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
@@ -50,7 +50,7 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
     onSimpan({
       berat_aktual_kg: Number(beratAktual),
       foto_muat_base64: foto,
-      cacat_terlihat: cacatTerlihat,
+      grade_asal: gradeAsal,
       catatan_muat: catatan || null,
     });
   }
@@ -96,20 +96,7 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
 
       <AmbilFoto label="Foto muat" nilai={foto} onUbah={setFoto} />
 
-      <div
-        className={`flex items-center justify-between rounded-lg border-2 pr-3 transition-colors duration-cepat ${
-          cacatTerlihat ? "border-tanah-liat/50 bg-tanah-liat/5" : "border-kabut"
-        }`}
-      >
-        <KotakCentang
-          label="Ada cacat terlihat"
-          checked={cacatTerlihat}
-          onChange={(e) => setCacatTerlihat(e.target.checked)}
-          style={{ accentColor: cacatTerlihat ? "#C1502E" : undefined }}
-          className="flex-1"
-        />
-        {cacatTerlihat && <AlertTriangle aria-hidden className="h-5 w-5 shrink-0 text-tanah-liat" />}
-      </div>
+      <PilihGrade label="Grade mutu saat muat" nilai={gradeAsal} onUbah={setGradeAsal} />
 
       <AreaTeks
         label="Catatan (opsional)"

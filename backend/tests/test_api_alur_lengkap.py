@@ -73,7 +73,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     r = client.patch(
         f"/api/lot/{lot_id}/muat",
         headers=header_titik_kumpul,
-        json={"berat_aktual_kg": 795, "foto_muat_base64": "ZmFrZS1mb3RvLW11YXQ=", "cacat_terlihat": False, "catatan_muat": "kondisi baik"},
+        json={"berat_aktual_kg": 795, "foto_muat_base64": "ZmFrZS1mb3RvLW11YXQ=", "grade_asal": 5, "catatan_muat": "kondisi baik"},
     )
     assert r.status_code == 200, r.text
     assert r.json()["berat_aktual_kg"] == 795
@@ -129,11 +129,11 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     r = client.post(
         f"/api/lot/{lot_id}/serah-terima",
         headers=header_penerima,
-        json={"keputusan": "TERIMA", "persen_potongan": 0, "alasan": None, "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI="},
+        json={"keputusan": "TERIMA", "persen_potongan": 0, "alasan": None, "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=", "grade_tiba": 4},
     )
     assert r.status_code == 201, r.text
     st = r.json()
-    assert st["atribusi"] in ("TIDAK_TERBUKTI", "LOGISTIK")  # tidak ada cacat terlihat -> bukan PETANI
+    assert st["atribusi"] in ("TIDAK_TERBUKTI", "LOGISTIK")  # grade asal baik -> bukan PETANI
     assert isinstance(st["penjelasan"], str) and len(st["penjelasan"]) > 20
     assert str(st["durasi_transit_menit"]) in st["penjelasan"]
     assert str(st["ambang_transit_menit"]) in st["penjelasan"]
@@ -142,7 +142,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     r_dobel = client.post(
         f"/api/lot/{lot_id}/serah-terima",
         headers=header_penerima,
-        json={"keputusan": "TERIMA", "persen_potongan": 0, "foto_bongkar_base64": None},
+        json={"keputusan": "TERIMA", "persen_potongan": 0, "foto_bongkar_base64": None, "grade_tiba": 4},
     )
     assert r_dobel.status_code == 409
 

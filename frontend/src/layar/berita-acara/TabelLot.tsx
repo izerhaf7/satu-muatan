@@ -2,6 +2,7 @@
  *  foto muat & bongkar, keputusan serah terima + persen potongan, atribusi + penjelasan. */
 
 import { Tabel, Td, Th, Thead } from "@/komponen/Tabel";
+import { LABEL_GRADE } from "@/komponen/PilihGrade";
 import type { components } from "@/api/client";
 import { formatAngka } from "@/utils/format";
 
@@ -39,7 +40,7 @@ export default function TabelLot({ lot }: TabelLotProps) {
             <Th>Komoditas</Th>
             <Th className="text-right">Volume komitmen</Th>
             <Th className="text-right">Berat timbang</Th>
-            <Th>Cacat terlihat</Th>
+            <Th>Grade asal</Th>
             <Th>Foto muat</Th>
             <Th>Foto bongkar</Th>
             <Th>Keputusan</Th>
@@ -57,7 +58,7 @@ export default function TabelLot({ lot }: TabelLotProps) {
                   ? `${formatAngka(l.berat_aktual_kg)} kg`
                   : "—"}
               </Td>
-              <Td>{l.cacat_terlihat ? "Ada" : "Tidak ada"}</Td>
+              <Td>{LABEL_GRADE[l.grade_asal] ?? l.grade_asal}</Td>
               <Td>
                 <FotoBukti base64={l.foto_muat} alt={`Foto muat lot ${l.nama_petani}`} />
               </Td>

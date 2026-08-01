@@ -23,13 +23,13 @@ class LotOut(BaseModel):
     foto_muat: str | None = None  # base64
     waktu_muat: datetime | None = None
     catatan_muat: str | None = None
-    cacat_terlihat: bool
+    grade_asal: int  # grade mutu 1–5 saat muat (spec v2 §6.1)
 
 
 class MuatPatchRequest(BaseModel):
     berat_aktual_kg: int = Field(gt=0)
     foto_muat_base64: str | None = None  # dikompres client ke <=800px (§3.1)
-    cacat_terlihat: bool = False
+    grade_asal: int = Field(default=5, ge=1, le=5)  # 5 = sangat baik, 1 = tidak layak jual
     catatan_muat: str | None = None
 
 
@@ -38,6 +38,7 @@ class SerahTerimaCreate(BaseModel):
     persen_potongan: int = Field(default=0, ge=0, le=100)
     alasan: str | None = None
     foto_bongkar_base64: str | None = None  # K6 — tanpa ini foto_bongkar selamanya NULL
+    grade_tiba: int = Field(ge=1, le=5)  # grade mutu 1–5 saat bongkar (spec v2 §6.1)
 
 
 class SerahTerimaOut(BaseModel):
@@ -57,6 +58,9 @@ class SerahTerimaOut(BaseModel):
     ambang_transit_menit: int
     atribusi: Atribusi
     penjelasan: str  # WAJIB: penjelasan, bukan cuma label (§6)
+    grade_asal: int | None = None  # echo dari lot, bahan penjelasan UI (§6.3)
+    grade_tiba: int | None = None
+    sisa_umur_simpan_persen: int | None = None
 
 
 class BuktiLotOut(BaseModel):

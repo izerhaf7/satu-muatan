@@ -49,7 +49,7 @@ def berita_acara(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Sessio
     lot_baris = []
     for lot in lots:
         st = db.query(SerahTerima).filter_by(lot_id=lot.id).one_or_none()
-        lot_baris.append(LotBeritaOut(lot=_ke_lot_out(lot, db), serah_terima=_ke_serah_terima_out(st) if st else None))
+        lot_baris.append(LotBeritaOut(lot=_ke_lot_out(lot, db), serah_terima=_ke_serah_terima_out(st, lot, db) if st else None))
 
     rincian_ongkos = []
     for p in partisipasi_aktif:

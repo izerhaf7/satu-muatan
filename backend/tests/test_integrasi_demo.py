@@ -220,7 +220,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
             json={
                 "berat_aktual_kg": berat[nama],
                 "foto_muat_base64": "ZmFrZS1mb3RvLW11YXQ=",
-                "cacat_terlihat": nama == "Ijah",
+                "grade_asal": 2 if nama == "Ijah" else 5,
                 "catatan_muat": "ada memar di beberapa krat" if nama == "Ijah" else "kondisi baik",
             },
         )
@@ -267,11 +267,12 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
             body = {
                 "keputusan": "POTONG",
                 "persen_potongan": 20,
-                "alasan": "Cacat sudah terlihat sejak ditimbang & difoto saat muat.",
+                "alasan": "Mutu memang sudah di bawah standar saat ditimbang & difoto saat muat.",
                 "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=",
+                "grade_tiba": 2,
             }
         else:
-            body = {"keputusan": "TERIMA", "persen_potongan": 0, "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI="}
+            body = {"keputusan": "TERIMA", "persen_potongan": 0, "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=", "grade_tiba": 3}
         r = client.post(f"/api/lot/{lot['id']}/serah-terima", headers=header_rina, json=body)
         assert r.status_code == 201, r.text
         hasil_serah[nama] = r.json()
@@ -281,7 +282,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     assert st_ijah["persen_potongan"] == 20
     assert st_ijah["atribusi"] == "PETANI"
     assert isinstance(st_ijah["penjelasan"], str) and len(st_ijah["penjelasan"]) > 20
-    assert "cacat" in st_ijah["penjelasan"].lower()
+    assert "di bawah standar" in st_ijah["penjelasan"].lower()
 
     # DoD: "Serah terima menampilkan PENJELASAN atribusi, bukan cuma label" +
     # cabang TIDAK_TERBUKTI wajib teruji (CLAUDE.md #4) -- minimal satu lot
@@ -291,7 +292,7 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     for st in lot_tidak_terbukti:
         assert st["keputusan"] == "TERIMA"
         assert isinstance(st["penjelasan"], str) and len(st["penjelasan"]) > 20
-        assert "tidak terbukti" in st["penjelasan"].lower()
+        assert "tidak terekam sistem" in st["penjelasan"].lower()
 
     r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.json()["status"] == "SELESAI"

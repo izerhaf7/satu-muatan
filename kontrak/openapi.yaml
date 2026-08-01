@@ -582,8 +582,8 @@ paths:
       tags:
       - lot
       summary: Muat Lot
-      description: Timbang + foto + checkbox 'Ada cacat terlihat' (input kunci atribusi
-        §6).
+      description: Timbang + foto + grade mutu 1–5 (input kunci atribusi 3-input,
+        spec v2 §6).
       operationId: muat_lot_api_lot__lot_id__muat_patch
       security:
       - HTTPBearer: []
@@ -1379,9 +1379,9 @@ components:
           - type: string
           - type: 'null'
           title: Catatan Muat
-        cacat_terlihat:
-          type: boolean
-          title: Cacat Terlihat
+        grade_asal:
+          type: integer
+          title: Grade Asal
       type: object
       required:
       - id
@@ -1390,7 +1390,7 @@ components:
       - nama_petani
       - nama_komoditas
       - volume_kg
-      - cacat_terlihat
+      - grade_asal
       title: LotOut
     LuapanKapasitasOut:
       properties:
@@ -1459,10 +1459,12 @@ components:
           - type: string
           - type: 'null'
           title: Foto Muat Base64
-        cacat_terlihat:
-          type: boolean
-          title: Cacat Terlihat
-          default: false
+        grade_asal:
+          type: integer
+          maximum: 5.0
+          minimum: 1.0
+          title: Grade Asal
+          default: 5
         catatan_muat:
           anyOf:
           - type: string
@@ -1932,9 +1934,15 @@ components:
           - type: string
           - type: 'null'
           title: Foto Bongkar Base64
+        grade_tiba:
+          type: integer
+          maximum: 5.0
+          minimum: 1.0
+          title: Grade Tiba
       type: object
       required:
       - keputusan
+      - grade_tiba
       title: SerahTerimaCreate
     SerahTerimaOut:
       properties:
@@ -1980,6 +1988,21 @@ components:
         penjelasan:
           type: string
           title: Penjelasan
+        grade_asal:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Grade Asal
+        grade_tiba:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Grade Tiba
+        sisa_umur_simpan_persen:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sisa Umur Simpan Persen
       type: object
       required:
       - id

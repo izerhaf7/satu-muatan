@@ -313,6 +313,8 @@ def seed_riwayat(db: Session) -> int:
     faktor_jalan = baca_konfigurasi(db, "faktor_jalan")
     kecepatan = baca_konfigurasi(db, "kecepatan_rata_kmh")
     toleransi = baca_konfigurasi(db, "faktor_toleransi_transit")
+    ambang_grade = baca_konfigurasi(db, "ambang_grade_asal")
+    ambang_paparan = baca_konfigurasi(db, "ambang_paparan_persen")
 
     lot_idx = 0  # counter GLOBAL lintas slot — sumber variasi cacat/transit deterministik (bukan random)
     slot_baru = 0
@@ -401,11 +403,12 @@ def seed_riwayat(db: Session) -> int:
         ambang_menit = ambang_transit_menit(jarak_total, kecepatan, toleransi)
 
         # Alokasi lot -> tujuan: round-robin antar penerima yang dituju slot ini.
-        lots_info: list[tuple[Lot, Partisipasi, Penerima, bool, int]] = []
+        lots_info: list[tuple[Lot, Partisipasi, Penerima, int, int]] = []
         waktu_muat_list = []
         for i, p in enumerate(partisipasi_rows):
             penerima_tujuan = tujuan_penerima[i % len(tujuan_penerima)]
-            cacat = lot_idx % 6 == 5  # ~1 dari 6 lot punya cacat terlihat saat muat
+            # ~1 dari 6 lot bermutu rendah sejak muat (grade 2 < ambang_grade_asal 3)
+            grade_asal = 2 if lot_idx % 6 == 5 else 5
             waktu_muat = cutoff_at + timedelta(hours=2, minutes=10 * i)
             berat_aktual = max(1, p.volume_kg - (lot_idx % 7))  # variasi kecil vs volume komitmen (K3: bukti mutu)
             lot = Lot(
@@ -416,11 +419,11 @@ def seed_riwayat(db: Session) -> int:
                 penerima_id=penerima_tujuan.id,
                 berat_aktual_kg=berat_aktual,
                 waktu_muat=waktu_muat,
-                cacat_terlihat=cacat,
+                grade_asal=grade_asal,
             )
             db.add(lot)
             waktu_muat_list.append(waktu_muat)
-            lots_info.append((lot, p, penerima_tujuan, cacat, lot_idx))
+            lots_info.append((lot, p, penerima_tujuan, grade_asal, lot_idx))
             lot_idx += 1
 
         waktu_berangkat = max(waktu_muat_list) + timedelta(minutes=30)
@@ -441,18 +444,21 @@ def seed_riwayat(db: Session) -> int:
 
         penerima_volume_terkirim: dict[uuid.UUID, int] = {}
         waktu_bongkar_list = []
-        for lot, p, penerima_tujuan, cacat, idx in lots_info:
-            if cacat:
-                durasi = max(5, int(ambang_menit * 0.6))  # cacat menang di atribusi apa pun durasinya
+        for lot, p, penerima_tujuan, grade_asal, idx in lots_info:
+            if grade_asal < 3:
+                durasi = max(5, int(ambang_menit * 0.6))  # grade asal rendah menang di atribusi
+                grade_tiba, sisa = 2, 75
             elif idx % 4 == 2:
                 durasi = ambang_menit + 20  # LOGISTIK — transit melewati ambang
+                grade_tiba, sisa = 3, 60
             else:
                 durasi = max(5, ambang_menit - 25)  # TIDAK_TERBUKTI — masih di dalam ambang
+                grade_tiba, sisa = 3, 71
 
             waktu_bongkar = waktu_berangkat + timedelta(minutes=durasi)
             waktu_bongkar_list.append(waktu_bongkar)
 
-            atribusi_str = tentukan_atribusi(cacat, durasi, ambang_menit)
+            atribusi_str = tentukan_atribusi(grade_asal, grade_tiba, durasi, ambang_menit, sisa, ambang_grade, ambang_paparan)
             if atribusi_str == Atribusi.PETANI.value:
                 if idx % 12 == 11:
                     keputusan, persen, alasan = (
@@ -496,6 +502,8 @@ def seed_riwayat(db: Session) -> int:
                     durasi_transit_menit=durasi,
                     ambang_transit_menit=ambang_menit,
                     atribusi=Atribusi(atribusi_str),
+                    grade_tiba=grade_tiba,
+                    sisa_umur_simpan_persen=sisa,
                 )
             )
             penerima_volume_terkirim[penerima_tujuan.id] = (

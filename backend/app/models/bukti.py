@@ -27,8 +27,9 @@ class Lot(Base):
     foto_muat: Mapped[str | None] = mapped_column(Text)  # base64, dikompres client <=800px
     waktu_muat: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     catatan_muat: Mapped[str | None] = mapped_column(Text)
-    # Input kunci mesin atribusi (spec §6)
-    cacat_terlihat: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # Input kunci mesin atribusi 3-input (spec v2 §6/C3): grade 1–5 saat muat,
+    # dinilai petugas titik kumpul (5 = sangat baik, 1 = tidak layak jual).
+    grade_asal: Mapped[int] = mapped_column(Integer, default=5, server_default="5")
 
 
 class SerahTerima(Base):
@@ -47,6 +48,10 @@ class SerahTerima(Base):
     durasi_transit_menit: Mapped[int] = mapped_column(Integer, nullable=False)
     ambang_transit_menit: Mapped[int] = mapped_column(Integer, nullable=False)
     atribusi: Mapped[Atribusi] = mapped_column(Enum(Atribusi, name="atribusi"), nullable=False)
+    # Input atribusi 3-input (spec v2 §6/C3) — disimpan agar penjelasan bisa
+    # direkonstruksi persis seperti saat keputusan dibuat.
+    grade_tiba: Mapped[int | None] = mapped_column(Integer)
+    sisa_umur_simpan_persen: Mapped[int | None] = mapped_column(Integer)
 
 
 class Pengiriman(Base):

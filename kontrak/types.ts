@@ -386,7 +386,7 @@ export interface paths {
         head?: never;
         /**
          * Muat Lot
-         * @description Timbang + foto + checkbox 'Ada cacat terlihat' (input kunci atribusi §6).
+         * @description Timbang + foto + grade mutu 1–5 (input kunci atribusi 3-input, spec v2 §6).
          */
         patch: operations["muat_lot_api_lot__lot_id__muat_patch"];
         trace?: never;
@@ -885,8 +885,8 @@ export interface components {
             waktu_muat?: string | null;
             /** Catatan Muat */
             catatan_muat?: string | null;
-            /** Cacat Terlihat */
-            cacat_terlihat: boolean;
+            /** Grade Asal */
+            grade_asal: number;
         };
         /**
          * LuapanKapasitasOut
@@ -931,10 +931,10 @@ export interface components {
             /** Foto Muat Base64 */
             foto_muat_base64?: string | null;
             /**
-             * Cacat Terlihat
-             * @default false
+             * Grade Asal
+             * @default 5
              */
-            cacat_terlihat: boolean;
+            grade_asal: number;
             /** Catatan Muat */
             catatan_muat?: string | null;
         };
@@ -1219,6 +1219,8 @@ export interface components {
             alasan?: string | null;
             /** Foto Bongkar Base64 */
             foto_bongkar_base64?: string | null;
+            /** Grade Tiba */
+            grade_tiba: number;
         };
         /** SerahTerimaOut */
         SerahTerimaOut: {
@@ -1256,6 +1258,12 @@ export interface components {
             atribusi: components["schemas"]["Atribusi"];
             /** Penjelasan */
             penjelasan: string;
+            /** Grade Asal */
+            grade_asal?: number | null;
+            /** Grade Tiba */
+            grade_tiba?: number | null;
+            /** Sisa Umur Simpan Persen */
+            sisa_umur_simpan_persen?: number | null;
         };
         /** SkenarioHargaOut */
         SkenarioHargaOut: {
