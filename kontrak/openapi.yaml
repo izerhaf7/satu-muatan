@@ -284,7 +284,9 @@ paths:
       description: 'Kirim panen — sistem cocokkan ke muatan (baru atau yang sudah
         ada, §3.4).
 
-        Menggantikan alur ''pilih slot → gabung'' untuk petani.'
+        Menggantikan alur ''pilih slot → gabung''. PETUGAS pun bisa kirim — dia juga
+
+        petani yang ditunjuk (§2.3).'
       operationId: kirim_panen_api_kiriman_post
       requestBody:
         content:
@@ -1046,15 +1048,15 @@ components:
       type: string
       enum:
       - PETUGAS
-      - PETANI_ASEP
       - PETANI_WATI
       - PETANI_DEDI
       - PETANI_IJAH
       - PENERIMA_CIBIRU
       title: AkunDemo
-      description: '6 akun seed (KEPUTUSAN.md K6). UI menampilkan 4 tombol utama (§9.1);
+      description: 'Akun demo (v2 §8). Tombol masuk cepat di layar Masuk; Dedi & Ijah
+        masuk
 
-        Dedi & Ijah dipakai skenario demo langkah 5–6.'
+        manual via nomor HP + PIN di skenario demo.'
     Atribusi:
       type: string
       enum:

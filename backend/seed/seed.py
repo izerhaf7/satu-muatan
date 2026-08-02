@@ -44,11 +44,14 @@ from app.models import (  # noqa: E402
     StatusPermintaan,
     StatusSlot,
     StatusSumber,
+    Telemetri,
     TierKendaraan,
     TipeKonfigurasi,
     TipePenerima,
+    TipeTitikKumpul,
 )
 from app.services.konfigurasi import baca_konfigurasi, baca_tiers_aktif  # noqa: E402
+from app.services.telemetri import bangkitkan_telemetri  # noqa: E402
 
 CATATAN_TARIF = (
     "Struktur tarif dasar + per km Deliveree, referensi Jabodetabek yang dipakai "
@@ -168,17 +171,27 @@ KOMODITAS_SEED = [
     ("Wortel", 6_000, 240, Decimal("0.00180"), Decimal("1.5"), Decimal("25")),
 ]
 
-# nama, lat, lng
+# nama, lat, lng — nama netral v2 §8.1 (tanpa "SPPG"); enum TipePenerima tetap.
 PENERIMA_SEED = [
-    ("SPPG Cibiru 3", -6.9269, 107.7189),
-    ("SPPG Ujungberung 1", -6.9147, 107.7000),
-    ("SPPG Panyileukan 2", -6.9333, 107.6989),
+    ("Dapur Katering Cibiru", -6.9269, 107.7189),
+    ("Pasar Ujungberung", -6.9147, 107.7000),
+    ("Rumah Makan Panyileukan", -6.9333, 107.6989),
 ]
 
-# K9 — akun kanonik. (nama, no_hp, peran)
+# Nama v1 → nama v2 (§8.1) — baris lama di-rename in-place, bukan dibuat ulang,
+# supaya riwayat yang sudah menempel tidak yatim. Kunci = nama lama apa adanya
+# di data v1 (bukan copy produk, murni kebutuhan migrasi data).
+PENERIMA_NAMA_LAMA = {
+    "SPPG Cibiru 3": "Dapur Katering Cibiru",
+    "SPPG Ujungberung 1": "Pasar Ujungberung",
+    "SPPG Panyileukan 2": "Rumah Makan Panyileukan",
+}
+
+# K9 — akun kanonik v2 (§8.1). (nama, no_hp, peran)
+# Asep = petani yang ditunjuk sebagai PETUGAS di titik kumpulnya sendiri (§2.3).
 PENGGUNA_SEED = [
-    ("Bu Nia", "081200000001", PeranPengguna.PETUGAS),
-    ("Asep", "081200000011", PeranPengguna.PETANI),
+    ("Asep", "081200000011", PeranPengguna.PETUGAS),
+    ("Bu Nia", "081200000001", PeranPengguna.PETANI),
     ("Wati", "081200000012", PeranPengguna.PETANI),
     ("Dedi", "081200000013", PeranPengguna.PETANI),
     ("Ijah", "081200000014", PeranPengguna.PETANI),
@@ -203,21 +216,21 @@ PIN_DEMO = "123456"
 # app.domain.armada/harga/atribusi dengan koefisien dari tabel konfigurasi
 # saat seed dijalankan (aturan keras CLAUDE.md #1).
 RIWAYAT_SEED: list[tuple[date, str, list[str], list[tuple[str, int]]]] = [
-    (date(2026, 5, 28), "Kubis", ["SPPG Cibiru 3"],
+    (date(2026, 5, 28), "Sawi hijau", ["Dapur Katering Cibiru"],
      [("Asep", 500), ("Wati", 400), ("Dedi", 300)]),
-    (date(2026, 6, 4), "Tomat", ["SPPG Ujungberung 1", "SPPG Panyileukan 2"],
+    (date(2026, 6, 4), "Tomat", ["Pasar Ujungberung", "Rumah Makan Panyileukan"],
      [("Ijah", 350), ("Ujang", 350)]),
-    (date(2026, 6, 11), "Sawi hijau", ["SPPG Cibiru 3", "SPPG Ujungberung 1", "SPPG Panyileukan 2"],
+    (date(2026, 6, 11), "Sawi hijau", ["Dapur Katering Cibiru", "Pasar Ujungberung", "Rumah Makan Panyileukan"],
      [("Asep", 400), ("Wati", 380), ("Dedi", 350), ("Ijah", 340), ("Euis", 330)]),
-    (date(2026, 6, 18), "Wortel", ["SPPG Panyileukan 2"],
+    (date(2026, 6, 18), "Wortel", ["Rumah Makan Panyileukan"],
      [("Wati", 320), ("Ujang", 280)]),
-    (date(2026, 6, 25), "Kubis", ["SPPG Cibiru 3", "SPPG Panyileukan 2"],
+    (date(2026, 6, 25), "Kubis", ["Dapur Katering Cibiru", "Rumah Makan Panyileukan"],
      [("Dedi", 420), ("Ijah", 400), ("Euis", 380), ("Asep", 300)]),
-    (date(2026, 7, 2), "Tomat", ["SPPG Ujungberung 1"],
+    (date(2026, 7, 2), "Tomat", ["Pasar Ujungberung"],
      [("Wati", 260), ("Euis", 240), ("Ujang", 200)]),
-    (date(2026, 7, 9), "Sawi hijau", ["SPPG Cibiru 3", "SPPG Ujungberung 1", "SPPG Panyileukan 2"],
+    (date(2026, 7, 9), "Sawi hijau", ["Dapur Katering Cibiru", "Pasar Ujungberung", "Rumah Makan Panyileukan"],
      [("Asep", 450), ("Dedi", 430), ("Ijah", 420), ("Ujang", 400), ("Euis", 300)]),
-    (date(2026, 7, 16), "Wortel", ["SPPG Cibiru 3"],
+    (date(2026, 7, 16), "Wortel", ["Dapur Katering Cibiru"],
      [("Wati", 300), ("Asep", 200)]),
 ]  # fmt: skip
 
@@ -233,29 +246,49 @@ def seed_induk(db: Session) -> int:
         titik_kumpul = TitikKumpul(kode="CKJ")
         db.add(titik_kumpul)
         baru += 1
-    titik_kumpul.nama = "Koperasi Desa Mekarjaya"
+    titik_kumpul.nama = "Titik Kumpul Pak Asep"
+    titik_kumpul.tipe = TipeTitikKumpul.PETANI_UTAMA
     titik_kumpul.desa = "Mekarjaya"
     titik_kumpul.kecamatan = "Cikajang"
     titik_kumpul.kabupaten = "Garut"
     titik_kumpul.alamat = "Jl. Raya Cikajang No. 12, Desa Mekarjaya"
-    titik_kumpul.lat = -7.3661  # ASUMSI — perkiraan lokasi gudang (spec §11.1)
+    titik_kumpul.lat = -7.3661  # ASUMSI — perkiraan lokasi titik kumpul (spec §11.1)
     titik_kumpul.lng = 107.7961
     db.flush()
 
     penerima_pertama = None
+    for nama_lama, nama_baru in PENERIMA_NAMA_LAMA.items():
+        lama = db.query(Penerima).filter_by(nama=nama_lama).one_or_none()
+        if lama is None:
+            continue
+        # Kalau baris bernama baru SUDAH ada (mis. sempat ter-seed sebelum
+        # migrasi nama jalan): alihkan seluruh dependensinya ke baris lama
+        # (kanonik), lalu hapus duplikatnya — bukan membiarkan nama ganda.
+        for d in db.query(Penerima).filter(Penerima.nama == nama_baru, Penerima.id != lama.id).all():
+            for model, kolom in (
+                (SlotTujuan, "penerima_id"),
+                (Permintaan, "penerima_id"),
+                (Pengguna, "penerima_id"),
+                (Lot, "penerima_id"),
+                (SerahTerima, "penerima_id"),
+            ):
+                db.query(model).filter_by(**{kolom: d.id}).update({kolom: lama.id}, synchronize_session=False)
+            db.delete(d)
+        lama.nama = nama_baru
+        db.flush()
     for nama, lat, lng in PENERIMA_SEED:
         p = db.query(Penerima).filter_by(nama=nama).one_or_none()
         if p is None:
             p = Penerima(nama=nama)
             db.add(p)
             baru += 1
-        p.tipe = TipePenerima.SPPG
+        p.tipe = TipePenerima.SPPG  # enum tetap (§8.1) — hanya nama yang netral
         p.alamat = f"{nama}, Kota Bandung"
         p.lat = lat
         p.lng = lng
         db.flush()
         if penerima_pertama is None:
-            penerima_pertama = p  # SPPG Cibiru 3 — dapur Bu Rina (K9)
+            penerima_pertama = p  # Dapur Katering Cibiru — dapur Bu Rina (§8.2)
 
     for nama, harga, umur, laju, q10, suhu_acuan in KOMODITAS_SEED:
         k = db.query(Komoditas).filter_by(nama=nama).one_or_none()
@@ -285,8 +318,78 @@ def seed_induk(db: Session) -> int:
         u.aktif = True
         u.titik_kumpul_id = titik_kumpul.id if peran in (PeranPengguna.PETUGAS, PeranPengguna.PETANI) else None
         u.penerima_id = penerima_pertama.id if peran is PeranPengguna.PENERIMA else None
+        db.flush()
+        if peran is PeranPengguna.PETUGAS:
+            # §2.3/§8.1: petugas = petani yang ditunjuk di titik kumpulnya (Asep).
+            titik_kumpul.petugas_id = u.id
+            db.flush()
 
     return baru
+
+
+def _seed_stabil_dari_kode(kode: str) -> int:
+    """Seed deterministik dari kode slot — sama di DB mana pun, kapan pun
+    (dipakai generator telemetri riwayat: in-loop & backfill menghasilkan
+    kurva identik untuk slot yang sama)."""
+    return int.from_bytes(uuid.uuid5(uuid.NAMESPACE_DNS, kode).bytes[:2], "big")
+
+
+def _bangkitkan_telemetri_slot(
+    db: Session,
+    slot: Slot,
+    pengiriman: Pengiriman,
+    titik_kumpul: TitikKumpul,
+    tujuan_terakhir: Penerima,
+    interval: int,
+    suhu_dasar: float,
+    amplitudo: float,
+) -> int:
+    """Bangkitkan + simpan telemetri SIMULASI satu pengiriman (idempoten: lewati
+    kalau baris sudah ada). Mengembalikan jumlah baris ditambahkan."""
+    if db.query(Telemetri).filter_by(pengiriman_id=pengiriman.id).first() is not None:
+        return 0
+    if pengiriman.waktu_berangkat is None or pengiriman.waktu_tiba is None:
+        return 0
+    durasi = max(interval, int((pengiriman.waktu_tiba - pengiriman.waktu_berangkat).total_seconds() // 60))
+    baris = bangkitkan_telemetri(
+        pengiriman_id=pengiriman.id,
+        waktu_mulai=pengiriman.waktu_berangkat,
+        durasi_menit=durasi,
+        interval_menit=interval,
+        lat_asal=titik_kumpul.lat,
+        lng_asal=titik_kumpul.lng,
+        lat_tujuan=tujuan_terakhir.lat,
+        lng_tujuan=tujuan_terakhir.lng,
+        suhu_dasar_c=float(suhu_dasar),
+        amplitudo_suhu_c=float(amplitudo),
+        seed=_seed_stabil_dari_kode(slot.kode),
+    )
+    db.add_all(baris)
+    return len(baris)
+
+
+def seed_telemetri_riwayat(db: Session) -> int:
+    """Backfill telemetri untuk slot riwayat yang sudah ada SEBELUM fitur ini
+    ada (§8.1: grafik Lacak & kartu Keamanan Pangan tidak kosong). Idempoten."""
+    titik_kumpul = db.query(TitikKumpul).filter_by(kode="CKJ").one()
+    interval = baca_konfigurasi(db, "interval_telemetri_menit")
+    suhu_dasar = baca_konfigurasi(db, "suhu_dasar_c")
+    amplitudo = baca_konfigurasi(db, "amplitudo_suhu_c")
+
+    total = 0
+    slots = db.query(Slot).filter(Slot.kode.in_(RIWAYAT_SLOT_KODE)).all()
+    for slot in slots:
+        pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one_or_none()
+        if pengiriman is None:
+            continue
+        tujuan_terakhir_row = max(slot.tujuan, key=lambda t: t.urutan)
+        penerima = db.get(Penerima, tujuan_terakhir_row.penerima_id)
+        if penerima is None:
+            continue
+        total += _bangkitkan_telemetri_slot(
+            db, slot, pengiriman, titik_kumpul, penerima, interval, suhu_dasar, amplitudo
+        )
+    return total
 
 
 def seed_riwayat(db: Session) -> int:
@@ -305,7 +408,7 @@ def seed_riwayat(db: Session) -> int:
 
     penerima_by_nama = {p.nama: p for p in db.query(Penerima).all()}
     komoditas_by_nama = {k.nama: k for k in db.query(Komoditas).all()}
-    petani_by_nama = {u.nama: u for u in db.query(Pengguna).filter_by(peran=PeranPengguna.PETANI).all()}
+    petani_by_nama = {u.nama: u for u in db.query(Pengguna).filter(Pengguna.peran.in_([PeranPengguna.PETANI, PeranPengguna.PETUGAS])).all()}
     tier_row_by_kode = {t.kode: t for t in db.query(TierKendaraan).all()}
 
     tiers = baca_tiers_aktif(db)
@@ -315,6 +418,9 @@ def seed_riwayat(db: Session) -> int:
     toleransi = baca_konfigurasi(db, "faktor_toleransi_transit")
     ambang_grade = baca_konfigurasi(db, "ambang_grade_asal")
     ambang_paparan = baca_konfigurasi(db, "ambang_paparan_persen")
+    interval_telemetri = baca_konfigurasi(db, "interval_telemetri_menit")
+    suhu_dasar = baca_konfigurasi(db, "suhu_dasar_c")
+    amplitudo_suhu = baca_konfigurasi(db, "amplitudo_suhu_c")
 
     lot_idx = 0  # counter GLOBAL lintas slot — sumber variasi cacat/transit deterministik (bukan random)
     slot_baru = 0
@@ -512,6 +618,14 @@ def seed_riwayat(db: Session) -> int:
 
         pengiriman.waktu_tiba = max(waktu_bongkar_list)
 
+        # Telemetri SIMULASI untuk slot riwayat (§8.1) — grafik Lacak & kartu
+        # Keamanan Pangan tidak kosong saat demo. Seed stabil dari kode slot
+        # (identik dengan hasil backfill seed_telemetri_riwayat).
+        _bangkitkan_telemetri_slot(
+            db, slot, pengiriman, titik_kumpul, tujuan_penerima[-1],
+            interval_telemetri, suhu_dasar, amplitudo_suhu,
+        )
+
         # Riwayat permintaan (K6) — tautkan ke tujuan pertama rute, terpenuhi penuh.
         tujuan_pertama = tujuan_penerima[0]
         volume_terpenuhi = penerima_volume_terkirim.get(tujuan_pertama.id, 0)
@@ -542,10 +656,12 @@ def main() -> None:
         induk_baru = seed_induk(db)
         db.commit()
         riwayat_baru = seed_riwayat(db)
+        telemetri_baru = seed_telemetri_riwayat(db)
         db.commit()
         print(
             f"Seed selesai: {tier_baru} tier baru, {konf_baru} konfigurasi baru, "
-            f"{induk_baru} data induk baru, {riwayat_baru} slot riwayat baru (sisanya di-update/dilewati)."
+            f"{induk_baru} data induk baru, {riwayat_baru} slot riwayat baru, "
+            f"{telemetri_baru} baris telemetri baru (sisanya di-update/dilewati)."
         )
     finally:
         db.close()

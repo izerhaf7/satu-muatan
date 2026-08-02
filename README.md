@@ -1,9 +1,9 @@
 # Satu Muatan
 
-Perkakas operasional bagi koperasi desa untuk menggabungkan panen beberapa petani
-kecil menjadi satu muatan penuh, mengirimkannya ke pembeli institusional lewat
-vendor logistik yang sudah ada, dan menyerahkannya dengan bukti mutu yang
-menentukan pembayaran.
+Layanan *groupage* untuk pengirim hasil tani skala kecil. Beberapa petani yang
+tidak saling kenal berbagi satu truk ke koridor yang sama, dengan harga yang
+dijamin tidak pernah naik dan bukti perjalanan yang menentukan tanggung jawab
+kalau mutu turun.
 
 **Framing produk: efisiensi logistik + transparansi mutu.**
 
@@ -21,26 +21,25 @@ di atas — lihat langkah 5 di bagian [Deploy](#deploy) di bawah.
 ## Kredensial Demo
 
 Login memakai nomor HP + PIN 6 digit, atau tombol **Masuk cepat (demo)** di
-layar Masuk (4 tombol utama sesuai spec §9.1: Koperasi, Petani, dan Penerima —
-lihat catatan di bawah tabel untuk Dedi/Ijah).
+layar Masuk (4 tombol: Petugas Asep, Petani Wati, Petani Dedi, Penerima).
 
 | Peran | Nama | No. HP | PIN |
 |---|---|---|---|
-| Pengurus Koperasi | Bu Nia | `081200000001` | `123456` |
-| Petani | Asep | `081200000011` | `123456` |
+| Petugas Titik Kumpul | Asep | `081200000011` | `123456` |
+| Petani | Bu Nia | `081200000001` | `123456` |
 | Petani | Wati | `081200000012` | `123456` |
 | Petani | Dedi | `081200000013` | `123456` |
 | Petani | Ijah | `081200000014` | `123456` |
-| Kepala Dapur SPPG Cibiru 3 | Bu Rina | `081200000021` | `123456` |
+| Kepala Dapur Katering Cibiru | Bu Rina | `081200000021` | `123456` |
 
-Catatan: tombol **Masuk cepat (demo)** menyediakan 4 peran utama (Koperasi,
-Petani Asep, Petani Wati, Penerima). Dedi dan Ijah (langkah 5–6 skenario di
-bawah) masuk lewat nomor HP + PIN di atas secara manual. Dua petani tambahan
-di data seed (Ujang `081200000015`, Euis `081200000016`, PIN sama) tidak
-dipakai di skenario demo utama — muncul di riwayat 8 slot lama untuk mengisi
+Catatan: **Asep adalah petani yang ditunjuk sebagai petugas** di Titik Kumpul
+Pak Asep — dia yang menimbang, memfoto, dan memberi grade mutu (bukan pegawai
+platform, bukan driver vendor). Ijah masuk manual via nomor HP + PIN (tidak ada
+tombol cepatnya). Dua petani tambahan di data seed (Ujang `081200000015`,
+Euis `081200000016`, PIN sama) muncul di riwayat 8 slot lama untuk mengisi
 grafik Dashboard Dampak.
 
-## Skenario Demo (±10 menit, spec §11.2)
+## Skenario Demo (±8 menit, spec v2 §8.2)
 
 **Reset ke keadaan awal** sebelum mulai (aman dijalankan berkali-kali,
 idempoten): tombol reset di aplikasi (mode demo) memanggil `POST
@@ -48,57 +47,52 @@ idempoten): tombol reset di aplikasi (mode demo) memanggil `POST
 — mencetak cheat-sheet lengkap dengan angka yang dihitung ULANG saat itu juga
 oleh mesin harga sungguhan (bukan angka yang ditulis manual di dokumen ini).
 
-Rute demo (gudang koperasi → SPPG Panyileukan 2 → SPPG Ujungberung 1 → SPPG
-Cibiru 3, nearest-neighbor): **70,03 km**. Ambang transit rute ini: **181
-menit**. Angka di bawah adalah hasil mesin harga sungguhan pada rute ini
-(diverifikasi cocok persis dengan KEPUTUSAN.md K2).
-
-1. Login sebagai **Kepala Dapur SPPG Cibiru 3** (Bu Rina) → input permintaan
-   300 kg Kubis, untuk besok.
-2. Login sebagai **Pengurus Koperasi** (Bu Nia) → buka slot, pilih 3 tujuan
-   (Cibiru 3, Ujungberung 1, Panyileukan 2) → tampil: jarak **70,03 km**,
-   pratinjau harga kalau 300 kg = **Rp1.007/kg**.
-3. Login sebagai **Petani Asep** → ikut kirim 300 kg Kubis
-   → **HARGA ATAP TERKUNCI Rp1.007/kg**.
-4. **Petani Wati** ikut +200 kg (kumulatif 500 kg) → harga berjalan turun ke
-   **Rp605/kg** *[animasi]*.
-5. **Petani Dedi** ikut +180 kg (kumulatif 680 kg) → turun ke **Rp445/kg**
-   *[animasi]*.
-6. **Petani Ijah** ikut +100 kg (kumulatif 780 kg) → turun ke **Rp388/kg**
-   *[animasi]*
-   → Layar Asep menunjukkan: **"Kamu hemat Rp619/kg → Rp185.700"**.
-7. Koperasi tutup slot → sistem memilih **VAN** untuk 780 kg total (biaya
-   total Rp302.077, harga final Rp388/kg).
-8. Muat: timbang 4 lot, foto, satu lot ditandai **"ada cacat terlihat"**.
-9. Lacak: majukan status pengiriman sampai **TIBA**.
-10. Serah terima: 3 lot **TERIMA**, 1 lot **POTONG 20%** → atribusi
-    **PETANI** (cacat sudah terlihat sejak muat, sebelum berangkat).
-11. Buka **Berita Acara** → cetak (`window.print()` ke PDF).
-12. Buka **Dashboard Dampak** → 4 kartu terisi (data dari 8 slot riwayat +
-    slot demo yang baru selesai — grafik bulanan tidak kosong).
-13. Buka **Panel Asumsi** → ubah faktor emisi → tunjukkan Dashboard Dampak
-    ikut berubah.
+1. Login sebagai **Petani Asep** → buka **Kirim Panen** → tujuan Dapur Katering
+   Cibiru, sawi 300 kg, besok → tampil **harga atap** dan **potensi penghematan**
+   sebelum berkomitmen.
+2. Tekan **Kirim** → sistem membuka muatan baru → Asep diarahkan ke layar
+   **Muatanmu** (Detail Slot).
+3. Login sebagai **Petani Wati** → kirim 200 kg, tujuan 8 km dari tujuan Asep
+   → sistem mencocokkan ke **muatan yang SAMA** (radius koridor 15 km)
+   → harga berjalan turun *[animasi]*.
+4. **Petani Dedi** +180 kg, **Petani Ijah** +100 kg → harga turun lagi *[animasi]*
+   → Layar Asep: atap terkunci, harga sekarang, dan total hematnya.
+5. Login sebagai **Petugas (Asep)** → **Muat**: timbang 4 lot, foto, grade mutu
+   — 3 lot **"Sangat baik"**, 1 lot **"Cukup"**.
+6. Berangkat → **Lacak**: grafik suhu naik siang hari (berlabel "Data simulasi
+   — sensor fisik menyusul"), kartu suhu maks & **sisa umur simpan** sawi.
+7. Tiba → **Serah Terima**: 3 lot **Terima**, 1 lot **Potong 20%** → atribusi
+   **PETANI** dengan **kalimat penjelasan** (grade asal di bawah standar).
+8. Buka **Berita Acara** → cetak (`window.print()` ke PDF).
+9. Buka **Dashboard Dampak** → **empat kartu semboyan** terisi: Menekan biaya
+   logistik · Menurunkan emisi · Transparansi perjalanan · Keamanan pangan.
+10. Buka **Panel Asumsi** → ubah faktor emisi → kartu emisi ikut berubah.
 
 ## Arsitektur Singkat
 
 ```
-frontend/   React 18 + Vite + TS + Tailwind (PWA, mobile-first 360px)
+frontend/   React 18 + Vite + TS + Tailwind (PWA, mobile-first 360px, responsif desktop)
 backend/    FastAPI + SQLAlchemy 2 + Alembic (Python)
 kontrak/    openapi.yaml + types.ts + skema.sql  ← kontrak beku antar-modul
             Postgres 16 (lokal: docker-compose; produksi: Postgres terkelola)
 ```
 
-- **Mesin harga** (`backend/app/domain/`): fungsi murni; mencari kombinasi
-  kendaraan berbiaya total terendah, mengunci **harga atap** per petani saat
-  bergabung, dan menghitung harga final + kembalian saat cutoff. Petani tidak
-  pernah ditagih di atas atapnya.
-- **Mesin atribusi**: keputusan mutu (PETANI / LOGISTIK / TIDAK_TERBUKTI)
-  dari bukti muat + waktu tempuh vs ambang — selalu dengan penjelasan.
-- **Vendor logistik** lewat pola adapter: `MOCK` (demo, deterministik, tarif
-  publik) / `DELIVEREE` (kerangka, menunggu kredensial).
+- **Pencocokan otomatis** (`backend/app/domain/pencocokan.py`): petani tidak
+  memilih slot — kiriman dicocokkan greedy ke muatan berdasarkan radius koridor
+  + jendela tanggal, dipecah saat kelebihan kapasitas armada.
+- **Mesin harga** (`backend/app/domain/harga.py`): fungsi murni; mengunci
+  **harga atap** per petani saat bergabung (tidak pernah naik), harga final +
+  kembalian saat cutoff.
+- **Mesin atribusi 3-input**: grade asal × grade tiba × bukti paparan (transit
+  vs ambang, sisa umur simpan model Q10) → PETANI / LOGISTIK / TIDAK_TERBUKTI /
+  NORMAL — selalu dengan kalimat penjelasan.
+- **Telemetri** (`backend/app/services/telemetri.py`): kurva suhu harian
+  deterministik, berlabel "Data simulasi" di UI.
+- **Vendor logistik** lewat pola adapter: `MOCK` (demo, deterministik) /
+  `DELIVEREE` (kerangka).
 - **Panel Asumsi**: semua koefisien bisnis hidup di tabel `konfigurasi` +
-  `tier_kendaraan` dengan badge TERVERIFIKASI/ASUMSI — tidak ada angka
-  bisnis hardcoded di kode.
+  `tier_kendaraan` dengan badge TERVERIFIKASI/ASUMSI — tidak ada angka bisnis
+  hardcoded di kode.
 
 ## Menjalankan Lokal
 
@@ -110,7 +104,7 @@ docker compose up -d
 cd backend
 pip install -r requirements.txt
 alembic upgrade head
-python seed/seed.py              # master data + 8 slot riwayat (idempoten)
+python seed/seed.py              # master data + 8 slot riwayat + telemetri (idempoten)
 python seed/skenario_demo.py     # reset ke keadaan awal demo + cetak cheat-sheet
 uvicorn app.main:app --reload --port 8100      # http://127.0.0.1:8100/docs
 
@@ -214,7 +208,8 @@ Docker Compose di produksi — hanya dipakai untuk Postgres lokal.
 3. **Masuk cepat (demo)** salah satu peran → pastikan layar Beranda memuat
    data (ini sekaligus bukti CORS & koneksi backend berjalan dari luar
    jaringan kantor/kampus).
-4. Jalankan skenario §11.2 minimal sampai Detail Slot (langkah 1–6) untuk
+4. Jalankan skenario demo §8.2 minimal sampai **Muatanmu** (langkah 1–2) untuk
    memastikan animasi harga berjalan mulus di koneksi seluler.
 5. Catat kedua URL (frontend + backend) di bagian
    [URL Produksi](#url-produksi) di atas.
+

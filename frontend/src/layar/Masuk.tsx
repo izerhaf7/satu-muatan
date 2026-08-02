@@ -16,9 +16,9 @@ import { useMasuk, useMasukDemo } from "@/hooks/useAuth";
 type AkunDemo = components["schemas"]["AkunDemo"];
 
 const AKUN_DEMO: { akun: AkunDemo; nama: string; peran: string; ikon: LucideIcon }[] = [
-  { akun: "PETUGAS", nama: "Bu Nia", peran: "Petugas Titik Kumpul", ikon: Warehouse },
-  { akun: "PETANI_ASEP", nama: "Asep", peran: "Petani", ikon: Sprout },
+  { akun: "PETUGAS", nama: "Asep", peran: "Petugas Titik Kumpul", ikon: Warehouse },
   { akun: "PETANI_WATI", nama: "Wati", peran: "Petani", ikon: Sprout },
+  { akun: "PETANI_DEDI", nama: "Dedi", peran: "Petani", ikon: Sprout },
   { akun: "PENERIMA_CIBIRU", nama: "Bu Rina", peran: "Kepala Dapur Katering Cibiru", ikon: ChefHat },
 ];
 

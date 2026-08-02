@@ -12,11 +12,10 @@ class MasukRequest(BaseModel):
 
 
 class AkunDemo(str, enum.Enum):
-    """6 akun seed (KEPUTUSAN.md K6). UI menampilkan 4 tombol utama (§9.1);
-    Dedi & Ijah dipakai skenario demo langkah 5–6."""
+    """Akun demo (v2 §8). Tombol masuk cepat di layar Masuk untuk Petugas/Wati/
+    Dedi/Penerima; Ijah masuk manual via nomor HP + PIN di skenario demo."""
 
-    PETUGAS = "PETUGAS"
-    PETANI_ASEP = "PETANI_ASEP"
+    PETUGAS = "PETUGAS"  # Asep — petani yang ditunjuk di Titik Kumpul Pak Asep
     PETANI_WATI = "PETANI_WATI"
     PETANI_DEDI = "PETANI_DEDI"
     PETANI_IJAH = "PETANI_IJAH"

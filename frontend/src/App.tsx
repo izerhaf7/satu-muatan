@@ -59,7 +59,7 @@ export default function App() {
             <Route
               path="/kirim"
               element={
-                <RuteDenganPeran peran={["PETANI"]}>
+                <RuteDenganPeran peran={["PETANI", "PETUGAS"]}>
                   <KirimPanen />
                 </RuteDenganPeran>
               }

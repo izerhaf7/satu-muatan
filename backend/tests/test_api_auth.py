@@ -22,8 +22,9 @@ def test_masuk_nomor_tidak_terdaftar(client, data_dasar):
 
 def test_masuk_demo_semua_akun_k9(client, data_dasar):
     pemetaan = {
-        "PETUGAS": ("Bu Nia", "PETUGAS"),
-        "PETANI_ASEP": ("Asep", "PETANI"),
+        # AkunDemo.PETUGAS memetakan ke nomor HP Asep (petani yang ditunjuk, §8.1);
+        # di fixture conftest peran Asep tetap PETANI (dunia uji berdiri sendiri).
+        "PETUGAS": ("Asep", "PETANI"),
         "PETANI_WATI": ("Wati", "PETANI"),
         "PETANI_DEDI": ("Dedi", "PETANI"),
         "PETANI_IJAH": ("Ijah", "PETANI"),

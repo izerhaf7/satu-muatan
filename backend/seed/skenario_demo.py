@@ -22,6 +22,7 @@ Jalankan dari folder backend:  python seed/skenario_demo.py
 import pathlib
 import sys
 import uuid
+from datetime import datetime, timezone
 
 _BACKEND_DIR = pathlib.Path(__file__).resolve().parents[1]
 _SELF_DIR = pathlib.Path(__file__).resolve().parent  # backend/seed
@@ -44,8 +45,9 @@ from app.domain.atribusi import ambang_transit_menit  # noqa: E402
 from app.domain.harga import PartisipasiHarga, harga_atap_per_kg, harga_berjalan_per_kg, tetapkan_harga_final  # noqa: E402
 from app.models import (  # noqa: E402
     JejakPosisi,
+    Kiriman,
+    Komoditas,
     Konfigurasi,
-    TitikKumpul,
     Lot,
     Partisipasi,
     Penerima,
@@ -54,6 +56,8 @@ from app.models import (  # noqa: E402
     SerahTerima,
     Slot,
     SlotTujuan,
+    Telemetri,
+    TitikKumpul,
 )
 from app.services.konfigurasi import baca_konfigurasi, baca_tiers_aktif  # noqa: E402
 from seed.seed import (  # noqa: E402
@@ -123,9 +127,12 @@ def reset_ke_awal_demo(db: Session) -> dict[str, int]:
     if lot_ids:
         db.query(SerahTerima).filter(SerahTerima.lot_id.in_(lot_ids)).delete(synchronize_session=False)
     if pengiriman_ids:
+        db.query(Telemetri).filter(Telemetri.pengiriman_id.in_(pengiriman_ids)).delete(synchronize_session=False)
         db.query(JejakPosisi).filter(JejakPosisi.pengiriman_id.in_(pengiriman_ids)).delete(synchronize_session=False)
     if lot_ids:
         db.query(Lot).filter(Lot.id.in_(lot_ids)).delete(synchronize_session=False)
+    # Kiriman (v2 §3) — tidak ada di slot riwayat, jadi selalu ikut dibersihkan.
+    db.query(Kiriman).delete(synchronize_session=False)
     db.query(Pengiriman).filter(~Pengiriman.slot_id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
     db.query(Partisipasi).filter(~Partisipasi.slot_id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
     db.query(SlotTujuan).filter(~SlotTujuan.slot_id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
@@ -141,72 +148,50 @@ def reset_ke_awal_demo(db: Session) -> dict[str, int]:
 
 
 # ---------------------------------------------------------------------------
-# Cheat-sheet — angka dihitung LIVE, bukan ditulis manual
+# Cheat-sheet — angka dihitung LIVE, bukan ditulis manual (v2 §8.2)
 # ---------------------------------------------------------------------------
-
-# Referensi KEPUTUSAN.md K2 HANYA untuk mencetak status verifikasi di bawah —
-# tidak pernah dipakai untuk perhitungan apa pun (mesin harga sungguhan di atas
-# yang menghitung; ini cuma pembanding cetak).
-_K2_REFERENSI = {
-    "jarak_km": 70.03,
-    "ambang_menit": 181,
-    "atap_asep": 1007,
-    "berjalan_wati": 605,
-    "berjalan_dedi": 445,
-    "berjalan_ijah": 388,
-    "tier_final": "VAN",
-    "hemat_asep_per_kg": 619,
-    "hemat_asep_rp": 185_700,
-}
 
 
 def _rp(n: int) -> str:
     return f"Rp{n:,}".replace(",", ".")
 
 
-def _cocok(live, referensi, toleransi: float = 0) -> str:
-    sama = live == referensi if isinstance(live, str) or isinstance(referensi, str) else abs(live - referensi) <= toleransi
-    return "cocok" if sama else f"BERBEDA (live={live}, K2={referensi})"
-
-
 def bangun_cheat_sheet(db: Session) -> str:
-    """Langkah 1-13 (§11.2) dengan angka dihitung ulang live dari mesin harga +
-    koordinat seed saat fungsi ini dipanggil — bukan disalin dari dokumen."""
+    """Langkah 1–10 (v2 §8.2) — semua angka dihitung ulang live dari mesin harga,
+    generator telemetri, dan model Q10 saat fungsi ini dipanggil. Jangan salin
+    angka dari dokumen ke kode; kalau hasil mesin berbeda dari catatan demo,
+    perbarui catatannya (§4.3)."""
+    from app.domain.paparan import hitung_paparan
+    from app.services import mesin
+    from app.services.telemetri import bangkitkan_telemetri, sampel_domain_dari_baris
+
     titik_kumpul = db.query(TitikKumpul).filter_by(kode="CKJ").one()
-    cibiru = db.query(Penerima).filter_by(nama="SPPG Cibiru 3").one()
-    ujungberung = db.query(Penerima).filter_by(nama="SPPG Ujungberung 1").one()
-    panyileukan = db.query(Penerima).filter_by(nama="SPPG Panyileukan 2").one()
+    cibiru = db.query(Penerima).filter_by(nama="Dapur Katering Cibiru").one()
+    sawi = db.query(Komoditas).filter_by(nama="Sawi hijau").one()
 
     tiers = baca_tiers_aktif(db)
     maks_kendaraan = baca_konfigurasi(db, "maks_kendaraan")
     faktor_jalan = baca_konfigurasi(db, "faktor_jalan")
     kecepatan = baca_konfigurasi(db, "kecepatan_rata_kmh")
     toleransi_transit = baca_konfigurasi(db, "faktor_toleransi_transit")
+    interval = baca_konfigurasi(db, "interval_telemetri_menit")
+    suhu_dasar = baca_konfigurasi(db, "suhu_dasar_c")
+    amplitudo = baca_konfigurasi(db, "amplitudo_suhu_c")
 
-    tujuan_input = [
-        TujuanInput(penerima_id=cibiru.id, lat=cibiru.lat, lng=cibiru.lng),
-        TujuanInput(penerima_id=ujungberung.id, lat=ujungberung.lat, lng=ujungberung.lng),
-        TujuanInput(penerima_id=panyileukan.id, lat=panyileukan.lat, lng=panyileukan.lng),
-    ]
-    urutan = urutkan_tujuan_nearest_neighbor((titik_kumpul.lat, titik_kumpul.lng), tujuan_input, faktor_jalan)
-    jarak_km = sum(t.jarak_segmen_km for t in urutan)
+    # Rute muatan demo: SATU tujuan (alur kiriman §3) — titik kumpul → Cibiru.
+    jarak_km = mesin.jarak_haversine_km(titik_kumpul.lat, titik_kumpul.lng, cibiru.lat, cibiru.lng) * faktor_jalan
     ambang_menit = ambang_transit_menit(jarak_km, kecepatan, toleransi_transit)
 
-    nama_by_id = {cibiru.id: cibiru.nama, ujungberung.id: ujungberung.nama, panyileukan.id: panyileukan.nama}
-    rute_teks = " -> ".join(["Gudang titik_kumpul"] + [nama_by_id[t.penerima_id] for t in urutan])
-
-    # Volume individual PERSIS spec §11.2 asli (300 / +200 / +180 / +100 kg),
-    # kumulatif 300/500/680/780 — HARGA yang berubah karena rute dikoreksi K2
-    # (70,03 km, bukan 84 km), bukan volumenya.
     langkah_petani = [("Asep", 300), ("Wati", 200), ("Dedi", 180), ("Ijah", 100)]
     kumulatif = 0
     atap_by_nama: dict[str, int] = {}
-    baris_kaskade: list[tuple[str, int, int, int]] = []  # nama, volume_step, kumulatif, harga_berjalan
+    baris_kaskade: list[tuple[str, int, int, int]] = []
     for nama, vol in langkah_petani:
         atap_by_nama[nama] = harga_atap_per_kg(vol, jarak_km, tiers, maks_kendaraan)
         kumulatif += vol
-        hb = harga_berjalan_per_kg(kumulatif, jarak_km, tiers, maks_kendaraan)
-        baris_kaskade.append((nama, vol, kumulatif, hb))
+        baris_kaskade.append((nama, vol, kumulatif, harga_berjalan_per_kg(kumulatif, jarak_km, tiers, maks_kendaraan)))
+
+    potensi_pratinjau = harga_berjalan_per_kg(300 * 4, jarak_km, tiers, maks_kendaraan)
 
     partisipasi_final = [
         PartisipasiHarga(id=uuid.uuid4(), volume_kg=vol, harga_atap_per_kg=atap_by_nama[nama])
@@ -217,55 +202,67 @@ def bangun_cheat_sheet(db: Session) -> str:
     hemat_asep_per_kg = atap_by_nama["Asep"] - hasil.harga_final_per_kg
     hemat_asep_rp = hemat_asep_per_kg * langkah_petani[0][1]
 
+    # Simulasi telemetri perjalanan siang (berangkat 13.00 WIB, 3 jam) → angka
+    # kartu suhu & sisa umur simpan sawi (q10 dari tabel komoditas).
+    berangkat_demo = datetime(2026, 8, 2, 6, 0, tzinfo=timezone.utc)  # 13.00 WIB
+    sampel = bangkitkan_telemetri(
+        pengiriman_id=uuid.uuid4(),
+        waktu_mulai=berangkat_demo,
+        durasi_menit=180,
+        interval_menit=interval,
+        lat_asal=titik_kumpul.lat,
+        lng_asal=titik_kumpul.lng,
+        lat_tujuan=cibiru.lat,
+        lng_tujuan=cibiru.lng,
+        suhu_dasar_c=float(suhu_dasar),
+        amplitudo_suhu_c=float(amplitudo),
+        seed=42,
+    )
+    paparan = hitung_paparan(
+        sampel_domain_dari_baris(sampel), float(sawi.q10), float(sawi.suhu_acuan_c), sawi.umur_simpan_jam
+    )
+
     L = []
     add = L.append
     add("=" * 78)
-    add("CHEAT-SHEET SKENARIO DEMO (spec 11.2) -- angka DIHITUNG LIVE oleh mesin harga")
-    add("Sumber koefisien: tabel konfigurasi & tier_kendaraan pada saat script ini")
-    add("dijalankan (bukan hardcoded). Referensi resmi: KEPUTUSAN.md K2.")
+    add("CHEAT-SHEET SKENARIO DEMO v2 (spec §8.2) -- angka DIHITUNG LIVE oleh mesin")
+    add("Sumber koefisien: tabel konfigurasi, tier_kendaraan & komoditas saat script")
+    add("ini dijalankan (bukan hardcoded). Kalau beda dari catatan demo, mesin yang benar.")
     add("=" * 78)
     add("")
-    add(f"Rute demo (nearest-neighbor, faktor_jalan={faktor_jalan}): {rute_teks}")
-    add(f"  jarak_km = {round(jarak_km, 4)}  [{_cocok(round(jarak_km, 2), _K2_REFERENSI['jarak_km'], 0.01)} vs K2]")
-    add(f"  ambang_transit_menit = {ambang_menit}  [{_cocok(ambang_menit, _K2_REFERENSI['ambang_menit'])} vs K2]")
+    add(f"Muatan demo (satu tujuan, alur Kirim Panen): {titik_kumpul.nama} -> {cibiru.nama}")
+    add(f"  jarak_km = {round(jarak_km, 2)} · ambang_transit_menit = {ambang_menit}")
     add("")
-    add("Langkah 1. Login Kepala Dapur SPPG Cibiru 3 -> input permintaan 300 kg Kubis, besok.")
+    add("Langkah 1. Login Petani Asep -> \"Kirim Panen\": Dapur Katering Cibiru, sawi,")
+    add(f"   300 kg, besok -> atap {_rp(atap_by_nama['Asep'])}/kg, potensi ± {_rp(potensi_pratinjau)}/kg")
     add("")
+    add("Langkah 2. Kirim -> sistem buka muatan baru -> layar \"Muatanmu\" (Detail Slot).")
+    add("")
+    add("Langkah 3. Login Petani Wati -> kirim 200 kg, tujuan 8 km dari tujuan Asep")
+    add(f"   (radius koridor 15 km) -> muatan SAMA -> harga berjalan turun ke {_rp(baris_kaskade[1][3])}/kg [animasi]")
+    add("")
+    add(f"Langkah 4. Dedi +180 kg (kumulatif {baris_kaskade[2][2]} kg) -> {_rp(baris_kaskade[2][3])}/kg [animasi]")
+    add(f"           Ijah +100 kg (kumulatif {baris_kaskade[3][2]} kg) -> {_rp(baris_kaskade[3][3])}/kg [animasi]")
     add(
-        f"Langkah 2. Login Petugas -> buka slot, pilih 3 tujuan (Cibiru 3, Ujungberung 1, "
-        f"Panyileukan 2)."
+        f"   Layar Asep: \"Atap {_rp(atap_by_nama['Asep'])} (terkunci). Sekarang {_rp(hasil.harga_final_per_kg)}. "
+        f"Hemat {_rp(hemat_asep_rp)}.\""
     )
-    add(f"  -> jarak rute = {round(jarak_km, 2)} km; pratinjau kalau 300 kg = {_rp(atap_by_nama['Asep'])}/kg")
     add("")
-    add(f"Langkah 3. Petani Asep ikut kirim 300 kg Kubis.")
-    add(f"  -> HARGA ATAP TERKUNCI Asep = {_rp(atap_by_nama['Asep'])}/kg  "
-        f"[{_cocok(atap_by_nama['Asep'], _K2_REFERENSI['atap_asep'])} vs K2]")
+    add(f"Langkah 5. Login Petugas (Asep) -> tutup slot -> sistem memilih {tier_ringkas} untuk {kumulatif} kg.")
+    add(f"   biaya_total = {_rp(hasil.biaya_total)}, selisih_jaminan_atap = {_rp(hasil.subsidi_koperasi)}")
+    add("   Muat: timbang 4 lot, foto, grade mutu: 3 lot \"Sangat baik\", 1 lot \"Cukup\".")
     add("")
-    for i, (nama, vol, kum, hb) in enumerate(baris_kaskade[1:], start=4):
-        ref_key = {"Wati": "berjalan_wati", "Dedi": "berjalan_dedi", "Ijah": "berjalan_ijah"}[nama]
-        add(f"Langkah {i}. Petani {nama} ikut +{vol} kg (kumulatif {kum} kg).")
-        add(f"  -> harga berjalan turun ke {_rp(hb)}/kg  [{_cocok(hb, _K2_REFERENSI[ref_key])} vs K2]  [animasi]")
-        add("")
-    add(f"  -> Layar Asep menunjukkan: \"Kamu hemat {_rp(hemat_asep_per_kg)}/kg -> {_rp(hemat_asep_rp)}\"")
-    add(f"    [{_cocok(hemat_asep_per_kg, _K2_REFERENSI['hemat_asep_per_kg'])} vs K2 per-kg, "
-        f"{_cocok(hemat_asep_rp, _K2_REFERENSI['hemat_asep_rp'])} vs K2 total]")
-    add("")
-    add(f"Langkah 7. Petugas tutup slot -> sistem memilih {tier_ringkas} untuk {kumulatif} kg total.")
-    add(f"  [{_cocok(tier_ringkas, _K2_REFERENSI['tier_final'])} vs K2 (VAN untuk 780 kg)]")
-    add(f"  harga_final_per_kg = {_rp(hasil.harga_final_per_kg)}, biaya_total = {_rp(hasil.biaya_total)}, "
-        f"selisih_jaminan_atap = {_rp(hasil.subsidi_koperasi)}")
-    if hasil.subsidi_koperasi < 0:
-        add("  (subsidi negatif = surplus kecil akibat pembulatan ke atas/ceil per partisipan, bukan bug)")
-    add("")
-    add("Langkah 8. Muat: timbang 4 lot, foto, tandai 1 lot 'ada cacat terlihat'.")
-    add("Langkah 9. Lacak: maju status pengiriman sampai TIBA.")
+    add("Langkah 6. Berangkat -> Lacak: grafik suhu naik siang hari (label 'Data simulasi').")
     add(
-        f"Langkah 10. Serah terima: 3 lot TERIMA, 1 lot POTONG 20% -> atribusi PETANI "
-        f"(cacat terlihat sejak muat, ambang rute ini {ambang_menit} menit)."
+        f"   Kartu: suhu maks {paparan.suhu_maks_c:.1f} °C, suhu rata-rata {paparan.suhu_rata_c:.1f} °C, "
+        f"sisa umur simpan {paparan.sisa_umur_simpan_persen}%"
     )
-    add("Langkah 11. Buka Berita Acara -> cetak (window.print()).")
-    add("Langkah 12. Buka Dashboard Dampak -> 4 kartu terisi (8 slot riwayat + 1 slot demo baru).")
-    add("Langkah 13. Buka Panel Asumsi -> ubah faktor emisi -> tunjukkan dashboard ikut berubah.")
+    add("")
+    add("Langkah 7. Serah Terima: 3 lot TERIMA, 1 lot POTONG 20% -> atribusi PETANI")
+    add("   (grade asal di bawah standar) + kalimat penjelasan.")
+    add("Langkah 8. Berita Acara -> cetak (window.print()).")
+    add("Langkah 9. Dashboard Dampak -> EMPAT kartu semboyan terisi (8 slot riwayat + demo).")
+    add("Langkah 10. Panel Asumsi -> ubah faktor emisi -> kartu emisi ikut berubah.")
     add("")
     add("=" * 78)
     return "\n".join(L)

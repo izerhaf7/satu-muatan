@@ -219,7 +219,8 @@ export interface paths {
         /**
          * Kirim Panen
          * @description Kirim panen — sistem cocokkan ke muatan (baru atau yang sudah ada, §3.4).
-         *     Menggantikan alur 'pilih slot → gabung' untuk petani.
+         *     Menggantikan alur 'pilih slot → gabung'. PETUGAS pun bisa kirim — dia juga
+         *     petani yang ditunjuk (§2.3).
          */
         post: operations["kirim_panen_api_kiriman_post"];
         delete?: never;
@@ -706,11 +707,11 @@ export interface components {
     schemas: {
         /**
          * AkunDemo
-         * @description 6 akun seed (KEPUTUSAN.md K6). UI menampilkan 4 tombol utama (§9.1);
-         *     Dedi & Ijah dipakai skenario demo langkah 5–6.
+         * @description Akun demo (v2 §8). Tombol masuk cepat di layar Masuk; Dedi & Ijah masuk
+         *     manual via nomor HP + PIN di skenario demo.
          * @enum {string}
          */
-        AkunDemo: "PETUGAS" | "PETANI_ASEP" | "PETANI_WATI" | "PETANI_DEDI" | "PETANI_IJAH" | "PENERIMA_CIBIRU";
+        AkunDemo: "PETUGAS" | "PETANI_WATI" | "PETANI_DEDI" | "PETANI_IJAH" | "PENERIMA_CIBIRU";
         /**
          * Atribusi
          * @enum {string}

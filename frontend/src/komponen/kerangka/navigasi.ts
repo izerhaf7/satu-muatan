@@ -13,6 +13,7 @@ export interface ItemNav {
 export const NAV_PER_PERAN: Record<string, ItemNav[]> = {
   PETUGAS: [
     { ke: "/beranda", label: "Beranda", ikon: Home },
+    { ke: "/kirim", label: "Kirim", ikon: PackagePlus },
     { ke: "/dampak", label: "Dampak", ikon: BarChart3 },
     { ke: "/asumsi", label: "Asumsi", ikon: SlidersHorizontal },
   ],
