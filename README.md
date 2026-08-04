@@ -151,6 +151,26 @@ Tiga bagian (spec §3.3): database Postgres terkelola (Neon), backend Docker
 (Render — Railway sebagai alternatif), frontend statis (Vercel). Tidak ada
 Docker Compose di produksi — hanya dipakai untuk Postgres lokal.
 
+### Cloud Run (jalur paralel, tanpa traffic awal)
+
+Render tetap jalur rollback. `backend/docker-entrypoint.sh` mempertahankan
+`RUN_MIGRATIONS=true` secara default, jadi perilaku Render/Railway tidak berubah.
+Cloud Run runtime harus memakai `RUN_MIGRATIONS=false`; `scripts/deploy-cloud-run.ps1`
+lebih dulu membuat/menjalankan migration job serial (`tasks=1`, `parallelism=1`,
+`max-retries=0`) dengan `alembic upgrade head`, lalu membuat revision service
+tanpa traffic. Semua nilai runtime rahasia tetap berada di Secret Manager dan
+tidak boleh disimpan di argumen, log, `.env`, atau repository.
+
+Cloud Build memakai `cloudbuild.yaml` dan tag image immutable `${COMMIT_SHA}`.
+Jalankan script hanya setelah resource Phase 2 tersedia; Task 2 ini tidak
+membuat resource maupun mengirim traffic. Parameter `DatabaseUrlSecret` dan
+`JwtSecret` adalah **nama** secret, bukan nilainya.
+
+Kill switch Cloud Run: arahkan traffic ke revision sebelumnya; bila perlu
+nonaktifkan revision terbaru; bila provider geo aktif nanti, nonaktifkan kunci
+provider di Secret Manager. Jangan hapus Render sampai health, auth, CORS, dan
+log Cloud Run tervalidasi.
+
 ### 1. Database — Neon (Postgres, region Singapore)
 
 1. Buka [neon.tech](https://neon.tech) → daftar/masuk (SSO GitHub tercepat).

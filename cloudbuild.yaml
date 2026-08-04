@@ -1,0 +1,12 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag
+      - ${_IMAGE_REPOSITORY}:${COMMIT_SHA}
+      - --file
+      - backend/Dockerfile
+      - backend
+
+images:
+  - ${_IMAGE_REPOSITORY}:${COMMIT_SHA}
