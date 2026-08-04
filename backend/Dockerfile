@@ -34,6 +34,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD python -c "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.environ.get('PORT','8000') + '/healthz', timeout=3)" || exit 1
 
-# Migrasi (alembic upgrade head) dijalankan di entrypoint SETIAP kali container
-# start, sebelum uvicorn menyala -- lihat docker-entrypoint.sh.
+# Migrasi aktif secara default agar Render/Railway tetap sama. Cloud Run menyetel
+# RUN_MIGRATIONS=false lalu memakai migration job terpisah sebelum rollout.
 ENTRYPOINT ["./docker-entrypoint.sh"]
