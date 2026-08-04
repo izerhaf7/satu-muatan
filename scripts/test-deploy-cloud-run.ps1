@@ -51,7 +51,9 @@ try {
     $calls = (Get-Content -LiteralPath $logPath -Raw) -split [regex]::Escape("--CALL--") | Where-Object { $_.Trim() } | ForEach-Object { ($_ -replace "`r`n", "`n").Trim() }
     Assert-True ($calls.Count -eq 3) "Expected exactly three gcloud calls."
     Assert-True ($calls[0] -match "^run`njobs`ndeploy`nsatu-muatan-migrate") "First call must deploy migration job."
-    Assert-True ($calls[0] -match "--command`nalembic" -and $calls[0] -match "--args`nupgrade,head") "Migration job must invoke alembic upgrade head."
+    Assert-True ($calls[0] -match "--command`nalembic" -and $calls[0] -match "--flags-file`n.*cloud-run-migration-flags.yaml") "Migration job must load portable list arguments from a gcloud flags file."
+    $migrationFlags = Get-Content -LiteralPath (Join-Path $PSScriptRoot "cloud-run-migration-flags.yaml") -Raw
+    Assert-True ($migrationFlags -match "(?ms)--args:\s*\r?\n\s*- upgrade\s*\r?\n\s*- head") "Migration flags file must preserve separate alembic upgrade/head arguments."
     Assert-True ($calls[0] -match "--tasks`n1" -and $calls[0] -match "--parallelism`n1" -and $calls[0] -match "--max-retries`n0") "Migration job must be serialized with no retries."
     Assert-True ($calls[1] -match "^run`njobs`nexecute`nsatu-muatan-migrate" -and $calls[1] -match "--wait") "Second call must wait for migration execution."
     Assert-True ($calls[2] -match "^run`ndeploy`nsatu-muatan-api" -and $calls[2] -match "--no-traffic") "Third call must deploy service without traffic."

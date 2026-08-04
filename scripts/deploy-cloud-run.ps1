@@ -67,6 +67,7 @@ $CorsOrigins = Assert-CorsOrigins $CorsOrigins
 
 $secretBindings = "DATABASE_URL=$DatabaseUrlSecret`:latest,JWT_SECRET=$JwtSecret`:latest"
 $runtimeEnvironment = "^^^^@^^^^RUN_MIGRATIONS=false@VENDOR_ADAPTER=MOCK@DEMO_MODE=true@CORS_ORIGINS=$CorsOrigins"
+$migrationFlagsPath = Join-Path $PSScriptRoot "cloud-run-migration-flags.yaml"
 
 Write-Host "Deploying serialized migration job $MigrationJobName. Secret values stay in Secret Manager."
 & gcloud run jobs deploy $MigrationJobName `
@@ -74,7 +75,7 @@ Write-Host "Deploying serialized migration job $MigrationJobName. Secret values 
     --region $Region `
     --image $Image `
     --command alembic `
-    --args "upgrade,head" `
+    --flags-file $migrationFlagsPath `
     --set-secrets $secretBindings `
     --tasks 1 `
     --parallelism 1 `
