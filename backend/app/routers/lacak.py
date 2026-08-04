@@ -158,13 +158,13 @@ def _telemetri_out(db: Session, slot: Slot, pengiriman: Pengiriman) -> Telemetri
         return TelemetriOut(sampel=[], ringkasan=None)
 
     # Komoditas dominan by volume — basis parameter Q10/umur simpan ringkasan.
-    volume_per_komoditas: dict = {}
+    volume_per_komoditas: dict[UUID, int] = {}
     for p in slot.partisipasi:
         if p.status != StatusPartisipasi.BATAL:
             volume_per_komoditas[p.komoditas_id] = volume_per_komoditas.get(p.komoditas_id, 0) + p.volume_kg
     komoditas = None
     if volume_per_komoditas:
-        komoditas_id = max(volume_per_komoditas, key=volume_per_komoditas.get)
+        komoditas_id = max(volume_per_komoditas, key=lambda item: volume_per_komoditas[item])
         komoditas = db.get(Komoditas, komoditas_id)
 
     sampel_domain = []
@@ -238,11 +238,13 @@ def majukan_pengiriman(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGA
 
 
 def _rute_titik(db: Session, slot: Slot) -> list[tuple[float, float]]:
-    """Titik rute rencana: titik kumpul lalu tiap tujuan sesuai urutan drop."""
+    """Titik rute rencana: titik kumpul, semua jemput, lalu semua tujuan."""
     titik_kumpul = db.get(TitikKumpul, slot.titik_kumpul_id)
     titik: list[tuple[float, float]] = []
     if titik_kumpul is not None:
         titik.append((titik_kumpul.lat, titik_kumpul.lng))
+    for jemput in sorted(slot.jemput, key=lambda x: x.urutan):
+        titik.append((jemput.lat, jemput.lng))
     for t in sorted(slot.tujuan, key=lambda x: x.urutan):
         penerima = db.get(Penerima, t.penerima_id)
         if penerima is not None:

@@ -12,7 +12,8 @@ Dua hal yang sebelumnya tidak ada sama sekali:
 
 from datetime import date, timedelta
 
-from app.models import Slot, SlotJemput
+from app.models import Penerima, Slot, SlotJemput, TitikKumpul
+from app.routers.lacak import _rute_titik
 
 BESOK = date.today() + timedelta(days=1)
 TUJUAN = (-6.9269, 107.7189)
@@ -87,6 +88,29 @@ def test_dua_petani_menghasilkan_dua_perhentian_jemput_berurutan(client, data_da
         float(t.jarak_segmen_km) for t in slot.tujuan
     )
     assert abs(float(slot.jarak_km) - total_segmen) < 0.05
+
+
+def test_tracking_mengikuti_jemput_sebelum_tujuan(client, data_dasar, masuk, db):
+    kubis = data_dasar["komoditas"]["kubis"]
+    hasil = _kirim(client, masuk("081200000011"), kubis.id, 300, TUJUAN, asal=KEBUN_A, alamat_asal="Kebun A")
+    _kirim(client, masuk("081200000012"), kubis.id, 300, TUJUAN, asal=KEBUN_B, alamat_asal="Kebun B")
+
+    db.expire_all()
+    slot = db.get(Slot, hasil["slot_id"])
+    titik_kumpul = db.get(TitikKumpul, slot.titik_kumpul_id)
+    jemput = sorted(slot.jemput, key=lambda titik: titik.urutan)
+    tujuan = sorted(slot.tujuan, key=lambda titik: titik.urutan)
+    koordinat_penerima = []
+    for titik in tujuan:
+        penerima = db.get(Penerima, titik.penerima_id)
+        assert penerima is not None
+        koordinat_penerima.append((penerima.lat, penerima.lng))
+
+    assert _rute_titik(db, slot) == [
+        (titik_kumpul.lat, titik_kumpul.lng),
+        *((titik.lat, titik.lng) for titik in jemput),
+        *koordinat_penerima,
+    ]
 
 
 def test_kiriman_tanpa_koordinat_asal_tetap_jalan(client, data_dasar, masuk, db):
