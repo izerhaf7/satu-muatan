@@ -5,7 +5,6 @@ from app.models.enums import (
     KeputusanSerahTerima,
     PeranPengguna,
     StatusPartisipasi,
-    StatusPermintaan,
     StatusSlot,
     StatusSumber,
     SumberPosisi,
@@ -14,11 +13,12 @@ from app.models.enums import (
     TipePenerima,
     TipeTitikKumpul,
 )
-from app.models.induk import Komoditas, Penerima, Pengguna, TitikKumpul
-from app.models.slot import Kiriman, Partisipasi, Permintaan, Slot, SlotTujuan
+from app.models.induk import GeokodeCache, Komoditas, Penerima, Pengguna, TitikKumpul, Wilayah
+from app.models.slot import Kiriman, Partisipasi, Slot, SlotJemput, SlotTujuan
 
 __all__ = [
     "Atribusi",
+    "GeokodeCache",
     "JejakPosisi",
     "KeputusanSerahTerima",
     "Kiriman",
@@ -30,12 +30,11 @@ __all__ = [
     "Pengguna",
     "Pengiriman",
     "PeranPengguna",
-    "Permintaan",
     "SerahTerima",
     "Slot",
+    "SlotJemput",
     "SlotTujuan",
     "StatusPartisipasi",
-    "StatusPermintaan",
     "StatusSlot",
     "StatusSumber",
     "SumberPosisi",
@@ -46,4 +45,5 @@ __all__ = [
     "TipePenerima",
     "TipeTitikKumpul",
     "TitikKumpul",
+    "Wilayah",
 ]

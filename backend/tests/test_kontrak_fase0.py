@@ -19,13 +19,11 @@ RUTE_WAJIB = {
     ("PATCH", "/api/konfigurasi/{kunci}"),
     ("GET", "/api/tier-kendaraan"),
     ("PATCH", "/api/tier-kendaraan/{tier_id}"),
-    ("GET", "/api/permintaan"),
-    ("POST", "/api/permintaan"),
+    # K13: /api/permintaan, POST /api/slot, dan /api/slot/pratinjau DIHAPUS —
+    # penerima murni menerima, dan muatan tidak pernah dibuka manusia.
     ("POST", "/api/kiriman"),
     ("GET", "/api/kiriman/pratinjau"),
     ("GET", "/api/slot"),
-    ("POST", "/api/slot"),
-    ("POST", "/api/slot/pratinjau"),
     ("GET", "/api/slot/{slot_id}"),
     ("POST", "/api/slot/{slot_id}/gabung"),
     ("POST", "/api/slot/{slot_id}/gabung/pratinjau"),
@@ -39,11 +37,13 @@ RUTE_WAJIB = {
     ("POST", "/api/lot/{lot_id}/serah-terima"),
     ("GET", "/api/slot/{slot_id}/pengiriman"),
     ("POST", "/api/pengiriman/{pengiriman_id}/majukan"),
+    ("POST", "/api/pengiriman/{pengiriman_id}/geser"),  # K13: posisi bergerak
     ("GET", "/api/slot/{slot_id}/berita-acara"),
     ("GET", "/api/dampak/ringkasan"),
     ("GET", "/api/dampak/bulanan"),
     ("GET", "/api/partisipasi/saya"),
     ("POST", "/api/demo/reset"),
+    ("POST", "/api/demo/muatan/{slot_id}/berangkatkan"),  # K13: demo pelacakan
     ("GET", "/healthz"),
 }
 

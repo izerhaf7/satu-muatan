@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     vendor_adapter: str = "MOCK"  # MOCK | DELIVEREE
     demo_mode: bool = True
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # K14 — reverse geocoding OPSIONAL. Kalau diisi, alamat dari peta dibaca
+    # lewat Google Geocoding API; kalau kosong, sistem memakai tabel `wilayah`
+    # miliknya sendiri. Dipanggil dari SERVER, jadi kuncinya tidak pernah masuk
+    # browser dan tidak ikut ter-bundle ke aplikasi.
+    google_maps_api_key: str = ""
 
     @property
     def daftar_cors_origins(self) -> list[str]:

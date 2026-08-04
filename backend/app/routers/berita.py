@@ -39,6 +39,8 @@ def berita_acara(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Sessio
                 penerima_id=t.penerima_id,
                 nama_penerima=penerima.nama if penerima else "",
                 jarak_segmen_km=float(t.jarak_segmen_km),
+                lat=penerima.lat if penerima else 0.0,
+                lng=penerima.lng if penerima else 0.0,
             )
         )
 

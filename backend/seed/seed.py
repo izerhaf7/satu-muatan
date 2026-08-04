@@ -24,9 +24,18 @@ from app.database import SessionLocal  # noqa: E402
 from app.domain.armada import TujuanInput, urutkan_tujuan_nearest_neighbor  # noqa: E402
 from app.domain.atribusi import ambang_transit_menit, tentukan_atribusi  # noqa: E402
 from app.domain.harga import PartisipasiHarga, harga_atap_per_kg, tetapkan_harga_final  # noqa: E402
+from app.domain.mutu import hitung_indeks_mutu  # noqa: E402
+from app.services.foto_contoh import FOTO_PLACEHOLDER_DEMO  # noqa: E402
+try:  # noqa: E402 — dua cara pemanggilan yang sama-sama sah
+    from seed.wilayah import seed_wilayah
+except ModuleNotFoundError:
+    # `python seed/seed.py` menaruh folder seed/ sendiri di sys.path[0],
+    # sehingga nama `seed` menunjuk berkas ini, bukan foldernya.
+    from wilayah import seed_wilayah  # type: ignore[no-redef]
 from app.models import (  # noqa: E402
     Atribusi,
     KeputusanSerahTerima,
+    Kiriman,
     Komoditas,
     Konfigurasi,
     TitikKumpul,
@@ -36,12 +45,10 @@ from app.models import (  # noqa: E402
     Pengguna,
     Pengiriman,
     PeranPengguna,
-    Permintaan,
     SerahTerima,
     Slot,
     SlotTujuan,
     StatusPartisipasi,
-    StatusPermintaan,
     StatusSlot,
     StatusSumber,
     Telemetri,
@@ -113,6 +120,41 @@ KONFIGURASI_SEED = [
     ("ambang_paparan_persen", "50", TipeKonfigurasi.INT,
      "Batas sisa umur simpan dianggap paparan berlebih", "%",
      StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
+    # K13 — tujuan bebas, volume minimal, jadwal & driver ditentukan sistem
+    ("volume_minimal_kg", "50", TipeKonfigurasi.INT, "Volume minimal satu kiriman", "kg",
+     StatusSumber.ASUMSI, "Ambang tim supaya kiriman sangat kecil tidak menggeser harga seluruh muatan."),
+    ("jarak_maks_layanan_km", "200", TipeKonfigurasi.FLOAT, "Jarak tujuan terjauh yang dilayani", "km",
+     StatusSumber.ASUMSI, "Batas kewajaran tim untuk sekali jalan pulang-hari; belum diverifikasi."),
+    ("radius_dedup_tujuan_km", "0.50", TipeKonfigurasi.FLOAT,
+     "Dua titik tujuan sedekat ini dianggap alamat yang sama", "km",
+     StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
+    ("jam_berangkat_default", "6", TipeKonfigurasi.INT, "Jam berangkat muatan (ditentukan sistem)", "jam",
+     StatusSumber.ASUMSI, None),
+    ("hari_cutoff_sebelum_kirim", "1", TipeKonfigurasi.INT, "Cutoff ditutup berapa hari sebelum kirim", "hari",
+     StatusSumber.ASUMSI, None),
+    ("offset_wib_jam", "7", TipeKonfigurasi.INT, "Selisih WIB terhadap UTC", "jam",
+     StatusSumber.TERVERIFIKASI, "WIB = UTC+7."),
+    # K14 — indeks mutu yang dilihat penerima SEBELUM memutuskan
+    ("bobot_mutu_umur_simpan", "0.7", TipeKonfigurasi.FLOAT,
+     "Bobot sisa umur simpan dalam indeks mutu", None,
+     StatusSumber.ASUMSI, "Umur simpan dianggap sinyal mutu terkuat; waktu tempuh pendukung."),
+    ("bobot_mutu_transit", "0.3", TipeKonfigurasi.FLOAT,
+     "Bobot ketepatan waktu tempuh dalam indeks mutu", None,
+     StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
+    ("ambang_tolak_persen", "50", TipeKonfigurasi.INT,
+     "Penurunan mutu minimum agar barang boleh ditolak", "%",
+     StatusSumber.ASUMSI, "Di bawah ini penerima wajib menerima — mencegah penolakan sepihak."),
+    # K14 — papan tugas petugas
+    ("maks_muatan_aktif_per_petugas", "1", TipeKonfigurasi.INT,
+     "Muatan aktif maksimum yang boleh dibawa satu petugas", "muatan",
+     StatusSumber.ASUMSI, "Satu sopir tidak bisa membawa dua truk sekaligus."),
+    # K14 — cutoff tidak boleh lahir di masa lalu
+    ("jeda_minimal_cutoff_menit", "120", TipeKonfigurasi.INT,
+     "Jeda minimal antara muatan dibuka dan cutoff-nya", "menit",
+     StatusSumber.ASUMSI, "Waktu minimum agar petani lain sempat ikut sebelum muatan dikunci."),
+    ("langkah_geser_demo", "10", TipeKonfigurasi.INT,
+     "Jumlah langkah posisi dari titik kumpul sampai tujuan (mode demo)", "langkah",
+     StatusSumber.ASUMSI, "Hanya memengaruhi kehalusan animasi peta saat demo, bukan perhitungan bisnis."),
 ]
 
 
@@ -267,7 +309,7 @@ def seed_induk(db: Session) -> int:
         for d in db.query(Penerima).filter(Penerima.nama == nama_baru, Penerima.id != lama.id).all():
             for model, kolom in (
                 (SlotTujuan, "penerima_id"),
-                (Permintaan, "penerima_id"),
+                (Kiriman, "penerima_id"),
                 (Pengguna, "penerima_id"),
                 (Lot, "penerima_id"),
                 (SerahTerima, "penerima_id"),
@@ -409,6 +451,17 @@ def seed_riwayat(db: Session) -> int:
     penerima_by_nama = {p.nama: p for p in db.query(Penerima).all()}
     komoditas_by_nama = {k.nama: k for k in db.query(Komoditas).all()}
     petani_by_nama = {u.nama: u for u in db.query(Pengguna).filter(Pengguna.peran.in_([PeranPengguna.PETANI, PeranPengguna.PETUGAS])).all()}
+    # K13: petugas = driver Satu Muatan; muatan riwayat pun ditugaskan padanya.
+    petugas = db.query(Pengguna).filter_by(peran=PeranPengguna.PETUGAS).order_by(Pengguna.no_hp).first()
+    petugas_id = petugas.id if petugas else None
+    if petugas_id is not None:
+        # Backfill self-healing: muatan yang sudah ada SEBELUM kolom ini lahir
+        # (mis. DB dev/produksi yang sudah ter-seed) tetap perlu driver, kalau
+        # tidak layar petugas kosong dan otorisasi menolak semuanya.
+        db.query(Slot).filter(Slot.petugas_id.is_(None)).update(
+            {"petugas_id": petugas_id}, synchronize_session=False
+        )
+        db.flush()
     tier_row_by_kode = {t.kode: t for t in db.query(TierKendaraan).all()}
 
     tiers = baca_tiers_aktif(db)
@@ -418,6 +471,11 @@ def seed_riwayat(db: Session) -> int:
     toleransi = baca_konfigurasi(db, "faktor_toleransi_transit")
     ambang_grade = baca_konfigurasi(db, "ambang_grade_asal")
     ambang_paparan = baca_konfigurasi(db, "ambang_paparan_persen")
+    # K14 — indeks mutu ikut dicatat di riwayat supaya kartu penerima punya
+    # angka historis, bukan hanya untuk kiriman baru.
+    bobot_umur = baca_konfigurasi(db, "bobot_mutu_umur_simpan")
+    bobot_transit = baca_konfigurasi(db, "bobot_mutu_transit")
+    ambang_tolak = baca_konfigurasi(db, "ambang_tolak_persen")
     interval_telemetri = baca_konfigurasi(db, "interval_telemetri_menit")
     suhu_dasar = baca_konfigurasi(db, "suhu_dasar_c")
     amplitudo_suhu = baca_konfigurasi(db, "amplitudo_suhu_c")
@@ -444,6 +502,9 @@ def seed_riwayat(db: Session) -> int:
         slot = Slot(
             kode=kode_slot,
             titik_kumpul_id=titik_kumpul.id,
+            # K13: driver yang menangani muatan ini (riwayat pun perlu terisi
+            # supaya layar petugas & otorisasi konsisten).
+            petugas_id=petugas_id,
             tanggal_kirim=tanggal,
             cutoff_at=cutoff_at,
             status=StatusSlot.SELESAI,
@@ -525,6 +586,10 @@ def seed_riwayat(db: Session) -> int:
                 penerima_id=penerima_tujuan.id,
                 berat_aktual_kg=berat_aktual,
                 waktu_muat=waktu_muat,
+                # K14: foto muat wajib. Riwayat tidak lewat kamera, jadi diisi
+                # gambar pengganti yang jelas-jelas bukan foto asli — supaya
+                # Berita Acara riwayat tidak tampil seolah buktinya hilang.
+                foto_muat=FOTO_PLACEHOLDER_DEMO,
                 grade_asal=grade_asal,
             )
             db.add(lot)
@@ -565,37 +630,35 @@ def seed_riwayat(db: Session) -> int:
             waktu_bongkar_list.append(waktu_bongkar)
 
             atribusi_str = tentukan_atribusi(grade_asal, grade_tiba, durasi, ambang_menit, sisa, ambang_grade, ambang_paparan)
-            if atribusi_str == Atribusi.PETANI.value:
-                if idx % 12 == 11:
-                    keputusan, persen, alasan = (
-                        KeputusanSerahTerima.TOLAK,
-                        0,
-                        "Cacat terlihat sejak muat — kualitas tidak layak terima, lot ditolak seluruhnya.",
-                    )
-                else:
-                    keputusan, persen, alasan = (
-                        KeputusanSerahTerima.POTONG,
-                        20,
-                        "Cacat terlihat sejak muat — potongan 20% sesuai kesepakatan mutu.",
-                    )
+            # K14: tidak ada lagi "terima dengan potongan". Riwayat hanya memuat
+            # TERIMA atau TOLAK, dan TOLAK dipakai hemat — hanya pada lot yang
+            # memang cacat sejak muat.
+            if atribusi_str == Atribusi.PETANI.value and idx % 12 == 11:
+                keputusan, alasan = (
+                    KeputusanSerahTerima.TOLAK,
+                    "Cacat terlihat sejak muat — kualitas tidak layak terima, lot ditolak seluruhnya.",
+                )
+            elif atribusi_str == Atribusi.PETANI.value:
+                keputusan, alasan = (
+                    KeputusanSerahTerima.TERIMA,
+                    "Cacat terlihat sejak muat; tetap diterima dan dicatat sebagai atribusi petani.",
+                )
             elif atribusi_str == Atribusi.LOGISTIK.value:
-                if idx % 8 == 6:
-                    keputusan, persen, alasan = (
-                        KeputusanSerahTerima.POTONG,
-                        10,
-                        "Transit melebihi ambang waktu rute — potongan 10% akibat penyusutan selama perjalanan.",
-                    )
-                else:
-                    keputusan, persen, alasan = KeputusanSerahTerima.TERIMA, 0, None
+                keputusan, alasan = (
+                    KeputusanSerahTerima.TERIMA,
+                    "Transit melebihi ambang waktu rute — diterima, penyusutan dicatat sebagai atribusi logistik.",
+                )
             else:
-                if idx % 10 == 9:
-                    keputusan, persen, alasan = (
-                        KeputusanSerahTerima.POTONG,
-                        5,
-                        "Variasi mutu alami saat bongkar — potongan kecil disepakati di tempat.",
-                    )
-                else:
-                    keputusan, persen, alasan = KeputusanSerahTerima.TERIMA, 0, None
+                keputusan, alasan = KeputusanSerahTerima.TERIMA, None
+
+            indeks_mutu = hitung_indeks_mutu(
+                sisa_umur_simpan_persen=sisa,
+                durasi_transit_menit=durasi,
+                ambang_transit_menit=ambang_menit,
+                bobot_umur_simpan=bobot_umur,
+                bobot_transit=bobot_transit,
+                ambang_tolak_persen=ambang_tolak,
+            ).indeks_mutu
 
             db.add(
                 SerahTerima(
@@ -603,15 +666,18 @@ def seed_riwayat(db: Session) -> int:
                     penerima_id=penerima_tujuan.id,
                     waktu_bongkar=waktu_bongkar,
                     keputusan=keputusan,
-                    persen_potongan=persen,
                     alasan=alasan,
                     durasi_transit_menit=durasi,
                     ambang_transit_menit=ambang_menit,
                     atribusi=Atribusi(atribusi_str),
                     grade_tiba=grade_tiba,
                     sisa_umur_simpan_persen=sisa,
+                    indeks_mutu=indeks_mutu,
                 )
             )
+            # K14: penolakan bukan "selesai" — riwayat petani harus jujur.
+            if keputusan == KeputusanSerahTerima.TOLAK:
+                p.status = StatusPartisipasi.DITOLAK
             penerima_volume_terkirim[penerima_tujuan.id] = (
                 penerima_volume_terkirim.get(penerima_tujuan.id, 0) + p.volume_kg
             )
@@ -626,23 +692,6 @@ def seed_riwayat(db: Session) -> int:
             interval_telemetri, suhu_dasar, amplitudo_suhu,
         )
 
-        # Riwayat permintaan (K6) — tautkan ke tujuan pertama rute, terpenuhi penuh.
-        tujuan_pertama = tujuan_penerima[0]
-        volume_terpenuhi = penerima_volume_terkirim.get(tujuan_pertama.id, 0)
-        if volume_terpenuhi > 0:
-            db.add(
-                Permintaan(
-                    penerima_id=tujuan_pertama.id,
-                    komoditas_id=komoditas.id,
-                    volume_kg=volume_terpenuhi,
-                    tanggal_dibutuhkan=tanggal,
-                    status=StatusPermintaan.TERPENUHI,
-                    slot_id=slot.id,
-                    volume_terpenuhi_kg=volume_terpenuhi,
-                    dibuat_pada=cutoff_at - timedelta(days=2),
-                )
-            )
-
         slot_baru += 1
 
     return slot_baru
@@ -655,12 +704,16 @@ def main() -> None:
         konf_baru = seed_konfigurasi(db)
         induk_baru = seed_induk(db)
         db.commit()
+        # K14: daftar wilayah untuk autocomplete alamat — dari berkas JSON di
+        # repo, bukan dari jaringan.
+        wilayah_baru = seed_wilayah(db)
         riwayat_baru = seed_riwayat(db)
         telemetri_baru = seed_telemetri_riwayat(db)
         db.commit()
         print(
             f"Seed selesai: {tier_baru} tier baru, {konf_baru} konfigurasi baru, "
-            f"{induk_baru} data induk baru, {riwayat_baru} slot riwayat baru, "
+            f"{induk_baru} data induk baru, {wilayah_baru} wilayah baru, "
+            f"{riwayat_baru} slot riwayat baru, "
             f"{telemetri_baru} baris telemetri baru (sisanya di-update/dilewati)."
         )
     finally:

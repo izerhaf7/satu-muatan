@@ -41,6 +41,10 @@ class TitikKumpul(Base):
 
 
 class Penerima(Base):
+    """Titik tujuan kiriman. K13: bukan lagi katalog pembeli terdaftar — petani
+    menaruh titik tujuan bebas, dan baris di sini dibuat otomatis kalau belum ada
+    tujuan lain yang cukup dekat (lihat `radius_dedup_tujuan_km`)."""
+
     __tablename__ = "penerima"
 
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -49,6 +53,53 @@ class Penerima(Base):
     alamat: Mapped[str] = mapped_column(Text, nullable=False)
     lat: Mapped[float] = mapped_column(nullable=False)
     lng: Mapped[float] = mapped_column(nullable=False)
+    # K13: membedakan alamat bentukan sistem dari data induk yang di-seed.
+    dibuat_otomatis: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    # K14: kontak & kode pos ikut disimpan — surat jalan mensyaratkan data
+    # penerima lengkap, dan kurir butuh nomor yang bisa dihubungi di lapangan.
+    telepon: Mapped[str | None] = mapped_column(Text)
+    kode_pos: Mapped[str | None] = mapped_column(Text)
+
+
+class Wilayah(Base):
+    """Wilayah administratif Indonesia (K14) — sumber autocomplete alamat.
+
+    Di-seed dari berkas JSON di repo (`seed/data/wilayah_jabar.json`, data
+    Kemendagri via wilayah.id). SENGAJA disimpan di database kita sendiri, bukan
+    dipanggil dari layanan luar saat runtime: demo harus tetap jalan tanpa
+    internet, dan daftar kecamatan bukan sesuatu yang layak bergantung pada
+    kuota pihak ketiga.
+
+    `lat`/`lng` hanya terisi untuk wilayah yang koordinatnya kita punya —
+    sumber resmi tidak menyertakannya. Yang punya koordinat bisa dipakai
+    melompatkan peta; sisanya tetap berguna untuk melengkapi alamat.
+    """
+
+    __tablename__ = "wilayah"
+
+    kode: Mapped[str] = mapped_column(Text, primary_key=True)  # kode resmi, mis. "32.05.01"
+    nama: Mapped[str] = mapped_column(Text, nullable=False)
+    tingkat: Mapped[str] = mapped_column(Text, nullable=False)  # PROVINSI|KABUPATEN|KECAMATAN|DESA
+    induk_kode: Mapped[str | None] = mapped_column(Text, index=True)
+    # Jalur lengkap siap tampil, mis. "Cikajang, Kabupaten Garut, Jawa Barat".
+    jalur: Mapped[str] = mapped_column(Text, nullable=False)
+    kode_pos: Mapped[str | None] = mapped_column(Text)
+    lat: Mapped[float | None] = mapped_column()
+    lng: Mapped[float | None] = mapped_column()
+
+
+class GeokodeCache(Base):
+    """Hasil reverse geocoding yang sudah pernah dicari (K14).
+
+    Koordinat dibulatkan jadi kunci, sehingga satu titik demo yang diketuk
+    berulang kali tidak pernah memanggil jaringan lebih dari sekali."""
+
+    __tablename__ = "geokode_cache"
+
+    kunci: Mapped[str] = mapped_column(Text, primary_key=True)  # "lat,lng" dibulatkan
+    sumber: Mapped[str] = mapped_column(Text, nullable=False)  # GOOGLE | LOKAL
+    hasil_json: Mapped[str] = mapped_column(Text, nullable=False)
+    dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class Pengguna(Base):

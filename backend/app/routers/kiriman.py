@@ -16,10 +16,12 @@ router = APIRouter(prefix="/kiriman", tags=["kiriman"])
 
 
 @router.post("", response_model=KirimanResponse, status_code=201)
-def kirim_panen(body: KirimanCreate, pengguna=Depends(wajib_peran("PETANI", "PETUGAS")), db: Session = Depends(get_db)):
+def kirim_panen(body: KirimanCreate, pengguna=Depends(wajib_peran("PETANI")), db: Session = Depends(get_db)):
     """Kirim panen — sistem cocokkan ke muatan (baru atau yang sudah ada, §3.4).
-    Menggantikan alur 'pilih slot → gabung'. PETUGAS pun bisa kirim — dia juga
-    petani yang ditunjuk (§2.3)."""
+    Menggantikan alur 'pilih slot → gabung'.
+
+    K14: hanya PETANI. Petugas adalah driver Satu Muatan — dia menjemput dan
+    mengantar panen orang lain, bukan menyetorkan panennya sendiri."""
     return buat_kiriman(db, pengguna, body)
 
 
@@ -29,7 +31,7 @@ def pratinjau(
     lat: float = Query(),
     lng: float = Query(),
     tanggal: date = Query(),
-    pengguna=Depends(wajib_peran("PETANI", "PETUGAS")),
+    pengguna=Depends(wajib_peran("PETANI")),
     db: Session = Depends(get_db),
 ):
     """Pratinjau §3.4 langkah 3: atap + potensi penghematan SEBELUM berkomitmen."""

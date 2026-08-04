@@ -19,6 +19,8 @@ def _buat_slot_jarak_80(db, data_dasar, kode="SM-ALUR-01"):
     slot = Slot(
         kode=kode,
         titik_kumpul_id=titik_kumpul.id,
+        # K13: otorisasi petugas berbasis penugasan driver.
+        petugas_id=data_dasar["pengguna"]["titik_kumpul"].id,
         tanggal_kirim=date.today() + timedelta(days=1),
         cutoff_at=datetime.now(timezone.utc) + timedelta(hours=6),
         status=StatusSlot.DIBUKA,
@@ -129,7 +131,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     r = client.post(
         f"/api/lot/{lot_id}/serah-terima",
         headers=header_penerima,
-        json={"keputusan": "TERIMA", "persen_potongan": 0, "alasan": None, "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=", "grade_tiba": 4},
+        json={"keputusan": "TERIMA", "alasan": None, "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=", "grade_tiba": 4},
     )
     assert r.status_code == 201, r.text
     st = r.json()
@@ -142,7 +144,7 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     r_dobel = client.post(
         f"/api/lot/{lot_id}/serah-terima",
         headers=header_penerima,
-        json={"keputusan": "TERIMA", "persen_potongan": 0, "foto_bongkar_base64": None, "grade_tiba": 4},
+        json={"keputusan": "TERIMA", "foto_bongkar_base64": None, "grade_tiba": 4},
     )
     assert r_dobel.status_code == 409
 

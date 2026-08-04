@@ -5,7 +5,9 @@ import enum
 
 class PeranPengguna(str, enum.Enum):
     PETANI = "PETANI"
-    PETUGAS = "PETUGAS"  # dulu KOPERASI — petani yang ditunjuk di titik kumpul (§2.3)
+    # K13: petugas = driver Satu Muatan yang mengecek & mengoordinasikan petani
+    # dengan komoditasnya, lalu membawa muatannya. Ditugaskan sistem per muatan.
+    PETUGAS = "PETUGAS"
     PENERIMA = "PENERIMA"
 
 
@@ -44,24 +46,28 @@ class StatusSlot(str, enum.Enum):
     BATAL = "BATAL"
 
 
-class StatusPermintaan(str, enum.Enum):
-    TERBUKA = "TERBUKA"
-    TERPENUHI_SEBAGIAN = "TERPENUHI_SEBAGIAN"
-    TERPENUHI = "TERPENUHI"
-    KEDALUWARSA = "KEDALUWARSA"
-
-
 class StatusPartisipasi(str, enum.Enum):
     TERDAFTAR = "TERDAFTAR"
     TERKUNCI = "TERKUNCI"
     DIMUAT = "DIMUAT"
     SELESAI = "SELESAI"
+    # K14: lot yang DITOLAK penerima tidak boleh tercatat "SELESAI" — barangnya
+    # tidak diterima. Sebelumnya penolakan tetap menutup partisipasi sebagai
+    # selesai, sehingga riwayat petani berbohong tentang apa yang terjadi.
+    DITOLAK = "DITOLAK"
     BATAL = "BATAL"
 
 
 class KeputusanSerahTerima(str, enum.Enum):
+    """K14: POTONG DIHAPUS. Penerima tidak boleh punya tuas komersial.
+
+    "Terima dengan potongan" membuat penerima bisa menekan harga sepihak dengan
+    alasan mutu yang dia nilai sendiri — dan selama ini `persen_potongan` bahkan
+    tidak pernah memengaruhi pembayaran, jadi ia murni ruang tawar-menawar tanpa
+    akibat yang tercatat. Pilihannya kini hanya TERIMA atau TOLAK, dan TOLAK
+    hanya terbuka kalau penurunan mutu yang DIUKUR SISTEM melewati ambang."""
+
     TERIMA = "TERIMA"
-    POTONG = "POTONG"
     TOLAK = "TOLAK"
 
 

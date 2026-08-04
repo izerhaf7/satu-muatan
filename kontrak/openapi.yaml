@@ -72,6 +72,25 @@ paths:
                 $ref: '#/components/schemas/PenggunaOut'
       security:
       - HTTPBearer: []
+  /api/aturan-kiriman:
+    get:
+      tags:
+      - master
+      summary: Aturan Kiriman
+      description: 'K14: ambang kiriman untuk divalidasi di layar Kirim Panen — supaya
+        petani
+
+        tahu batasnya SEBELUM menekan tombol, bukan lewat galat 422 sesudahnya.'
+      operationId: aturan_kiriman_api_aturan_kiriman_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AturanKirimanOut'
+      security:
+      - HTTPBearer: []
   /api/komoditas:
     get:
       tags:
@@ -125,6 +144,100 @@ paths:
                 $ref: '#/components/schemas/TitikKumpulOut'
       security:
       - HTTPBearer: []
+  /api/wilayah/cari:
+    get:
+      tags:
+      - alamat
+      summary: Cari Wilayah
+      description: 'Autocomplete daerah dari tabel `wilayah` (data Kemendagri, di-seed
+        lokal).
+
+
+        Yang diawali kata kunci diutamakan daripada yang sekadar mengandungnya —
+
+        mengetik "cika" harus memunculkan Cikajang lebih dulu, bukan nama panjang
+
+        yang kebetulan memuat potongan itu di tengah.'
+      operationId: cari_wilayah_api_wilayah_cari_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 2
+          description: Potongan nama desa/kecamatan/kabupaten
+          title: Q
+        description: Potongan nama desa/kecamatan/kabupaten
+      - name: batas
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 30
+          minimum: 1
+          default: 10
+          title: Batas
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WilayahOut'
+                title: Response Cari Wilayah Api Wilayah Cari Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/geokode/balik:
+    get:
+      tags:
+      - alamat
+      summary: Geokode Balik Endpoint
+      description: 'Koordinat → alamat. Hasilnya di-cache per titik yang dibulatkan,
+        jadi
+
+        ketukan berulang di peta tidak pernah memanggil jaringan dua kali.'
+      operationId: geokode_balik_endpoint_api_geokode_balik_get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: lat
+        in: query
+        required: true
+        schema:
+          type: number
+          maximum: 90
+          minimum: -90
+          title: Lat
+      - name: lng
+        in: query
+        required: true
+        schema:
+          type: number
+          maximum: 180
+          minimum: -180
+          title: Lng
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GeokodeOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/konfigurasi:
     get:
       tags:
@@ -230,52 +343,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /api/permintaan:
-    get:
-      tags:
-      - permintaan
-      summary: Daftar Permintaan
-      description: 'Ter-scope per peran (K6): PENERIMA -> miliknya; PETUGAS (& lainnya)
-        -> semua yang terbuka.'
-      operationId: daftar_permintaan_api_permintaan_get
-      responses:
-        '200':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                items:
-                  $ref: '#/components/schemas/PermintaanOut'
-                type: array
-                title: Response Daftar Permintaan Api Permintaan Get
-      security:
-      - HTTPBearer: []
-    post:
-      tags:
-      - permintaan
-      summary: Buat Permintaan
-      operationId: buat_permintaan_api_permintaan_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PermintaanCreate'
-        required: true
-      responses:
-        '201':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PermintaanOut'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - HTTPBearer: []
   /api/kiriman:
     post:
       tags:
@@ -284,9 +351,12 @@ paths:
       description: 'Kirim panen — sistem cocokkan ke muatan (baru atau yang sudah
         ada, §3.4).
 
-        Menggantikan alur ''pilih slot → gabung''. PETUGAS pun bisa kirim — dia juga
+        Menggantikan alur ''pilih slot → gabung''.
 
-        petani yang ditunjuk (§2.3).'
+
+        K14: hanya PETANI. Petugas adalah driver Satu Muatan — dia menjemput dan
+
+        mengantar panen orang lain, bukan menyetorkan panennya sendiri.'
       operationId: kirim_panen_api_kiriman_post
       requestBody:
         content:
@@ -395,63 +465,75 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-    post:
+  /api/slot/tersedia:
+    get:
       tags:
       - slot
-      summary: Buka Slot
-      description: Buka slot baru (§9.3). Server menghitung urutan drop nearest-neighbor
-        + jarak_km.
-      operationId: buka_slot_api_slot_post
-      security:
-      - HTTPBearer: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SlotCreate'
-      responses:
-        '201':
-          description: Successful Response
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SlotDetailOut'
-        '422':
-          description: Validation Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-  /api/slot/pratinjau:
-    post:
-      tags:
-      - slot
-      summary: Pratinjau Slot
-      description: 'Pratinjau §9.3: jarak rute + tabel harga/kg pada berbagai skenario
-        volume.'
-      operationId: pratinjau_slot_api_slot_pratinjau_post
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PratinjauSlotRequest'
-        required: true
+      summary: Slot Tersedia
+      description: 'K14: PAPAN TUGAS — muatan yang belum punya driver dan berangkat
+        dari titik
+
+        kumpul petugas ini.
+
+
+        K13 menugaskan driver otomatis saat muatan lahir, tanpa batas: satu petugas
+
+        aktif menyerap SELURUH muatan di sistem, dan tidak ada satu pun endpoint yang
+
+        bisa mengubahnya. Sekarang muatan menunggu diambil, dan pengambilan itu
+
+        tindakan sadar driver.'
+      operationId: slot_tersedia_api_slot_tersedia_get
       responses:
         '200':
           description: Successful Response
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PratinjauSlotResponse'
+                items:
+                  $ref: '#/components/schemas/SlotItemOut'
+                type: array
+                title: Response Slot Tersedia Api Slot Tersedia Get
+      security:
+      - HTTPBearer: []
+  /api/slot/{slot_id}/terima:
+    post:
+      tags:
+      - slot
+      summary: Terima Tugas
+      description: 'K14: petugas mengambil satu muatan — dan HANYA satu dalam satu
+        waktu.
+
+
+        Batasnya dari konfigurasi (`maks_muatan_aktif_per_petugas`), bukan angka di
+
+        kode (CLAUDE.md aturan #1). Sopir tidak bisa membawa dua truk sekaligus;
+
+        membiarkannya menumpuk tugas membuat papan tugas jadi hiasan.'
+      operationId: terima_tugas_api_slot__slot_id__terima_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: slot_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Slot Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotItemOut'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-      security:
-      - HTTPBearer: []
   /api/slot/{slot_id}:
     get:
       tags:
@@ -734,10 +816,15 @@ paths:
       tags:
       - lot
       summary: Lot Masuk
-      description: '''Pilih dari daftar'' (§9.7, K6): lot menuju penerima login yang
-        belum
+      description: '''Pilih dari daftar'' (§9.7) — kenyamanan demo di samping pencarian
+        resi.
 
-        diserahterimakan — jalur demo teraman.'
+
+        K13: akun penerima yang masih terikat satu alamat tetap (data seed) dibatasi
+
+        ke alamat itu; akun tanpa ikatan melihat semua lot yang sedang jalan, karena
+
+        tujuan kini bebas dan kepemilikan ditentukan oleh nomor resi.'
       operationId: lot_masuk_api_lot_masuk_get
       responses:
         '200':
@@ -756,8 +843,18 @@ paths:
       tags:
       - lot
       summary: Bukti Lot
-      description: 'Bukti lot dari scan QR: foto muat, berat, waktu, transit berjalan
-        vs ambang.'
+      description: 'Bukti lot dari NOMOR RESI: foto muat, berat, waktu, transit berjalan
+        vs ambang.
+
+
+        K13: tidak ada lagi cek `lot.penerima_id == pengguna.penerima_id`. Tujuan
+        kini
+
+        bebas ditulis petani, jadi penerima tidak terikat satu alamat tetap —
+
+        memegang nomor resi itu sendiri yang menjadi bukti berhak, persis seperti
+
+        surat jalan sungguhan.'
       operationId: bukti_lot_api_lot_qr__kode_qr__get
       security:
       - HTTPBearer: []
@@ -786,8 +883,16 @@ paths:
       tags:
       - lot
       summary: Serah Terima
-      description: Terima / Terima dengan potongan / Tolak -> atribusi + PENJELASAN
-        (§6, §9.7).
+      description: 'Terima / Tolak -> atribusi + PENJELASAN (§6, §9.7).
+
+
+        K13: berhak menerima = memegang nomor resinya (lihat `bukti_lot`).
+
+        K14: tidak ada lagi "terima dengan potongan", dan TOLAK hanya sah kalau
+
+        penurunan mutu yang DIUKUR SISTEM melewati ambang. Aturan itu ditegakkan di
+
+        sini, bukan cuma disembunyikan tombolnya — klien tidak boleh dipercaya.'
       operationId: serah_terima_api_lot__lot_id__serah_terima_post
       security:
       - HTTPBearer: []
@@ -880,6 +985,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/lacak/resi/{kode_resi}:
+    get:
+      tags:
+      - lacak
+      summary: Perjalanan Resi
+      description: 'K14: seluruh perjalanan satu resi — timeline, jejak posisi, dan
+        telemetri.
+
+
+        Otorisasinya RESI, bukan alamat. `pastikan_bisa_lihat_slot` untuk penerima
+
+        masih membandingkan `pengguna.penerima_id` dengan tujuan muatan, dan K13
+
+        membuat tujuan bebas — jadi jalur itu tidak lagi bisa dipakai penerima yang
+
+        sah. Memegang nomor resi adalah buktinya, persis seperti surat jalan.'
+      operationId: perjalanan_resi_api_lacak_resi__kode_resi__get
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: kode_resi
+        in: path
+        required: true
+        schema:
+          type: string
+          title: Kode Resi
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PerjalananResiOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/pengiriman/{pengiriman_id}/majukan:
     post:
       tags:
@@ -888,6 +1032,46 @@ paths:
       description: Majukan state simulasi MockVendor satu langkah (K5) — deterministik,
         untuk demo.
       operationId: majukan_pengiriman_api_pengiriman__pengiriman_id__majukan_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: pengiriman_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Pengiriman Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PengirimanOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/pengiriman/{pengiriman_id}/geser:
+    post:
+      tags:
+      - lacak
+      summary: Geser Posisi
+      description: 'K13: majukan POSISI kendaraan satu langkah sepanjang rute, bukan
+        status.
+
+
+        Tiap panggilan menulis satu titik `JejakPosisi` hasil interpolasi + satu
+
+        sampel telemetri, sehingga peta benar-benar bergerak saat didemokan.
+
+        Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
+
+        "jalan otomatis" di layar Lacak.'
+      operationId: geser_posisi_api_pengiriman__pengiriman_id__geser_post
       security:
       - HTTPBearer: []
       parameters:
@@ -1029,6 +1213,48 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DemoResetOut'
+  /api/demo/muatan/{slot_id}/berangkatkan:
+    post:
+      tags:
+      - demo
+      summary: Berangkatkan Demo
+      description: 'K13 (tambahan demo): SATU tombol — tutup muatan → terbitkan resi
+        → timbang
+
+        otomatis → berangkat, supaya pelacakan bisa langsung didemokan tanpa mengetik
+
+        berat & foto satu per satu di depan juri.
+
+
+        Sengaja memanggil ulang handler sungguhan (`tutup_slot`, `selesai_muat`)
+
+        supaya jalan pintas ini TIDAK PERNAH menyimpang dari alur asli — kalau alur
+
+        aslinya berubah, jalan pintas ini ikut berubah dengan sendirinya.'
+      operationId: berangkatkan_demo_api_demo_muatan__slot_id__berangkatkan_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: slot_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Slot Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DemoBerangkatOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /healthz:
     get:
       tags:
@@ -1053,10 +1279,96 @@ components:
       - PETANI_IJAH
       - PENERIMA_CIBIRU
       title: AkunDemo
-      description: 'Akun demo (v2 §8). Tombol masuk cepat di layar Masuk; Dedi & Ijah
-        masuk
+      description: 'Akun demo (v2 §8). Tombol masuk cepat di layar Masuk untuk Petugas/Wati/
 
-        manual via nomor HP + PIN di skenario demo.'
+        Dedi/Penerima; Ijah masuk manual via nomor HP + PIN di skenario demo.'
+    AlamatIn:
+      properties:
+        alamat:
+          type: string
+          maxLength: 300
+          minLength: 1
+          title: Alamat
+        nama:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Nama
+        telepon:
+          anyOf:
+          - type: string
+            maxLength: 30
+          - type: 'null'
+          title: Telepon
+        jalan:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Jalan
+        rt_rw:
+          anyOf:
+          - type: string
+            maxLength: 20
+          - type: 'null'
+          title: Rt Rw
+        desa:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Desa
+        kecamatan:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Kecamatan
+        kabupaten:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Kabupaten
+        provinsi:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Provinsi
+        kode_pos:
+          anyOf:
+          - type: string
+            maxLength: 10
+          - type: 'null'
+          title: Kode Pos
+        patokan:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Patokan
+      type: object
+      required:
+      - alamat
+      title: AlamatIn
+      description: 'Alamat terstruktur mengikuti standar penulisan ekspedisi Indonesia
+        (K14).
+
+
+        Satu baris teks bebas tidak cukup untuk logistik sungguhan: kurir butuh nama
+
+        & nomor telepon yang bisa dihubungi, komponen wilayah yang bisa dibaca
+
+        terpisah, kode pos, dan patokan. Surat jalan pun mensyaratkan data pengirim
+
+        dan penerima yang lengkap, bukan sekadar "Warung Bu Imas".
+
+
+        Hanya `alamat` (ringkasan) yang wajib — sisanya boleh menyusul supaya petani
+
+        tidak terkunci di formulir panjang saat sedang di kebun.'
     Atribusi:
       type: string
       enum:
@@ -1065,6 +1377,29 @@ components:
       - TIDAK_TERBUKTI
       - NORMAL
       title: Atribusi
+    AturanKirimanOut:
+      properties:
+        volume_minimal_kg:
+          type: integer
+          title: Volume Minimal Kg
+        jarak_maks_layanan_km:
+          type: number
+          title: Jarak Maks Layanan Km
+      type: object
+      required:
+      - volume_minimal_kg
+      - jarak_maks_layanan_km
+      title: AturanKirimanOut
+      description: 'K14: ambang yang harus DIKETAHUI petani sebelum menekan Kirim.
+
+
+        Panel Asumsi hanya boleh dibaca PETUGAS, jadi klien petani dulu tidak punya
+
+        cara tahu batas 50 kg — tombol Kirim tetap aktif di 10 kg dan petani baru
+
+        ditolak setelah mengirim. Nilainya tetap datang dari tabel `konfigurasi`
+
+        (CLAUDE.md aturan #1), bukan ditanam di frontend.'
     BeritaAcaraOut:
       properties:
         kode_slot:
@@ -1131,6 +1466,10 @@ components:
         ambang_transit_menit:
           type: integer
           title: Ambang Transit Menit
+        mutu:
+          anyOf:
+          - $ref: '#/components/schemas/IndeksMutuOut'
+          - type: 'null'
         serah_terima:
           anyOf:
           - $ref: '#/components/schemas/SerahTerimaOut'
@@ -1191,6 +1530,36 @@ components:
       - keamanan_pangan
       title: DampakRingkasanOut
       description: Empat kartu semboyan (spec v2 §7.1) — urutan JANGAN diubah.
+    DemoBerangkatOut:
+      properties:
+        slot_id:
+          type: string
+          format: uuid
+          title: Slot Id
+        status:
+          type: string
+          title: Status
+        pengiriman_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Pengiriman Id
+        resi:
+          items:
+            type: string
+          type: array
+          title: Resi
+        pesan:
+          type: string
+          title: Pesan
+      type: object
+      required:
+      - slot_id
+      - status
+      - resi
+      - pesan
+      title: DemoBerangkatOut
     DemoResetOut:
       properties:
         pesan:
@@ -1259,6 +1628,44 @@ components:
       - partisipasi
       - harga_atap_per_kg
       title: GabungResponse
+    GeokodeOut:
+      properties:
+        alamat:
+          type: string
+          title: Alamat
+        desa:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Desa
+        kecamatan:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kecamatan
+        kabupaten:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kabupaten
+        provinsi:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Provinsi
+        kode_pos:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kode Pos
+        sumber:
+          type: string
+          title: Sumber
+      type: object
+      required:
+      - alamat
+      - sumber
+      title: GeokodeOut
     HTTPValidationError:
       properties:
         detail:
@@ -1277,6 +1684,52 @@ components:
       required:
       - status
       title: HealthOut
+    IndeksMutuOut:
+      properties:
+        indeks_mutu:
+          type: integer
+          title: Indeks Mutu
+        penurunan_mutu_persen:
+          type: integer
+          title: Penurunan Mutu Persen
+        skor_umur_simpan:
+          type: integer
+          title: Skor Umur Simpan
+        skor_transit:
+          type: integer
+          title: Skor Transit
+        sisa_umur_simpan_persen:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sisa Umur Simpan Persen
+        boleh_tolak:
+          type: boolean
+          title: Boleh Tolak
+        ambang_tolak_persen:
+          type: integer
+          title: Ambang Tolak Persen
+        alasan_boleh_tolak:
+          type: string
+          title: Alasan Boleh Tolak
+      type: object
+      required:
+      - indeks_mutu
+      - penurunan_mutu_persen
+      - skor_umur_simpan
+      - skor_transit
+      - boleh_tolak
+      - ambang_tolak_persen
+      - alasan_boleh_tolak
+      title: IndeksMutuOut
+      description: 'K14 — penilaian mutu SISTEM, dihitung sebelum penerima memutuskan.
+
+
+        Seluruhnya dari data terpantau (telemetri suhu + waktu tempuh). Grade tiba
+
+        sengaja tidak ikut: itu penilaian manusia yang baru ada setelah keputusan,
+
+        dan memasukkannya akan membuat penerima bisa menggerakkan angkanya sendiri.'
     KartuDampakOut:
       properties:
         nilai:
@@ -1312,9 +1765,20 @@ components:
       type: string
       enum:
       - TERIMA
-      - POTONG
       - TOLAK
       title: KeputusanSerahTerima
+      description: 'K14: POTONG DIHAPUS. Penerima tidak boleh punya tuas komersial.
+
+
+        "Terima dengan potongan" membuat penerima bisa menekan harga sepihak dengan
+
+        alasan mutu yang dia nilai sendiri — dan selama ini `persen_potongan` bahkan
+
+        tidak pernah memengaruhi pembayaran, jadi ia murni ruang tawar-menawar tanpa
+
+        akibat yang tercatat. Pilihannya kini hanya TERIMA atau TOLAK, dan TOLAK
+
+        hanya terbuka kalau penurunan mutu yang DIUKUR SISTEM melewati ambang.'
     KirimanCreate:
       properties:
         komoditas_id:
@@ -1331,14 +1795,40 @@ components:
           title: Tanggal Siap
         lat_tujuan:
           type: number
+          maximum: 90.0
+          minimum: -90.0
           title: Lat Tujuan
         lng_tujuan:
           type: number
+          maximum: 180.0
+          minimum: -180.0
           title: Lng Tujuan
         alamat_tujuan:
           type: string
           minLength: 1
           title: Alamat Tujuan
+        rincian_tujuan:
+          anyOf:
+          - $ref: '#/components/schemas/AlamatIn'
+          - type: 'null'
+        lat_asal:
+          anyOf:
+          - type: number
+            maximum: 90.0
+            minimum: -90.0
+          - type: 'null'
+          title: Lat Asal
+        lng_asal:
+          anyOf:
+          - type: number
+            maximum: 180.0
+            minimum: -180.0
+          - type: 'null'
+          title: Lng Asal
+        rincian_asal:
+          anyOf:
+          - $ref: '#/components/schemas/AlamatIn'
+          - type: 'null'
       type: object
       required:
       - komoditas_id
@@ -1363,17 +1853,6 @@ components:
         slot_cocok_ada:
           type: boolean
           title: Slot Cocok Ada
-        penerima_terdekat_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Penerima Terdekat Id
-        nama_penerima_terdekat:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Nama Penerima Terdekat
         jarak_ke_penerima_km:
           anyOf:
           - type: number
@@ -1529,6 +2008,12 @@ components:
           type: string
           format: uuid
           title: Partisipasi Id
+        slot_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Slot Id
         nama_petani:
           type: string
           title: Nama Petani
@@ -1922,81 +2407,34 @@ components:
       - PETUGAS
       - PENERIMA
       title: PeranPengguna
-    PermintaanCreate:
+    PerjalananResiOut:
       properties:
-        komoditas_id:
-          type: string
-          format: uuid
-          title: Komoditas Id
-        volume_kg:
-          type: integer
-          exclusiveMinimum: 0.0
-          title: Volume Kg
-        tanggal_dibutuhkan:
-          type: string
-          format: date
-          title: Tanggal Dibutuhkan
+        pengiriman:
+          $ref: '#/components/schemas/PengirimanOut'
+        telemetri:
+          $ref: '#/components/schemas/TelemetriOut'
+        titik_kumpul:
+          $ref: '#/components/schemas/TitikPetaOut'
+        tujuan:
+          items:
+            $ref: '#/components/schemas/TitikPetaOut'
+          type: array
+          title: Tujuan
       type: object
       required:
-      - komoditas_id
-      - volume_kg
-      - tanggal_dibutuhkan
-      title: PermintaanCreate
-    PermintaanOut:
-      properties:
-        id:
-          type: string
-          format: uuid
-          title: Id
-        penerima_id:
-          type: string
-          format: uuid
-          title: Penerima Id
-        nama_penerima:
-          type: string
-          title: Nama Penerima
-        komoditas_id:
-          type: string
-          format: uuid
-          title: Komoditas Id
-        nama_komoditas:
-          type: string
-          title: Nama Komoditas
-        volume_kg:
-          type: integer
-          title: Volume Kg
-        volume_terpenuhi_kg:
-          type: integer
-          title: Volume Terpenuhi Kg
-        tanggal_dibutuhkan:
-          type: string
-          format: date
-          title: Tanggal Dibutuhkan
-        status:
-          $ref: '#/components/schemas/StatusPermintaan'
-        slot_id:
-          anyOf:
-          - type: string
-            format: uuid
-          - type: 'null'
-          title: Slot Id
-        dibuat_pada:
-          type: string
-          format: date-time
-          title: Dibuat Pada
-      type: object
-      required:
-      - id
-      - penerima_id
-      - nama_penerima
-      - komoditas_id
-      - nama_komoditas
-      - volume_kg
-      - volume_terpenuhi_kg
-      - tanggal_dibutuhkan
-      - status
-      - dibuat_pada
-      title: PermintaanOut
+      - pengiriman
+      - telemetri
+      - titik_kumpul
+      - tujuan
+      title: PerjalananResiOut
+      description: 'K14 — seluruh perjalanan satu resi dalam sekali panggil.
+
+
+        Penerima berhak melihat SELURUH data perjalanan sebelum memutuskan menerima
+
+        atau menolak; sebelumnya ia hanya mendapat dua angka ringkas dan grafiknya
+
+        cuma bisa dibuka peran lain.'
     PosisiOut:
       properties:
         lat:
@@ -2020,48 +2458,6 @@ components:
       - waktu
       - sumber
       title: PosisiOut
-    PratinjauSlotRequest:
-      properties:
-        tujuan:
-          items:
-            type: string
-            format: uuid
-          type: array
-          minItems: 1
-          title: Tujuan
-        skenario_volume:
-          items:
-            type: integer
-          type: array
-          minItems: 1
-          title: Skenario Volume
-          description: mis. [300, 800, 2000]
-      type: object
-      required:
-      - tujuan
-      - skenario_volume
-      title: PratinjauSlotRequest
-    PratinjauSlotResponse:
-      properties:
-        jarak_km:
-          type: number
-          title: Jarak Km
-        rute:
-          items:
-            $ref: '#/components/schemas/RuteSegmenOut'
-          type: array
-          title: Rute
-        tabel_harga:
-          items:
-            $ref: '#/components/schemas/SkenarioHargaOut'
-          type: array
-          title: Tabel Harga
-      type: object
-      required:
-      - jarak_km
-      - rute
-      - tabel_harga
-      title: PratinjauSlotResponse
     RencanaArmadaOut:
       properties:
         tier:
@@ -2083,6 +2479,46 @@ components:
       title: RencanaArmadaOut
       description: Rencana armada saat ini — sumber denominator bar kapasitas & petunjuk
         naik kelas tier (§9.4 butir 4).
+    RuteJemputOut:
+      properties:
+        urutan:
+          type: integer
+          title: Urutan
+        partisipasi_id:
+          type: string
+          format: uuid
+          title: Partisipasi Id
+        nama_petani:
+          type: string
+          title: Nama Petani
+        alamat:
+          type: string
+          title: Alamat
+        jarak_segmen_km:
+          type: number
+          title: Jarak Segmen Km
+        lat:
+          type: number
+          title: Lat
+        lng:
+          type: number
+          title: Lng
+      type: object
+      required:
+      - urutan
+      - partisipasi_id
+      - nama_petani
+      - alamat
+      - jarak_segmen_km
+      - lat
+      - lng
+      title: RuteJemputOut
+      description: 'K14 — perhentian penjemputan, urut sesuai jalur petugas.
+
+
+        Inilah yang membuat peran petugas sebagai penghubung terlihat: dia mendapat
+
+        daftar alamat yang harus didatangi, bukan cuma satu titik kumpul abstrak.'
     RuteSegmenOut:
       properties:
         urutan:
@@ -2098,23 +2534,25 @@ components:
         jarak_segmen_km:
           type: number
           title: Jarak Segmen Km
+        lat:
+          type: number
+          title: Lat
+        lng:
+          type: number
+          title: Lng
       type: object
       required:
       - urutan
       - penerima_id
       - nama_penerima
       - jarak_segmen_km
+      - lat
+      - lng
       title: RuteSegmenOut
     SerahTerimaCreate:
       properties:
         keputusan:
           $ref: '#/components/schemas/KeputusanSerahTerima'
-        persen_potongan:
-          type: integer
-          maximum: 100.0
-          minimum: 0.0
-          title: Persen Potongan
-          default: 0
         alasan:
           anyOf:
           - type: string
@@ -2135,6 +2573,8 @@ components:
       - keputusan
       - grade_tiba
       title: SerahTerimaCreate
+      description: 'K14: `persen_potongan` dihapus — hanya TERIMA atau TOLAK, tanpa
+        tawar.'
     SerahTerimaOut:
       properties:
         id:
@@ -2160,9 +2600,6 @@ components:
           title: Foto Bongkar
         keputusan:
           $ref: '#/components/schemas/KeputusanSerahTerima'
-        persen_potongan:
-          type: integer
-          title: Persen Potongan
         alasan:
           anyOf:
           - type: string
@@ -2194,6 +2631,11 @@ components:
           - type: integer
           - type: 'null'
           title: Sisa Umur Simpan Persen
+        indeks_mutu:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Indeks Mutu
       type: object
       required:
       - id
@@ -2201,66 +2643,11 @@ components:
       - penerima_id
       - waktu_bongkar
       - keputusan
-      - persen_potongan
       - durasi_transit_menit
       - ambang_transit_menit
       - atribusi
       - penjelasan
       title: SerahTerimaOut
-    SkenarioHargaOut:
-      properties:
-        volume_kg:
-          type: integer
-          title: Volume Kg
-        harga_per_kg:
-          type: integer
-          title: Harga Per Kg
-        biaya_total:
-          type: integer
-          title: Biaya Total
-        kendaraan:
-          items:
-            type: string
-          type: array
-          title: Kendaraan
-      type: object
-      required:
-      - volume_kg
-      - harga_per_kg
-      - biaya_total
-      - kendaraan
-      title: SkenarioHargaOut
-    SlotCreate:
-      properties:
-        tanggal_kirim:
-          type: string
-          format: date
-          title: Tanggal Kirim
-        cutoff_at:
-          type: string
-          format: date-time
-          title: Cutoff At
-        tujuan:
-          items:
-            type: string
-            format: uuid
-          type: array
-          minItems: 1
-          title: Tujuan
-          description: penerima_id, urutan drop dihitung server (nearest-neighbor)
-        permintaan_ids:
-          items:
-            type: string
-            format: uuid
-          type: array
-          title: Permintaan Ids
-          description: permintaan yang hendak dipenuhi slot ini (K6)
-      type: object
-      required:
-      - tanggal_kirim
-      - cutoff_at
-      - tujuan
-      title: SlotCreate
     SlotDetailOut:
       properties:
         id:
@@ -2280,6 +2667,10 @@ components:
           type: string
           format: date-time
           title: Cutoff At
+        cutoff_lewat:
+          type: boolean
+          title: Cutoff Lewat
+          default: false
         waktu_server:
           type: string
           format: date-time
@@ -2289,6 +2680,12 @@ components:
           title: Jarak Km
         titik_kumpul:
           $ref: '#/components/schemas/TitikKumpulOut'
+        jemput:
+          items:
+            $ref: '#/components/schemas/RuteJemputOut'
+          type: array
+          title: Jemput
+          default: []
         tujuan:
           items:
             $ref: '#/components/schemas/RuteSegmenOut'
@@ -2367,6 +2764,10 @@ components:
           type: string
           format: date-time
           title: Cutoff At
+        cutoff_lewat:
+          type: boolean
+          title: Cutoff Lewat
+          default: false
         status:
           $ref: '#/components/schemas/StatusSlot'
         jarak_km:
@@ -2408,16 +2809,9 @@ components:
       - TERKUNCI
       - DIMUAT
       - SELESAI
+      - DITOLAK
       - BATAL
       title: StatusPartisipasi
-    StatusPermintaan:
-      type: string
-      enum:
-      - TERBUKA
-      - TERPENUHI_SEBAGIAN
-      - TERPENUHI
-      - KEDALUWARSA
-      title: StatusPermintaan
     StatusSlot:
       type: string
       enum:
@@ -2724,6 +3118,23 @@ components:
       - lat
       - lng
       title: TitikKumpulOut
+    TitikPetaOut:
+      properties:
+        nama:
+          type: string
+          title: Nama
+        lat:
+          type: number
+          title: Lat
+        lng:
+          type: number
+          title: Lng
+      type: object
+      required:
+      - nama
+      - lat
+      - lng
+      title: TitikPetaOut
     TokenResponse:
       properties:
         token:
@@ -2762,6 +3173,42 @@ components:
       - msg
       - type
       title: ValidationError
+    WilayahOut:
+      properties:
+        kode:
+          type: string
+          title: Kode
+        nama:
+          type: string
+          title: Nama
+        tingkat:
+          type: string
+          title: Tingkat
+        jalur:
+          type: string
+          title: Jalur
+        kode_pos:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Kode Pos
+        lat:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Lat
+        lng:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Lng
+      type: object
+      required:
+      - kode
+      - nama
+      - tingkat
+      - jalur
+      title: WilayahOut
   securitySchemes:
     HTTPBearer:
       type: http

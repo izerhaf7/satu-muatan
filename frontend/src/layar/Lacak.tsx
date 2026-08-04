@@ -1,7 +1,9 @@
 /** Layar Lacak (§9.6, semua peran) — timeline status, peta rute, estimasi tiba,
- *  dan tombol simulasi "Majukan (demo)" khusus Petugas (K5). Poll 3 detik selama belum TIBA. */
+ *  grafik telemetri, dan kendali simulasi posisi khusus Petugas (K5/K13).
+ *  Poll 3 detik selama belum TIBA. */
 
-import { Timer } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PlayCircle, StepForward, Timer } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
@@ -9,8 +11,13 @@ import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { Skeleton } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
-import { useDaftarPenerima } from "@/hooks/usePenerima";
-import { useMajukanPengiriman, usePengirimanSlot, useSlotUntukLacak, useTelemetriSlot } from "@/hooks/useLacak";
+import {
+  useGeserPosisi,
+  useMajukanPengiriman,
+  usePengirimanSlot,
+  useSlotUntukLacak,
+  useTelemetriSlot,
+} from "@/hooks/useLacak";
 import { useAuthStore } from "@/stores/authStore";
 import { formatAngka } from "@/utils/format";
 
@@ -31,40 +38,81 @@ export default function Lacak() {
   const { id: slotId } = useParams();
   const pengguna = useAuthStore((s) => s.pengguna);
 
+  // K14: tanpa id, SEMUA query di bawah `enabled: false`. Di react-query v5
+  // query yang mati punya isLoading=false dan isError=false, jadi layar dulu
+  // merender header saja lalu berhenti — tampak seperti halaman kosong. Ikuti
+  // pola DetailSlot: nyatakan keadaan ini secara eksplisit.
+  if (!slotId) {
+    return (
+      <div className="flex flex-col gap-6">
+        <HeaderLayar judul="Lacak" kembaliKe="/beranda" />
+        <KeadaanKosong pesan="Muatan tidak ditemukan." teksAksi="Kembali ke Beranda" ke="/beranda" />
+      </div>
+    );
+  }
+
+  return <IsiLacak slotId={slotId} pengguna={pengguna} />;
+}
+
+function IsiLacak({
+  slotId,
+  pengguna,
+}: {
+  slotId: string;
+  pengguna: ReturnType<typeof useAuthStore.getState>["pengguna"];
+}) {
+
   const slot = useSlotUntukLacak(slotId);
   const pengiriman = usePengirimanSlot(slotId);
-  const daftarPenerima = useDaftarPenerima();
   const majukan = useMajukanPengiriman(slotId);
+  const geser = useGeserPosisi(slotId);
+  const [jalanOtomatis, setJalanOtomatis] = useState(false);
 
   const memuat = slot.isLoading || pengiriman.isLoading;
 
   const belumTutup = pengiriman.isError;
 
+  // K13: koordinat tujuan ikut di payload muatan — tujuan kini bebas ditulis
+  // petani, jadi peta tidak boleh lagi bergantung pada katalog penerima.
   const tujuanDenganKoordinat =
-    slot.data && daftarPenerima.data
-      ? slot.data.tujuan
-          .map((t) => {
-            const penerima = daftarPenerima.data.find((p) => p.id === t.penerima_id);
-            return penerima ? { lat: penerima.lat, lng: penerima.lng, label: `${t.urutan}. ${t.nama_penerima}` } : null;
-          })
-          .filter((t): t is { lat: number; lng: number; label: string } => t !== null)
-      : [];
+    slot.data?.tujuan.map((t) => ({
+      lat: t.lat,
+      lng: t.lng,
+      label: `${t.urutan}. ${t.nama_penerima}`,
+    })) ?? [];
 
-  const jejakTerakhir = pengiriman.data?.jejak.at(-1);
-  const posisiTerakhir =
-    jejakTerakhir && jejakTerakhir.lat !== null && jejakTerakhir.lng !== null && jejakTerakhir.lat !== undefined && jejakTerakhir.lng !== undefined
-      ? { lat: jejakTerakhir.lat, lng: jejakTerakhir.lng, label: "Posisi terakhir" }
-      : null;
+  const jejak =
+    pengiriman.data?.jejak
+      .filter((j) => j.lat !== null && j.lat !== undefined && j.lng !== null && j.lng !== undefined)
+      .map((j) => ({ lat: j.lat as number, lng: j.lng as number })) ?? [];
+  const jejakTerakhir = jejak.at(-1);
+  const posisiTerakhir = jejakTerakhir ? { ...jejakTerakhir, label: "Posisi terakhir" } : null;
 
   const sudahTiba = Boolean(pengiriman.data?.timeline.tiba);
   const telemetri = useTelemetriSlot(slotId, sudahTiba);
+  const pengirimanId = pengiriman.data?.id;
+  const sudahBerangkat = Boolean(pengiriman.data?.timeline.berangkat);
+
+  // Mode "jalan otomatis": posisi maju sendiri tiap beberapa detik supaya peta
+  // terlihat hidup tanpa perlu diklik terus saat presentasi.
+  useEffect(() => {
+    if (!jalanOtomatis || sudahTiba || !pengirimanId || !sudahBerangkat) return;
+    const timer = window.setInterval(() => {
+      if (!geser.isPending) geser.mutate(pengirimanId);
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [jalanOtomatis, sudahTiba, pengirimanId, sudahBerangkat, geser]);
+
+  useEffect(() => {
+    if (sudahTiba) setJalanOtomatis(false);
+  }, [sudahTiba]);
 
   return (
     <div className="flex flex-col gap-6">
       <HeaderLayar
         judul="Lacak"
         subjudul={slot.data ? `${slot.data.kode} · ${formatAngka(slot.data.jarak_km)} km` : undefined}
-        kembaliKe={slotId ? `/slot/${slotId}` : "/beranda"}
+        kembaliKe={`/slot/${slotId}`}
       />
 
       {slot.isError && <KartuGalat pesan="Gagal memuat data slot." onCobaLagi={() => slot.refetch()} />}
@@ -77,7 +125,13 @@ export default function Lacak() {
       )}
 
       {belumTutup && !memuat && (
-        <KeadaanKosong pesan="Slot ini belum punya pengiriman untuk dilacak. Tutup slot dahulu di layar Detail Slot." />
+        <KeadaanKosong pesan="Muatan ini belum punya pengiriman untuk dilacak. Tutup muatan dahulu di layar Detail Muatan." />
+      )}
+
+      {/* K14: celah antara percobaan pertama gagal dan percobaan ulang —
+          isLoading & isError sama-sama false di sana, dan layar dulu kosong. */}
+      {!memuat && !belumTutup && !pengiriman.data && (
+        <KeadaanKosong pesan="Menyiapkan data pengiriman…" />
       )}
 
       {!belumTutup && pengiriman.data && (
@@ -92,6 +146,7 @@ export default function Lacak() {
                 gudang={{ lat: slot.data.titik_kumpul.lat, lng: slot.data.titik_kumpul.lng, label: slot.data.titik_kumpul.nama }}
                 tujuan={tujuanDenganKoordinat}
                 posisiTerakhir={posisiTerakhir}
+                jejak={jejak}
               />
             </section>
           )}
@@ -143,23 +198,53 @@ export default function Lacak() {
           )}
 
           {pengguna?.peran === "PETUGAS" && !sudahTiba && (
-            <div className="flex flex-col gap-1.5">
-              {majukan.isError && (
+            <div className="kartu-datar flex flex-col gap-2.5 p-4">
+              <p className="text-keterangan font-bold uppercase tracking-wide text-tanah/50">Kendali demo</p>
+              {(majukan.isError || geser.isError) && (
                 <p role="alert" className="text-keterangan text-tanah-liat">
                   Gagal memajukan simulasi. Coba lagi.
                 </p>
               )}
-              <Tombol
-                type="button"
-                varian="halus"
-                sedangProses={majukan.isPending}
-                onClick={() => pengiriman.data && majukan.mutate(pengiriman.data.id)}
-              >
-                Majukan (demo)
-              </Tombol>
-              <p className="text-keterangan text-tanah/50">
-                Simulasi vendor demo — memajukan status pengiriman satu langkah tanpa menunggu waktu asli.
-              </p>
+
+              {sudahBerangkat ? (
+                <>
+                  <Tombol
+                    type="button"
+                    varian="sekunder"
+                    ikon={StepForward}
+                    sedangProses={geser.isPending && !jalanOtomatis}
+                    disabled={jalanOtomatis}
+                    onClick={() => pengirimanId && geser.mutate(pengirimanId)}
+                  >
+                    Majukan posisi
+                  </Tombol>
+                  <Tombol
+                    type="button"
+                    varian={jalanOtomatis ? "aksi" : "halus"}
+                    ikon={PlayCircle}
+                    onClick={() => setJalanOtomatis((v) => !v)}
+                  >
+                    {jalanOtomatis ? "Hentikan jalan otomatis" : "Jalan otomatis"}
+                  </Tombol>
+                  <p className="text-keterangan text-tanah/50">
+                    Posisi bergerak sepanjang rute — manual atau otomatis tiap 2 detik.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Tombol
+                    type="button"
+                    varian="halus"
+                    sedangProses={majukan.isPending}
+                    onClick={() => pengirimanId && majukan.mutate(pengirimanId)}
+                  >
+                    Majukan status
+                  </Tombol>
+                  <p className="text-keterangan text-tanah/50">
+                    Simulasi vendor demo — memajukan status pengiriman satu langkah tanpa menunggu waktu asli.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>

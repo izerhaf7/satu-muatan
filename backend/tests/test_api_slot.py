@@ -12,12 +12,16 @@ from app.models import Partisipasi, Slot, SlotTujuan
 from app.models.enums import StatusPartisipasi, StatusSlot
 
 
-def _buat_slot_jarak_80(db, data_dasar, kode="SM-TEST-01"):
+def _buat_slot_jarak_80(db, data_dasar, kode="SM-TEST-01", tujuan_tambahan=()):
+    """Muatan uji dengan jarak DIPAKU 80 km supaya bisa diverifikasi terhadap
+    tabel angka KEPUTUSAN.md K1. K13: `petugas_id` wajib diisi — otorisasi
+    petugas kini berbasis penugasan driver, bukan kepemilikan titik kumpul."""
     titik_kumpul = data_dasar["titik_kumpul"]
     cibiru = data_dasar["penerima"]["cibiru"]
     slot = Slot(
         kode=kode,
         titik_kumpul_id=titik_kumpul.id,
+        petugas_id=data_dasar["pengguna"]["titik_kumpul"].id,
         tanggal_kirim=date.today() + timedelta(days=1),
         cutoff_at=datetime.now(timezone.utc) + timedelta(hours=6),
         status=StatusSlot.DIBUKA,
@@ -28,6 +32,8 @@ def _buat_slot_jarak_80(db, data_dasar, kode="SM-TEST-01"):
     db.add(slot)
     db.flush()
     db.add(SlotTujuan(slot_id=slot.id, penerima_id=cibiru.id, urutan=1, jarak_segmen_km=Decimal("80.00")))
+    for i, penerima in enumerate(tujuan_tambahan, start=2):
+        db.add(SlotTujuan(slot_id=slot.id, penerima_id=penerima.id, urutan=i, jarak_segmen_km=Decimal("10.00")))
     db.commit()
     db.refresh(slot)
     return slot
@@ -38,32 +44,34 @@ def _buat_slot_jarak_80(db, data_dasar, kode="SM-TEST-01"):
 # ---------------------------------------------------------------------------
 
 
-def test_buka_slot_gabung_dan_detail_shape(client, data_dasar, masuk):
-    header_titik_kumpul = masuk("081200000001")
-    cibiru_id = str(data_dasar["penerima"]["cibiru"].id)
-    ujungberung_id = str(data_dasar["penerima"]["ujungberung"].id)
+def test_muatan_lahir_dari_kiriman_dan_detail_shape(client, data_dasar, masuk, kirim_panen, db):
+    """K13: muatan tidak pernah dibuka manusia — ia lahir dari kiriman petani.
+    Bentuk Detail Slot (layar utama demo) tetap sama."""
+    header_asep = masuk("081200000011")
+    kubis = data_dasar["komoditas"]["kubis"]
+    cibiru = data_dasar["penerima"]["cibiru"]
 
-    r = client.post(
-        "/api/slot",
-        headers=header_titik_kumpul,
-        json={
-            "tanggal_kirim": str(date.today() + timedelta(days=1)),
-            "cutoff_at": (datetime.now(timezone.utc) + timedelta(hours=6)).isoformat(),
-            "tujuan": [cibiru_id, ujungberung_id],
-        },
-    )
+    r = kirim_panen(header_asep, kubis.id, 300, (cibiru.lat, cibiru.lng), date.today() + timedelta(days=1))
     assert r.status_code == 201, r.text
-    slot = r.json()
-    assert slot["status"] == "DIBUKA"
-    assert slot["kode"].startswith("SM-")
-    assert "CKJ" in slot["kode"]
-    assert len(slot["tujuan"]) == 2
-    assert {t["urutan"] for t in slot["tujuan"]} == {1, 2}
-    assert slot["jarak_km"] > 0
-    assert slot["volume_total_kg"] == 0
-    assert slot["partisipasi"] == []
+    slot_id = r.json()["slot_id"]
 
-    slot_id = slot["id"]
+    detail = client.get(f"/api/slot/{slot_id}", headers=header_asep).json()
+    assert detail["status"] == "DIBUKA"
+    assert detail["kode"].startswith("SM-")
+    assert "CKJ" in detail["kode"]
+    assert detail["jarak_km"] > 0
+    assert detail["volume_total_kg"] == 300
+    assert len(detail["tujuan"]) == 1
+    assert detail["tujuan"][0]["urutan"] == 1
+    assert detail["atap_saya_per_kg"] == r.json()["harga_atap_per_kg"]
+    assert detail["waktu_server"]
+    assert detail["rencana_saat_ini"]["tier"]
+
+
+def test_gabung_dan_detail_shape(client, data_dasar, masuk, db):
+    """Jalur `gabung` masih dipakai internal (dan oleh test tabel K1 di bawah)."""
+    slot = _buat_slot_jarak_80(db, data_dasar)
+    slot_id = str(slot.id)
 
     header_asep = masuk("081200000011")
     kubis_id = str(data_dasar["komoditas"]["kubis"].id)
@@ -247,15 +255,25 @@ def test_tutup_slot_kosong_ditolak(client, data_dasar, masuk, db):
 
 
 def test_daftar_slot_ter_scope_per_peran(client, data_dasar, masuk, db):
-    _buat_slot_jarak_80(db, data_dasar)
+    """K13 mengubah dasar scoping:
+    - PETUGAS melihat muatan yang DITUGASKAN kepadanya (bukan semua muatan di
+      titik kumpulnya) — dia driver, bukan pemilik tempat.
+    - PETANI melihat muatan tempat dia benar-benar ikut, bukan semua muatan yang
+      kebetulan berangkat dari titik kumpulnya. Dia tidak pernah memilih muatan,
+      jadi tidak ada gunanya menampilkan muatan orang lain.
+    """
+    slot = _buat_slot_jarak_80(db, data_dasar)
 
-    header_titik_kumpul = masuk("081200000001")
-    r_titik_kumpul = client.get("/api/slot", headers=header_titik_kumpul)
-    assert len(r_titik_kumpul.json()) == 1
+    header_petugas = masuk("081200000001")
+    assert len(client.get("/api/slot", headers=header_petugas).json()) == 1
 
     header_asep = masuk("081200000011")
-    r_asep = client.get("/api/slot", headers=header_asep)
-    assert len(r_asep.json()) == 1  # petani satu titik_kumpul -> ikut lihat
+    assert client.get("/api/slot", headers=header_asep).json() == [], "belum ikut -> belum punya muatan"
+
+    kubis_id = str(data_dasar["komoditas"]["kubis"].id)
+    r = client.post(f"/api/slot/{slot.id}/gabung", headers=header_asep, json={"komoditas_id": kubis_id, "volume_kg": 100})
+    assert r.status_code == 201, r.text
+    assert len(client.get("/api/slot", headers=header_asep).json()) == 1, "sesudah ikut -> muncul"
 
     header_penerima = masuk("081200000021")
     r_penerima = client.get("/api/slot", headers=header_penerima)

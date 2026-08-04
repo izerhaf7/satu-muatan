@@ -1,40 +1,35 @@
-/** Beranda Penerima (§9.2 varian) — sapaan + kartu pintasan ke Permintaan (§9.7) dan
- *  Serah Terima. Jumlah pada tiap kartu diambil dari hook yang sudah ada di layar
- *  tujuannya masing-masing (tanpa panggilan API tambahan yang berat). */
+/** Beranda Penerima (§9.2 varian).
+ *
+ *  K13: penerima MURNI menerima. Kartu "Permintaan" dihapus — dia tidak memesan
+ *  dan tidak membuka muatan. Yang tersisa: melacak resi dan menyerahterimakan,
+ *  dengan data perjalanan terbuka apa adanya. */
 
-import { ChevronRight, ClipboardList, PackageCheck } from "lucide-react";
+import { ChevronRight, PackageCheck, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
-import { useDaftarPermintaan } from "@/hooks/usePermintaan";
 import { useDaftarSlot } from "@/hooks/useSlot";
 import { useAuthStore } from "@/stores/authStore";
 
 export default function BerandaPenerima() {
   const pengguna = useAuthStore((s) => s.pengguna);
-  const daftarPermintaan = useDaftarPermintaan();
   const daftarJalan = useDaftarSlot("JALAN");
-
-  const permintaanAktif = daftarPermintaan.data?.filter(
-    (p) => p.status === "TERBUKA" || p.status === "TERPENUHI_SEBAGIAN",
-  ).length;
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-1 pt-1">
         <p className="text-keterangan font-bold uppercase tracking-wide text-daun">Beranda</p>
         <h1 className="text-judul text-tanah">Halo, {pengguna?.nama ?? "Kamu"}</h1>
-        <p className="text-base text-tanah/70">Kelola permintaan komoditas kamu</p>
+        <p className="text-base text-tanah/70">Lacak kiriman yang menuju ke kamu</p>
       </header>
 
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
         <KartuPintasan
-          ke="/permintaan"
-          ikon={ClipboardList}
-          judul="Permintaan"
-          keterangan="Ajukan kebutuhan komoditas ke titik kumpul"
-          jumlah={permintaanAktif}
-          labelJumlah="aktif"
+          ke="/lacak-resi"
+          ikon={Search}
+          judul="Lacak Resi"
+          keterangan="Lihat posisi & kondisi kiriman dari nomor resinya"
+          labelJumlah=""
         />
         <KartuPintasan
           ke="/serah-terima"

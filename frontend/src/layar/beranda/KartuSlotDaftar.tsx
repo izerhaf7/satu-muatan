@@ -33,7 +33,7 @@ export default function KartuSlotDaftar({ slot }: KartuSlotDaftarProps) {
         <BadgeStatus status={slot.status} />
       </div>
 
-      {slot.status === "DIBUKA" && <HitungMundur cutoffAt={slot.cutoff_at} />}
+      {slot.status === "DIBUKA" && <HitungMundur cutoffAt={slot.cutoff_at} cutoffLewat={slot.cutoff_lewat} />}
 
       <BarKapasitas volumeKg={slot.volume_terkunci_kg} kapasitasKg={slot.kapasitas_rencana_kg ?? null} />
 

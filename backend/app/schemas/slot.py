@@ -9,11 +9,7 @@ from app.models.enums import StatusPartisipasi, StatusSlot
 from app.schemas.master import TitikKumpulOut
 
 
-class SlotCreate(BaseModel):
-    tanggal_kirim: date
-    cutoff_at: datetime
-    tujuan: list[UUID] = Field(min_length=1, description="penerima_id, urutan drop dihitung server (nearest-neighbor)")
-    permintaan_ids: list[UUID] = Field(default_factory=list, description="permintaan yang hendak dipenuhi slot ini (K6)")
+# K13: SlotCreate / PratinjauSlot* dihapus — muatan tidak pernah dibuka manusia.
 
 
 class RuteSegmenOut(BaseModel):
@@ -21,6 +17,25 @@ class RuteSegmenOut(BaseModel):
     penerima_id: UUID
     nama_penerima: str
     jarak_segmen_km: float
+    # K13: koordinat ikut dikirim supaya peta tidak perlu mengunduh seluruh buku
+    # alamat tujuan (yang kini tumbuh bebas mengikuti kiriman petani).
+    lat: float
+    lng: float
+
+
+class RuteJemputOut(BaseModel):
+    """K14 — perhentian penjemputan, urut sesuai jalur petugas.
+
+    Inilah yang membuat peran petugas sebagai penghubung terlihat: dia mendapat
+    daftar alamat yang harus didatangi, bukan cuma satu titik kumpul abstrak."""
+
+    urutan: int
+    partisipasi_id: UUID
+    nama_petani: str
+    alamat: str
+    jarak_segmen_km: float
+    lat: float
+    lng: float
 
 
 class TierRingkasOut(BaseModel):
@@ -35,24 +50,6 @@ class RencanaArmadaOut(BaseModel):
     tier: list[TierRingkasOut]
     biaya_total: int
     kapasitas_total_kg: int
-
-
-class PratinjauSlotRequest(BaseModel):
-    tujuan: list[UUID] = Field(min_length=1)
-    skenario_volume: list[int] = Field(min_length=1, description="mis. [300, 800, 2000]")
-
-
-class SkenarioHargaOut(BaseModel):
-    volume_kg: int
-    harga_per_kg: int
-    biaya_total: int
-    kendaraan: list[str]
-
-
-class PratinjauSlotResponse(BaseModel):
-    jarak_km: float
-    rute: list[RuteSegmenOut]
-    tabel_harga: list[SkenarioHargaOut]
 
 
 class PartisipasiOut(BaseModel):
@@ -78,6 +75,11 @@ class SlotItemOut(BaseModel):
     kode: str
     tanggal_kirim: date
     cutoff_at: datetime
+    # K14: cutoff lewat TIDAK sama dengan slot tertutup — penutupan menetapkan
+    # harga final & memesan armada, jadi hanya petugas yang melakukannya. Klien
+    # memakai bendera ini supaya tidak lagi menulis "sudah ditutup" pada muatan
+    # yang statusnya masih DIBUKA.
+    cutoff_lewat: bool = False
     status: StatusSlot
     jarak_km: float
     volume_terkunci_kg: int
@@ -94,9 +96,12 @@ class SlotDetailOut(BaseModel):
     status: StatusSlot
     tanggal_kirim: date
     cutoff_at: datetime
+    cutoff_lewat: bool = False
     waktu_server: datetime
     jarak_km: float
     titik_kumpul: TitikKumpulOut
+    # K14: rute dua tahap — jemput dulu (kosong untuk muatan gaya lama), lalu antar.
+    jemput: list[RuteJemputOut] = []
     tujuan: list[RuteSegmenOut]
     volume_total_kg: int
     harga_berjalan_per_kg: int | None = None

@@ -14,6 +14,7 @@ class LotOut(BaseModel):
     id: UUID
     kode_qr: str
     partisipasi_id: UUID
+    slot_id: UUID | None = None  # K14: penerima butuh ini untuk membuka perjalanan
     nama_petani: str
     nama_komoditas: str
     volume_kg: int  # volume komitmen partisipasi (basis tagihan — K3)
@@ -34,8 +35,9 @@ class MuatPatchRequest(BaseModel):
 
 
 class SerahTerimaCreate(BaseModel):
+    """K14: `persen_potongan` dihapus — hanya TERIMA atau TOLAK, tanpa tawar."""
+
     keputusan: KeputusanSerahTerima
-    persen_potongan: int = Field(default=0, ge=0, le=100)
     alasan: str | None = None
     foto_bongkar_base64: str | None = None  # K6 — tanpa ini foto_bongkar selamanya NULL
     grade_tiba: int = Field(ge=1, le=5)  # grade mutu 1–5 saat bongkar (spec v2 §6.1)
@@ -52,7 +54,6 @@ class SerahTerimaOut(BaseModel):
     # foto bongkar; kolomnya terisi via POST serah-terima tapi tidak pernah keluar.
     foto_bongkar: str | None = None  # base64
     keputusan: KeputusanSerahTerima
-    persen_potongan: int
     alasan: str | None = None
     durasi_transit_menit: int
     ambang_transit_menit: int
@@ -61,6 +62,24 @@ class SerahTerimaOut(BaseModel):
     grade_asal: int | None = None  # echo dari lot, bahan penjelasan UI (§6.3)
     grade_tiba: int | None = None
     sisa_umur_simpan_persen: int | None = None
+    indeks_mutu: int | None = None  # K14: angka yang dilihat penerima saat memutuskan
+
+
+class IndeksMutuOut(BaseModel):
+    """K14 — penilaian mutu SISTEM, dihitung sebelum penerima memutuskan.
+
+    Seluruhnya dari data terpantau (telemetri suhu + waktu tempuh). Grade tiba
+    sengaja tidak ikut: itu penilaian manusia yang baru ada setelah keputusan,
+    dan memasukkannya akan membuat penerima bisa menggerakkan angkanya sendiri."""
+
+    indeks_mutu: int
+    penurunan_mutu_persen: int
+    skor_umur_simpan: int
+    skor_transit: int
+    sisa_umur_simpan_persen: int | None = None
+    boleh_tolak: bool
+    ambang_tolak_persen: int
+    alasan_boleh_tolak: str
 
 
 class BuktiLotOut(BaseModel):
@@ -69,4 +88,7 @@ class BuktiLotOut(BaseModel):
     lot: LotOut
     durasi_transit_berjalan_menit: int | None = None  # dihitung server dari waktu_berangkat
     ambang_transit_menit: int
+    # K14: mutu WAJIB ikut di sini. Dulu angkanya baru muncul setelah keputusan
+    # dikirim, jadi penerima memutuskan dalam gelap.
+    mutu: IndeksMutuOut | None = None
     serah_terima: SerahTerimaOut | None = None  # terisi kalau sudah diproses (cegah dobel input)

@@ -44,9 +44,14 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
   }, [lot.kode_qr]);
 
   const beratValid = Number(beratAktual) > 0;
+  // K14: FOTO WAJIB. Petugas adalah penghubung yang menyaksikan barang berpindah
+  // tangan; tanpa fotonya, atribusi mutu jadi klaim tanpa sandaran. Server ikut
+  // menolak — ini hanya supaya penolakannya tidak datang belakangan.
+  const adaFoto = Boolean(foto);
+  const bisaSimpan = beratValid && adaFoto;
 
   function simpan() {
-    if (!beratValid) return;
+    if (!bisaSimpan) return;
     onSimpan({
       berat_aktual_kg: Number(beratAktual),
       foto_muat_base64: foto,
@@ -94,7 +99,14 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
         className="angka text-lg font-semibold"
       />
 
-      <AmbilFoto label="Foto muat" nilai={foto} onUbah={setFoto} />
+      <div className="flex flex-col gap-1.5">
+        <AmbilFoto label="Foto muat (wajib)" nilai={foto} onUbah={setFoto} />
+        {!adaFoto && (
+          <p className="text-keterangan text-tanah-liat">
+            Foto wajib — inilah bukti kondisi barang saat berangkat.
+          </p>
+        )}
+      </div>
 
       <PilihGrade label="Grade mutu saat muat" nilai={gradeAsal} onUbah={setGradeAsal} />
 
@@ -118,7 +130,7 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
         varian="aksi"
         ikon={Save}
         sedangProses={sedangMenyimpan}
-        disabled={!beratValid}
+        disabled={!bisaSimpan}
         onClick={simpan}
       >
         {sudahDitimbang ? "Perbarui timbangan" : "Simpan timbangan"}

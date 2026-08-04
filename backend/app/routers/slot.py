@@ -3,7 +3,6 @@
 import math
 from collections import Counter
 from datetime import datetime, timezone
-from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -14,8 +13,9 @@ from sqlalchemy.orm import Session
 from app.adapters.base import Kontak, Titik
 from app.auth import get_pengguna_aktif, wajib_peran
 from app.database import get_db
-from app.domain.armada import Tier, TujuanInput
+from app.domain.armada import Tier
 from app.models import (
+    Kiriman,
     Komoditas,
     TitikKumpul,
     Lot,
@@ -23,12 +23,10 @@ from app.models import (
     Penerima,
     Pengguna,
     Pengiriman,
-    Permintaan,
     Slot,
-    SlotTujuan,
     TierKendaraan,
 )
-from app.models.enums import PeranPengguna, StatusPartisipasi, StatusPermintaan, StatusSlot
+from app.models.enums import PeranPengguna, StatusPartisipasi, StatusSlot
 from app.schemas.master import TitikKumpulOut
 from app.schemas.slot import (
     GabungPratinjauRequest,
@@ -37,19 +35,17 @@ from app.schemas.slot import (
     GabungResponse,
     LuapanKapasitasOut,
     PartisipasiOut,
-    PratinjauSlotRequest,
-    PratinjauSlotResponse,
     RencanaArmadaOut,
+    RuteJemputOut,
     RuteSegmenOut,
-    SkenarioHargaOut,
-    SlotCreate,
     SlotDetailOut,
     SlotItemOut,
     TierRingkasOut,
 )
 from app.services import mesin
 from app.services.konfigurasi import baca_konfigurasi, baca_tiers_aktif
-from app.services.otorisasi import pastikan_bisa_lihat_slot, query_slot_untuk_peran
+from app.services.pencocokan import STATUS_MUATAN_AKTIF, cutoff_lewat
+from app.services.otorisasi import pastikan_bisa_lihat_slot, pastikan_petugas_muatan, query_slot_untuk_peran
 from app.services.vendor import dapatkan_adapter_vendor
 
 router = APIRouter(prefix="/slot", tags=["slot"])
@@ -68,40 +64,6 @@ def _ringkas_tier(tiers: list[Tier]) -> str:
     hitung = Counter(t.kode for t in tiers)
     bagian = [f"{kode}x{n}" if n > 1 else kode for kode, n in sorted(hitung.items())]
     return "+".join(bagian)
-
-
-def _titik_kumpul_pengguna(db: Session, pengguna: Pengguna) -> TitikKumpul:
-    if pengguna.titik_kumpul_id is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengguna ini tidak terhubung ke titik kumpul")
-    titik_kumpul = db.get(TitikKumpul, pengguna.titik_kumpul_id)
-    if titik_kumpul is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Titik kumpul tidak ditemukan")
-    return titik_kumpul
-
-
-def _hitung_nn_slot(db: Session, titik_kumpul_id: UUID, tanggal_kirim) -> int:
-    jumlah = db.query(Slot).filter_by(titik_kumpul_id=titik_kumpul_id, tanggal_kirim=tanggal_kirim).count()
-    return jumlah + 1
-
-
-def _muat_penerima(db: Session, ids: list[UUID]) -> dict[UUID, Penerima]:
-    baris = db.query(Penerima).filter(Penerima.id.in_(ids)).all()
-    ditemukan = {p.id: p for p in baris}
-    hilang = [str(i) for i in ids if i not in ditemukan]
-    if hilang:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Penerima tidak ditemukan: {', '.join(hilang)}")
-    return ditemukan
-
-
-def _bangun_rute(db: Session, titik_kumpul: TitikKumpul, tujuan_ids: list[UUID]):
-    penerima_by_id = _muat_penerima(db, tujuan_ids)
-    faktor_jalan = baca_konfigurasi(db, "faktor_jalan")
-    tujuan_input = [
-        TujuanInput(penerima_id=pid, lat=penerima_by_id[pid].lat, lng=penerima_by_id[pid].lng) for pid in tujuan_ids
-    ]
-    urutan = mesin.urutkan_tujuan_nearest_neighbor((titik_kumpul.lat, titik_kumpul.lng), tujuan_input, faktor_jalan)
-    jarak_total = sum(t.jarak_segmen_km for t in urutan)
-    return urutan, jarak_total, penerima_by_id
 
 
 def _dominan(tiers: list[Tier]) -> Tier:
@@ -131,6 +93,7 @@ def _ke_slot_item(slot: Slot, db: Session) -> SlotItemOut:
         kode=slot.kode,
         tanggal_kirim=slot.tanggal_kirim,
         cutoff_at=slot.cutoff_at,
+        cutoff_lewat=cutoff_lewat(slot),
         status=slot.status,
         jarak_km=float(slot.jarak_km),
         volume_terkunci_kg=slot.volume_terkunci_kg,
@@ -153,6 +116,25 @@ def _bangun_slot_detail(slot: Slot, db: Session, pengguna: Pengguna) -> SlotDeta
                 penerima_id=t.penerima_id,
                 nama_penerima=penerima.nama if penerima else "",
                 jarak_segmen_km=float(t.jarak_segmen_km),
+                lat=penerima.lat if penerima else 0.0,
+                lng=penerima.lng if penerima else 0.0,
+            )
+        )
+
+    # K14: perhentian penjemputan — daftar alamat yang harus didatangi petugas.
+    jemput_out = []
+    for j in sorted(slot.jemput, key=lambda x: x.urutan):
+        partisipasi_jemput = db.get(Partisipasi, j.partisipasi_id)
+        petani_jemput = db.get(Pengguna, partisipasi_jemput.petani_id) if partisipasi_jemput else None
+        jemput_out.append(
+            RuteJemputOut(
+                urutan=j.urutan,
+                partisipasi_id=j.partisipasi_id,
+                nama_petani=petani_jemput.nama if petani_jemput else "",
+                alamat=j.alamat,
+                jarak_segmen_km=float(j.jarak_segmen_km),
+                lat=j.lat,
+                lng=j.lng,
             )
         )
 
@@ -210,16 +192,18 @@ def _bangun_slot_detail(slot: Slot, db: Session, pengguna: Pengguna) -> SlotDeta
                 kapasitas_total_kg=slot.rencana_json.get("kapasitas_total_kg", 0),
             )
 
+    # Dasarnya KEPESERTAAN, bukan peran — siapa pun yang punya panen di muatan
+    # ini berhak melihat atapnya sendiri. (K14: hanya petani yang bisa jadi
+    # peserta, tapi syaratnya tetap ditulis sebagai kepesertaan, bukan peran.)
     atap_saya: int | None = None
     hemat_saya: int | None = None
-    if pengguna.peran == PeranPengguna.PETANI:
-        punya = next(
-            (p for p in slot.partisipasi if p.petani_id == pengguna.id and p.status != StatusPartisipasi.BATAL), None
-        )
-        if punya is not None:
-            atap_saya = punya.harga_atap_per_kg
-            acuan = harga_berjalan if harga_berjalan is not None else punya.harga_atap_per_kg
-            hemat_saya = max(0, atap_saya - acuan)
+    punya = next(
+        (p for p in slot.partisipasi if p.petani_id == pengguna.id and p.status != StatusPartisipasi.BATAL), None
+    )
+    if punya is not None:
+        atap_saya = punya.harga_atap_per_kg
+        acuan = harga_berjalan if harga_berjalan is not None else punya.harga_atap_per_kg
+        hemat_saya = max(0, atap_saya - acuan)
 
     return SlotDetailOut(
         id=slot.id,
@@ -227,9 +211,11 @@ def _bangun_slot_detail(slot: Slot, db: Session, pengguna: Pengguna) -> SlotDeta
         status=slot.status,
         tanggal_kirim=slot.tanggal_kirim,
         cutoff_at=slot.cutoff_at,
+        cutoff_lewat=cutoff_lewat(slot),
         waktu_server=datetime.now(timezone.utc),
         jarak_km=float(slot.jarak_km),
         titik_kumpul=TitikKumpulOut.model_validate(titik_kumpul),
+        jemput=jemput_out,
         tujuan=tujuan_out,
         volume_total_kg=volume_total,
         harga_berjalan_per_kg=harga_berjalan,
@@ -263,88 +249,66 @@ def daftar_slot(status: StatusSlot | None = None, pengguna=Depends(get_pengguna_
     return [_ke_slot_item(s, db) for s in baris]
 
 
-@router.post("", response_model=SlotDetailOut, status_code=201)
-def buka_slot(body: SlotCreate, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
-    """Buka slot baru (§9.3). Server menghitung urutan drop nearest-neighbor + jarak_km."""
-    titik_kumpul = _titik_kumpul_pengguna(db, pengguna)
-    if titik_kumpul.kode is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Titik kumpul belum punya kode singkat (kolom `kode`)")
+# K13: `POST /slot` (buka slot) dan `POST /slot/pratinjau` DIHAPUS. Muatan bukan
+# lagi sesuatu yang dibuka manusia — ia lahir sendiri dari kiriman petani
+# (`services/pencocokan.py`). Petani hanya mengirim panen & memantau harga.
 
-    urutan, jarak_total, _penerima = _bangun_rute(db, titik_kumpul, body.tujuan)
 
-    nn = _hitung_nn_slot(db, titik_kumpul.id, body.tanggal_kirim)
-    kode_slot = f"SM-{body.tanggal_kirim:%Y%m%d}-{titik_kumpul.kode}-{nn:02d}"
+@router.get("/tersedia", response_model=list[SlotItemOut])
+def slot_tersedia(pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
+    """K14: PAPAN TUGAS — muatan yang belum punya driver dan berangkat dari titik
+    kumpul petugas ini.
 
-    slot = Slot(
-        kode=kode_slot,
-        titik_kumpul_id=titik_kumpul.id,
-        tanggal_kirim=body.tanggal_kirim,
-        cutoff_at=body.cutoff_at,
-        status=StatusSlot.DIBUKA,
-        jarak_km=Decimal(str(round(jarak_total, 2))),
-        volume_terkunci_kg=0,
-        selisih_jaminan_atap=0,
+    K13 menugaskan driver otomatis saat muatan lahir, tanpa batas: satu petugas
+    aktif menyerap SELURUH muatan di sistem, dan tidak ada satu pun endpoint yang
+    bisa mengubahnya. Sekarang muatan menunggu diambil, dan pengambilan itu
+    tindakan sadar driver."""
+    tk_id = pengguna.titik_kumpul_id
+    baris = (
+        db.query(Slot)
+        .filter(
+            Slot.petugas_id.is_(None),
+            Slot.status == StatusSlot.DIBUKA,
+            *( [Slot.titik_kumpul_id == tk_id] if tk_id is not None else [] ),
+        )
+        .order_by(Slot.tanggal_kirim, Slot.dibuat_pada)
+        .all()
     )
-    db.add(slot)
-    db.flush()
+    return [_ke_slot_item(s, db) for s in baris]
 
-    for t in urutan:
-        db.add(
-            SlotTujuan(
-                slot_id=slot.id,
-                penerima_id=t.penerima_id,
-                urutan=t.urutan,
-                jarak_segmen_km=Decimal(str(round(t.jarak_segmen_km, 2))),
-            )
+
+@router.post("/{slot_id}/terima", response_model=SlotItemOut)
+def terima_tugas(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
+    """K14: petugas mengambil satu muatan — dan HANYA satu dalam satu waktu.
+
+    Batasnya dari konfigurasi (`maks_muatan_aktif_per_petugas`), bukan angka di
+    kode (CLAUDE.md aturan #1). Sopir tidak bisa membawa dua truk sekaligus;
+    membiarkannya menumpuk tugas membuat papan tugas jadi hiasan."""
+    slot = _slot_atau_404(db, slot_id)
+    if slot.status != StatusSlot.DIBUKA:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Muatan ini sudah tidak terbuka untuk diambil")
+    if slot.petugas_id is not None:
+        if slot.petugas_id == pengguna.id:
+            return _ke_slot_item(slot, db)
+        raise HTTPException(status.HTTP_409_CONFLICT, "Muatan ini sudah diambil petugas lain")
+
+    maks_aktif = baca_konfigurasi(db, "maks_muatan_aktif_per_petugas")
+    aktif = (
+        db.query(Slot)
+        .filter(Slot.petugas_id == pengguna.id, Slot.status.in_(STATUS_MUATAN_AKTIF))
+        .count()
+    )
+    if aktif >= maks_aktif:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Kamu sedang membawa {aktif} muatan. Selesaikan dulu sebelum mengambil yang baru "
+            f"(batas {maks_aktif} muatan aktif).",
         )
 
-    if body.permintaan_ids:
-        permintaan_baris = db.query(Permintaan).filter(Permintaan.id.in_(body.permintaan_ids)).all()
-        ditemukan_ids = {p.id for p in permintaan_baris}
-        hilang = [str(i) for i in body.permintaan_ids if i not in ditemukan_ids]
-        if hilang:
-            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Permintaan tidak ditemukan: {', '.join(hilang)}")
-        for p in permintaan_baris:
-            p.slot_id = slot.id
-
+    slot.petugas_id = pengguna.id
     db.commit()
     db.refresh(slot)
-    return _bangun_slot_detail(slot, db, pengguna)
-
-
-@router.post("/pratinjau", response_model=PratinjauSlotResponse)
-def pratinjau_slot(body: PratinjauSlotRequest, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
-    """Pratinjau §9.3: jarak rute + tabel harga/kg pada berbagai skenario volume."""
-    titik_kumpul = _titik_kumpul_pengguna(db, pengguna)
-    urutan, jarak_total, penerima_by_id = _bangun_rute(db, titik_kumpul, body.tujuan)
-
-    rute = [
-        RuteSegmenOut(
-            urutan=t.urutan,
-            penerima_id=t.penerima_id,
-            nama_penerima=penerima_by_id[t.penerima_id].nama,
-            jarak_segmen_km=round(t.jarak_segmen_km, 2),
-        )
-        for t in urutan
-    ]
-
-    tiers, maks = _tiers_dan_maks(db)
-    tabel_harga = []
-    for volume in body.skenario_volume:
-        try:
-            rencana = mesin.rencana_armada(volume, jarak_total, tiers, maks)
-        except (mesin.VolumeKosong, mesin.VolumeTerlaluBesar) as exc:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"volume {volume} kg: {exc}")
-        tabel_harga.append(
-            SkenarioHargaOut(
-                volume_kg=volume,
-                harga_per_kg=math.ceil(rencana.biaya_total / volume),
-                biaya_total=rencana.biaya_total,
-                kendaraan=[t.kode for t in rencana.tier],
-            )
-        )
-
-    return PratinjauSlotResponse(jarak_km=round(jarak_total, 2), rute=rute, tabel_harga=tabel_harga)
+    return _ke_slot_item(slot, db)
 
 
 @router.get("/{slot_id}", response_model=SlotDetailOut)
@@ -494,8 +458,7 @@ def tutup_slot(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Sess
     """Cutoff (§5.4): tetapkan harga final + jaminan atap, kunci rencana armada,
     buat lot per partisipasi (alokasi penerima — K6), pesan ke vendor."""
     slot = _slot_atau_404(db, slot_id)
-    if slot.titik_kumpul_id != pengguna.titik_kumpul_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Slot bukan milik titik kumpul Anda")
+    pastikan_petugas_muatan(pengguna, slot)
     if slot.status != StatusSlot.DIBUKA:
         raise HTTPException(status.HTTP_409_CONFLICT, "Slot sudah ditutup atau dibatalkan")
 
@@ -533,37 +496,23 @@ def tutup_slot(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Sess
         "tier_ringkas": _ringkas_tier(hasil.rencana.tier),
     }
 
-    # Alokasi lot -> penerima: cocokkan permintaan (nearest) atau tujuan pertama (K6).
-    urutan_by_penerima = {t.penerima_id: t.urutan for t in slot.tujuan}
-    permintaan_slot = db.query(Permintaan).filter_by(slot_id=slot.id).all()
+    # K13: alokasi lot -> tujuan = tujuan yang DIMINTA petani itu sendiri di
+    # kirimannya. Tidak ada lagi pencocokan permintaan: barang tiap petani pergi
+    # ke alamat yang dia tulis, bukan ke alamat pemesan orang lain.
     tujuan_pertama_id = min(slot.tujuan, key=lambda t: t.urutan).penerima_id if slot.tujuan else None
+    penerima_by_partisipasi = {
+        k.partisipasi_id: k.penerima_id
+        for k in db.query(Kiriman).filter(Kiriman.slot_id == slot.id).all()
+        if k.partisipasi_id is not None and k.penerima_id is not None
+    }
 
     partisipasi_terurut = sorted(partisipasi_aktif, key=lambda p: p.bergabung_pada)
-    # K11: kuota permintaan dilacak DALAM loop ini juga — volume_terpenuhi_kg baru
-    # bertambah saat serah terima, jadi tanpa pelacakan lokal semua lot komoditas
-    # sama bisa membanjiri permintaan pertama walau kuotanya sudah habis dialokasi.
-    teralokasi_kg: dict = {pm.id: 0 for pm in permintaan_slot}
     for idx, p in enumerate(partisipasi_terurut, start=1):
-        sekomoditas = [pm for pm in permintaan_slot if pm.komoditas_id == p.komoditas_id]
-        kandidat = [
-            pm for pm in sekomoditas if pm.volume_terpenuhi_kg + teralokasi_kg[pm.id] < pm.volume_kg
-        ]
-        if not kandidat:
-            # Semua kuota sekomoditas habis → luber ke pemohon komoditas yang sama
-            # (pemenuhan-lebih), bukan ke drop pertama — demo §11.2 (4 lot kubis,
-            # 1 permintaan 300 kg) bergantung pada perilaku ini.
-            kandidat = sekomoditas
-        if kandidat:
-            kandidat.sort(key=lambda pm: urutan_by_penerima.get(pm.penerima_id, 10**6))
-            penerima_id = kandidat[0].penerima_id
-            teralokasi_kg[kandidat[0].id] += p.volume_kg
-        else:
-            penerima_id = tujuan_pertama_id
-
         lot = Lot(
             partisipasi_id=p.id,
+            # Kode ini yang dipakai penerima sebagai NOMOR RESI (K13).
             kode_qr=f"LOT-{slot.kode}-{idx:02d}",
-            penerima_id=penerima_id,
+            penerima_id=penerima_by_partisipasi.get(p.id, tujuan_pertama_id),
             grade_asal=5,  # default optimis — grade riil dinilai petugas saat muat (§6.1)
         )
         db.add(lot)
@@ -596,8 +545,7 @@ def tutup_slot(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Sess
 @router.post("/{slot_id}/batal", response_model=SlotDetailOut)
 def batal_slot(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
     slot = _slot_atau_404(db, slot_id)
-    if slot.titik_kumpul_id != pengguna.titik_kumpul_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Slot bukan milik titik kumpul Anda")
+    pastikan_petugas_muatan(pengguna, slot)
     if slot.status in (StatusSlot.SELESAI, StatusSlot.BATAL):
         raise HTTPException(status.HTTP_409_CONFLICT, "Slot sudah selesai atau sudah dibatalkan")
 
@@ -605,11 +553,6 @@ def batal_slot(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Sess
     for p in slot.partisipasi:
         if p.status != StatusPartisipasi.BATAL:
             p.status = StatusPartisipasi.BATAL
-
-    for permintaan in db.query(Permintaan).filter_by(slot_id=slot.id).all():
-        permintaan.slot_id = None
-        if permintaan.status not in (StatusPermintaan.TERPENUHI,):
-            permintaan.status = StatusPermintaan.TERBUKA
 
     db.commit()
     db.refresh(slot)

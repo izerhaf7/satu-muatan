@@ -1,7 +1,13 @@
 /** Layar Riwayat (§2.5, layar utama Petani) — daftar ikut kirim + kembalian.
- *  Data/hook (useRiwayatSaya) TIDAK diubah — hanya bahasa tampilan (§K12). */
+ *
+ *  K14: setiap baris kini BISA DIBUKA KEMBALI. Sebelumnya kartu di sini mati —
+ *  padahal `slot_id` sudah ikut di payload dan tidak dipakai — sehingga Berita
+ *  Acara sebuah kiriman yang sudah selesai praktis tidak terjangkau: Beranda
+ *  hanya melist muatan DIBUKA, jadi begitu muatan ditutup ia hilang dari mana
+ *  pun kecuali daftar ini. */
 
-import { Leaf } from "lucide-react";
+import { ChevronRight, FileText, Leaf, MapPin } from "lucide-react";
+import { Link } from "react-router-dom";
 
 import type { components } from "@/api/client";
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
@@ -20,6 +26,7 @@ const labelStatus: Record<StatusPartisipasi, string> = {
   TERKUNCI: "Terkunci",
   DIMUAT: "Dimuat",
   SELESAI: "Selesai",
+  DITOLAK: "Ditolak", // K14: penolakan bukan "selesai"
   BATAL: "Batal",
 };
 
@@ -30,6 +37,7 @@ const kelasStatus: Record<StatusPartisipasi, string> = {
   TERKUNCI: "bg-tanah-liat/15 text-tanah-liat",
   DIMUAT: "bg-kabut/60 text-tanah/60",
   SELESAI: "bg-daun/15 text-daun",
+  DITOLAK: "bg-tanah-liat/15 text-tanah-liat",
   BATAL: "bg-tanah-liat/15 text-tanah-liat",
 };
 
@@ -64,19 +72,29 @@ export default function Riwayat() {
 }
 
 function BarisRiwayat({ partisipasi }: { partisipasi: PartisipasiRiwayatOut }) {
+  // Bukti hanya ada setelah barang benar-benar berjalan; sebelum itu tautannya
+  // menuju halaman kosong, jadi lebih baik tidak ditawarkan sama sekali.
+  const sudahJalan = partisipasi.status === "DIMUAT" || partisipasi.status === "SELESAI";
+
   return (
     <li className="kartu-tonjol flex flex-col gap-3 p-4">
-      <div className="flex items-start justify-between gap-2">
+      <Link
+        to={`/slot/${partisipasi.slot_id}`}
+        className="flex items-start justify-between gap-2 rounded-lg transition-colors duration-cepat hover:text-daun focus-visible:text-daun"
+      >
         <div>
           <p className="angka text-base font-semibold text-tanah">{partisipasi.slot_kode}</p>
           <p className="text-keterangan text-tanah/60">{formatTanggal(partisipasi.tanggal_kirim)}</p>
         </div>
-        <span
-          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${kelasStatus[partisipasi.status]}`}
-        >
-          {labelStatus[partisipasi.status]}
-        </span>
-      </div>
+        <div className="flex items-center gap-1.5">
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${kelasStatus[partisipasi.status]}`}
+          >
+            {labelStatus[partisipasi.status]}
+          </span>
+          <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-tanah/40" />
+        </div>
+      </Link>
 
       <div className="flex items-center gap-3">
         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-daun/10 text-daun">
@@ -106,6 +124,33 @@ function BarisRiwayat({ partisipasi }: { partisipasi: PartisipasiRiwayatOut }) {
           <span className="angka text-lg font-bold text-daun">{formatRupiah(partisipasi.kembalian_rp)}</span>
         </div>
       )}
+
+      {sudahJalan && (
+        <div className="flex flex-wrap gap-2 border-t border-kabut/60 pt-3">
+          <TautanBukti to={`/slot/${partisipasi.slot_id}/lacak`} ikon={MapPin} label="Lacak" />
+          <TautanBukti to={`/slot/${partisipasi.slot_id}/berita-acara`} ikon={FileText} label="Berita Acara" />
+        </div>
+      )}
     </li>
+  );
+}
+
+function TautanBukti({
+  to,
+  ikon: Ikon,
+  label,
+}: {
+  to: string;
+  ikon: typeof MapPin;
+  label: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="inline-flex min-h-sentuh flex-1 items-center justify-center gap-1.5 rounded-lg border-2 border-kabut px-3 text-keterangan font-semibold text-tanah/70 transition-colors duration-cepat hover:border-daun hover:text-daun focus-visible:border-daun"
+    >
+      <Ikon aria-hidden className="h-4 w-4" />
+      {label}
+    </Link>
   );
 }

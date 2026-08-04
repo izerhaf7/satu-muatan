@@ -7,17 +7,17 @@
 import { Suspense, lazy } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 
+import BatasGalat from "./komponen/BatasGalat";
 import AppShell from "./komponen/kerangka/AppShell";
 import RuteDenganPeran from "./komponen/kerangka/RuteDenganPeran";
 import { SkeletonKartu } from "./komponen/Skeleton";
 import Beranda from "./layar/Beranda";
-import BuatSlot from "./layar/BuatSlot";
 import DetailSlot from "./layar/DetailSlot";
 import KirimPanen from "./layar/KirimPanen";
+import LacakResi from "./layar/LacakResi";
 import Landing from "./layar/landing/Landing";
 import Masuk from "./layar/Masuk";
 import Muat from "./layar/Muat";
-import Permintaan from "./layar/Permintaan";
 import Riwayat from "./layar/Riwayat";
 import SerahTerima from "./layar/SerahTerima";
 import { useAuthStore } from "./stores/authStore";
@@ -48,6 +48,10 @@ export default function App() {
   if (!telahHidrasi) return <SplashLogo />;
 
   return (
+    /* K14: boundary DI LUAR Suspense — supaya kegagalan memuat chunk lazy
+       (mis. index.html lama dari service worker menunjuk hash yang sudah tidak
+       ada) ikut tertangkap, bukan berakhir jadi layar putih. */
+    <BatasGalat>
     <Suspense fallback={<div className="mx-auto max-w-md px-5 py-6 lg:max-w-3xl xl:max-w-5xl"><SkeletonKartu /></div>}>
       <Routes>
         <Route path="/" element={token ? <Navigate to="/beranda" replace /> : <Landing />} />
@@ -56,22 +60,16 @@ export default function App() {
         <Route element={<PerluMasuk />}>
           <Route element={<AppShell />}>
             <Route path="/beranda" element={<Beranda />} />
+            {/* K14: hanya petani yang mengirim panen — petugas adalah driver. */}
             <Route
               path="/kirim"
               element={
-                <RuteDenganPeran peran={["PETANI", "PETUGAS"]}>
+                <RuteDenganPeran peran={["PETANI"]}>
                   <KirimPanen />
                 </RuteDenganPeran>
               }
             />
-            <Route
-              path="/slot/baru"
-              element={
-                <RuteDenganPeran peran={["PETUGAS"]}>
-                  <BuatSlot />
-                </RuteDenganPeran>
-              }
-            />
+            {/* K13: rute /slot/baru DIHAPUS — tidak ada lagi "buka slot". */}
             <Route path="/slot/:id" element={<DetailSlot />} />
             <Route
               path="/slot/:id/muat"
@@ -83,6 +81,14 @@ export default function App() {
             />
             <Route path="/slot/:id/lacak" element={<Lacak />} />
             <Route path="/slot/:id/berita-acara" element={<BeritaAcara />} />
+            <Route
+              path="/lacak-resi"
+              element={
+                <RuteDenganPeran peran={["PENERIMA"]}>
+                  <LacakResi />
+                </RuteDenganPeran>
+              }
+            />
             <Route
               path="/serah-terima"
               element={
@@ -108,12 +114,12 @@ export default function App() {
                 </RuteDenganPeran>
               }
             />
-            <Route path="/permintaan" element={<Permintaan />} />
           </Route>
         </Route>
 
         <Route path="*" element={<Navigate to={token ? "/beranda" : "/"} replace />} />
       </Routes>
     </Suspense>
+    </BatasGalat>
   );
 }

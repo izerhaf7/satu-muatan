@@ -43,7 +43,7 @@ class SerahTerima(Base):
     keputusan: Mapped[KeputusanSerahTerima] = mapped_column(
         Enum(KeputusanSerahTerima, name="keputusan_serah_terima"), nullable=False
     )
-    persen_potongan: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # K14: `persen_potongan` DIHAPUS — lihat KeputusanSerahTerima.
     alasan: Mapped[str | None] = mapped_column(Text)
     durasi_transit_menit: Mapped[int] = mapped_column(Integer, nullable=False)
     ambang_transit_menit: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -52,6 +52,9 @@ class SerahTerima(Base):
     # direkonstruksi persis seperti saat keputusan dibuat.
     grade_tiba: Mapped[int | None] = mapped_column(Integer)
     sisa_umur_simpan_persen: Mapped[int | None] = mapped_column(Integer)
+    # K14: indeks mutu yang DILIHAT penerima saat memutuskan — disimpan supaya
+    # keputusannya bisa diaudit terhadap angka yang benar-benar dia lihat.
+    indeks_mutu: Mapped[int | None] = mapped_column(Integer)
 
 
 class Pengiriman(Base):

@@ -1,6 +1,6 @@
 /** Navigasi bawah per peran (ponsel <lg) — memperbaiki 4 rute yatim temuan audit.
  *  PETUGAS: Beranda · Dampak · Asumsi | PETANI: Beranda · Riwayat |
- *  PENERIMA: Permintaan · Serah Terima. Target sentuh 48px, ikon + label.
+ *  PENERIMA: Lacak Resi · Serah Terima. Target sentuh 48px, ikon + label.
  *  Item nav dibagi dengan NavSamping (desktop) lewat navigasi.ts. */
 
 import { NavLink } from "react-router-dom";

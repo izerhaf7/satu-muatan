@@ -1,13 +1,21 @@
 /** Hitung mundur ke cutoff_at (§9.2, §9.4). Dihitung terhadap offset waktu_server
  *  bila tersedia — supaya jam perangkat pengguna yang meleset tidak membuat
  *  hitungan salah (SlotDetailOut.waktu_server / SlotItemOut tidak menyediakannya
- *  di Beranda, jadi offset 0 pada kasus itu, cukup akurat untuk tampilan). */
+ *  di Beranda, jadi offset 0 pada kasus itu, cukup akurat untuk tampilan).
+ *
+ *  K14: komponen ini HANYA dipasang pada slot berstatus DIBUKA (lihat pemanggil).
+ *  Karena itu cutoff yang sudah lewat TIDAK boleh berbunyi "Sudah ditutup" —
+ *  status slot, bukan jam dinding, yang menentukan tutup atau tidak. Muatan
+ *  lewat cutoff berhenti menerima kiriman baru tapi tetap DIBUKA sampai petugas
+ *  menutupnya (penutupan menetapkan harga final & memesan armada). */
 
 import { useEffect, useState } from "react";
 import { Timer } from "lucide-react";
 
 interface HitungMundurProps {
   cutoffAt: string;
+  /** Penilaian server, bukan jam perangkat — ini yang menentukan kalimatnya. */
+  cutoffLewat?: boolean;
   waktuServer?: string;
   className?: string;
 }
@@ -16,7 +24,12 @@ function hitungSisaMs(cutoffAt: string, offsetMs: number): number {
   return new Date(cutoffAt).getTime() - (Date.now() + offsetMs);
 }
 
-export default function HitungMundur({ cutoffAt, waktuServer, className = "" }: HitungMundurProps) {
+export default function HitungMundur({
+  cutoffAt,
+  cutoffLewat = false,
+  waktuServer,
+  className = "",
+}: HitungMundurProps) {
   const offsetMs = waktuServer ? new Date(waktuServer).getTime() - Date.now() : 0;
   const [sisaMs, setSisaMs] = useState(() => hitungSisaMs(cutoffAt, offsetMs));
 
@@ -28,13 +41,13 @@ export default function HitungMundur({ cutoffAt, waktuServer, className = "" }: 
     return () => clearInterval(id);
   }, [cutoffAt, waktuServer]);
 
-  if (sisaMs <= 0) {
+  if (cutoffLewat || sisaMs <= 0) {
     return (
       <span
         className={`inline-flex items-center gap-1.5 rounded-full bg-tanah-liat/10 px-3 py-1 text-keterangan font-semibold text-tanah-liat ${className}`}
       >
         <Timer aria-hidden className="h-3.5 w-3.5" />
-        Sudah ditutup
+        Batas waktu lewat · menunggu petugas menutup
       </span>
     );
   }

@@ -13,6 +13,7 @@ import TombolTautan from "@/komponen/TombolTautan";
 import { useDaftarLotSlot, useMuatLot, useSelesaiMuat, useSlotUntukMuat } from "@/hooks/useLot";
 import { useParams } from "react-router-dom";
 
+import DaftarJemput from "./muat/DaftarJemput";
 import KartuLotMuat from "./muat/KartuLotMuat";
 
 export default function Muat() {
@@ -24,8 +25,11 @@ export default function Muat() {
   const selesaiMuat = useSelesaiMuat(slotId);
 
   const jumlahLot = daftarLot.data?.length ?? 0;
+  // K14: satu lot dianggap beres hanya kalau SUDAH DITIMBANG DAN DIFOTO —
+  // progresnya harus mencerminkan syarat berangkat yang sesungguhnya, bukan
+  // memberi kesan selesai lalu ditolak server saat menekan "Selesai muat".
   const jumlahSelesai =
-    daftarLot.data?.filter((l) => l.berat_aktual_kg !== null && l.berat_aktual_kg !== undefined).length ?? 0;
+    daftarLot.data?.filter((l) => l.berat_aktual_kg != null && Boolean(l.foto_muat)).length ?? 0;
   const semuaSelesaiTimbang = jumlahLot > 0 && jumlahSelesai === jumlahLot;
   const sudahBerangkat = slot.data?.status === "JALAN" || slot.data?.status === "SELESAI";
   const persenSelesai = jumlahLot > 0 ? Math.round((jumlahSelesai / jumlahLot) * 100) : 0;
@@ -56,10 +60,14 @@ export default function Muat() {
             <KeadaanKosong pesan="Belum ada lot untuk dimuat. Tutup slot ini dahulu di layar Detail Slot." />
           )}
 
+          {slot.data && (
+            <DaftarJemput jemput={slot.data.jemput ?? []} namaTitikKumpul={slot.data.titik_kumpul.nama} />
+          )}
+
           {jumlahLot > 0 && (
             <section aria-label="Progres timbang" className="kartu-tonjol flex flex-col gap-2 p-4">
               <div className="flex items-center justify-between gap-3">
-                <p className="text-base font-medium text-tanah">Progres timbang</p>
+                <p className="text-base font-medium text-tanah">Ditimbang &amp; difoto</p>
                 <p className="text-base font-semibold text-tanah">
                   <span className="angka font-bold text-daun">{jumlahSelesai}</span>
                   <span className="text-tanah/50"> dari </span>
@@ -91,7 +99,12 @@ export default function Muat() {
             <div className="sticky bottom-20 z-10 flex flex-col gap-2 rounded-xl border border-kabut bg-kertas p-3 shadow-sedang">
               {selesaiMuat.isError && (
                 <p role="alert" className="text-keterangan text-tanah-liat">
-                  Gagal menyelesaikan muat. Pastikan semua lot sudah ditimbang, lalu coba lagi.
+                  Gagal menyelesaikan muat. Pastikan semua lot sudah ditimbang dan difoto, lalu coba lagi.
+                </p>
+              )}
+              {!semuaSelesaiTimbang && (
+                <p className="text-keterangan text-tanah/55">
+                  Semua lot wajib ditimbang dan difoto sebelum berangkat.
                 </p>
               )}
               <Tombol

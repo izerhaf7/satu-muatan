@@ -1,5 +1,5 @@
-"""Tabel alur konsolidasi: slot, slot_tujuan, permintaan, partisipasi
-(spec §4.2 + KEPUTUSAN.md K6)."""
+"""Tabel alur konsolidasi: slot, slot_tujuan, partisipasi, kiriman
+(spec §4.2 + KEPUTUSAN.md K6; permintaan dihapus di K13)."""
 
 import uuid
 from datetime import date, datetime
@@ -22,7 +22,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-from app.models.enums import StatusPartisipasi, StatusPermintaan, StatusSlot
+from app.models.enums import StatusPartisipasi, StatusSlot
 
 
 class Slot(Base):
@@ -31,6 +31,9 @@ class Slot(Base):
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     kode: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     titik_kumpul_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("titik_kumpul.id"), nullable=False)
+    # K13: petugas (driver Satu Muatan) DITUGASKAN SISTEM saat muatan dibuka —
+    # bukan dipilih siapa pun. Dasar otorisasi muat/tutup/majukan.
+    petugas_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("pengguna.id"))
     tanggal_kirim: Mapped[date] = mapped_column(Date, nullable=False)
     cutoff_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     status: Mapped[StatusSlot] = mapped_column(
@@ -49,6 +52,8 @@ class Slot(Base):
     dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     tujuan: Mapped[list["SlotTujuan"]] = relationship(back_populates="slot", order_by="SlotTujuan.urutan")
+    # K14: rute punya DUA tahap — jemput dulu, baru antar.
+    jemput: Mapped[list["SlotJemput"]] = relationship(back_populates="slot", order_by="SlotJemput.urutan")
     partisipasi: Mapped[list["Partisipasi"]] = relationship(back_populates="slot")
 
 
@@ -65,21 +70,28 @@ class SlotTujuan(Base):
     slot: Mapped[Slot] = relationship(back_populates="tujuan")
 
 
-class Permintaan(Base):
-    __tablename__ = "permintaan"
+class SlotJemput(Base):
+    """Perhentian PENJEMPUTAN satu muatan (K14) — sejajar dengan `SlotTujuan`.
+
+    Sebelumnya seluruh petani dianggap berangkat dari satu titik kumpul, jadi
+    petugas tidak pernah tahu ke mana harus menjemput dan jarak yang dihitung
+    berbohong: rute sungguhan adalah titik kumpul → semua lokasi jemput → semua
+    tujuan, bukan titik kumpul → tujuan saja.
+    """
+
+    __tablename__ = "slot_jemput"
+    __table_args__ = (UniqueConstraint("slot_id", "urutan"),)
 
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    penerima_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("penerima.id"), nullable=False)
-    komoditas_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("komoditas.id"), nullable=False)
-    volume_kg: Mapped[int] = mapped_column(Integer, nullable=False)
-    tanggal_dibutuhkan: Mapped[date] = mapped_column(Date, nullable=False)
-    status: Mapped[StatusPermintaan] = mapped_column(
-        Enum(StatusPermintaan, name="status_permintaan"), nullable=False, default=StatusPermintaan.TERBUKA
-    )
-    slot_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("slot.id"))
-    # K6: pelacakan pemenuhan parsial + urutan riwayat
-    volume_terpenuhi_kg: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    slot_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("slot.id"), nullable=False)
+    partisipasi_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("partisipasi.id"), nullable=False)
+    urutan: Mapped[int] = mapped_column(Integer, nullable=False)
+    lat: Mapped[float] = mapped_column(nullable=False)
+    lng: Mapped[float] = mapped_column(nullable=False)
+    alamat: Mapped[str] = mapped_column(Text, nullable=False)
+    jarak_segmen_km: Mapped[Decimal] = mapped_column(Numeric(8, 2), nullable=False)
+
+    slot: Mapped[Slot] = relationship(back_populates="jemput")
 
 
 class Partisipasi(Base):
@@ -117,8 +129,44 @@ class Kiriman(Base):
     tanggal_siap: Mapped[date] = mapped_column(Date, nullable=False)
     lat_tujuan: Mapped[float] = mapped_column(nullable=False)
     lng_tujuan: Mapped[float] = mapped_column(nullable=False)
+    # Ringkasan satu baris — dirakit dari komponen di bawah, tetap dipakai
+    # sebagai label pendek di kartu & buku alamat.
     alamat_tujuan: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # K14 — ALAMAT TERSTRUKTUR mengikuti standar ekspedisi Indonesia (nama
+    # penerima, telepon, jalan, RT/RW, desa, kecamatan, kota, kode pos, patokan).
+    # Satu baris teks bebas tidak cukup: kurir butuh komponen yang bisa dibaca
+    # terpisah, dan surat jalan mensyaratkan data pengirim & penerima lengkap.
+    nama_penerima: Mapped[str | None] = mapped_column(Text)
+    telepon_penerima: Mapped[str | None] = mapped_column(Text)
+    jalan_tujuan: Mapped[str | None] = mapped_column(Text)
+    rt_rw_tujuan: Mapped[str | None] = mapped_column(Text)
+    desa_tujuan: Mapped[str | None] = mapped_column(Text)
+    kecamatan_tujuan: Mapped[str | None] = mapped_column(Text)
+    kabupaten_tujuan: Mapped[str | None] = mapped_column(Text)
+    provinsi_tujuan: Mapped[str | None] = mapped_column(Text)
+    kode_pos_tujuan: Mapped[str | None] = mapped_column(Text)
+    patokan_tujuan: Mapped[str | None] = mapped_column(Text)
+
+    # K14 — ALAMAT PENJEMPUTAN. Sebelumnya asal kiriman tidak ada sama sekali:
+    # semua petani dianggap berangkat dari titik kumpul, sehingga petugas tidak
+    # punya alamat untuk dituju dan jarak muatan tidak menghitung leg jemput.
+    lat_asal: Mapped[float | None] = mapped_column()
+    lng_asal: Mapped[float | None] = mapped_column()
+    alamat_asal: Mapped[str | None] = mapped_column(Text)
+    telepon_pengirim: Mapped[str | None] = mapped_column(Text)
+    jalan_asal: Mapped[str | None] = mapped_column(Text)
+    rt_rw_asal: Mapped[str | None] = mapped_column(Text)
+    desa_asal: Mapped[str | None] = mapped_column(Text)
+    kecamatan_asal: Mapped[str | None] = mapped_column(Text)
+    kabupaten_asal: Mapped[str | None] = mapped_column(Text)
+    provinsi_asal: Mapped[str | None] = mapped_column(Text)
+    kode_pos_asal: Mapped[str | None] = mapped_column(Text)
+    patokan_asal: Mapped[str | None] = mapped_column(Text)
     # Hasil pencocokan — terisi begitu kiriman masuk sebuah muatan.
+    # K13: penerima_id = titik tujuan hasil resolusi (dipakai ulang atau dibuat
+    # otomatis). Inilah dasar alokasi lot → tujuan saat muatan ditutup.
+    penerima_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("penerima.id"))
     slot_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("slot.id"))
     partisipasi_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("partisipasi.id"))
     dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

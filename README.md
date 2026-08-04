@@ -25,19 +25,22 @@ layar Masuk (4 tombol: Petugas Asep, Petani Wati, Petani Dedi, Penerima).
 
 | Peran | Nama | No. HP | PIN |
 |---|---|---|---|
-| Petugas Titik Kumpul | Asep | `081200000011` | `123456` |
-| Petani | Bu Nia | `081200000001` | `123456` |
+| Petugas Satu Muatan | Bu Nia | `081200000001` | `123456` |
+| Petani | Asep | `081200000011` | `123456` |
 | Petani | Wati | `081200000012` | `123456` |
 | Petani | Dedi | `081200000013` | `123456` |
 | Petani | Ijah | `081200000014` | `123456` |
 | Kepala Dapur Katering Cibiru | Bu Rina | `081200000021` | `123456` |
 
-Catatan: **Asep adalah petani yang ditunjuk sebagai petugas** di Titik Kumpul
-Pak Asep — dia yang menimbang, memfoto, dan memberi grade mutu (bukan pegawai
-platform, bukan driver vendor). Ijah masuk manual via nomor HP + PIN (tidak ada
-tombol cepatnya). Dua petani tambahan di data seed (Ujang `081200000015`,
-Euis `081200000016`, PIN sama) muncul di riwayat 8 slot lama untuk mengisi
-grafik Dashboard Dampak.
+Catatan: **petugas adalah driver Satu Muatan** (K13/K14) — dia menjemput panen
+ke lokasi masing-masing petani, memeriksa & memfoto, memberi grade mutu, lalu
+mengantarkannya. Dia BUKAN pengirim: menu Kirim Panen tidak ada di perannya.
+Muatan tidak ditugaskan otomatis kepadanya — muatan menunggu di **papan tugas**
+dan diambil sendiri, satu muatan aktif dalam satu waktu.
+
+Ijah masuk manual via nomor HP + PIN (tidak ada tombol cepatnya). Dua petani
+tambahan di data seed (Ujang `081200000015`, Euis `081200000016`, PIN sama)
+muncul di riwayat 8 slot lama untuk mengisi grafik Dashboard Dampak.
 
 ## Skenario Demo (±8 menit, spec v2 §8.2)
 
@@ -47,26 +50,37 @@ idempoten): tombol reset di aplikasi (mode demo) memanggil `POST
 — mencetak cheat-sheet lengkap dengan angka yang dihitung ULANG saat itu juga
 oleh mesin harga sungguhan (bukan angka yang ditulis manual di dokumen ini).
 
-1. Login sebagai **Petani Asep** → buka **Kirim Panen** → tujuan Dapur Katering
-   Cibiru, sawi 300 kg, besok → tampil **harga atap** dan **potensi penghematan**
-   sebelum berkomitmen.
-2. Tekan **Kirim** → sistem membuka muatan baru → Asep diarahkan ke layar
-   **Muatanmu** (Detail Slot).
-3. Login sebagai **Petani Wati** → kirim 200 kg, tujuan 8 km dari tujuan Asep
-   → sistem mencocokkan ke **muatan yang SAMA** (radius koridor 15 km)
-   → harga berjalan turun *[animasi]*.
-4. **Petani Dedi** +180 kg, **Petani Ijah** +100 kg → harga turun lagi *[animasi]*
-   → Layar Asep: atap terkunci, harga sekarang, dan total hematnya.
-5. Login sebagai **Petugas (Asep)** → **Muat**: timbang 4 lot, foto, grade mutu
-   — 3 lot **"Sangat baik"**, 1 lot **"Cukup"**.
-6. Berangkat → **Lacak**: grafik suhu naik siang hari (berlabel "Data simulasi
-   — sensor fisik menyusul"), kartu suhu maks & **sisa umur simpan** sawi.
-7. Tiba → **Serah Terima**: 3 lot **Terima**, 1 lot **Potong 20%** → atribusi
-   **PETANI** dengan **kalimat penjelasan** (grade asal di bawah standar).
-8. Buka **Berita Acara** → cetak (`window.print()` ke PDF).
-9. Buka **Dashboard Dampak** → **empat kartu semboyan** terisi: Menekan biaya
-   logistik · Menurunkan emisi · Transparansi perjalanan · Keamanan pangan.
-10. Buka **Panel Asumsi** → ubah faktor emisi → kartu emisi ikut berubah.
+1. Login sebagai **Petani Asep** → **Kirim Panen** → tandai titik **penjemputan**
+   (tombol "Gunakan lokasi saya" atau ketuk peta) — alamatnya terbaca otomatis,
+   dan mengetik nama desa memunculkan **autocomplete daerah**. Lalu tandai
+   **tujuan** dengan cara yang sama. Volume di bawah **50 kg ditolak di layar**,
+   bukan setelah dikirim.
+2. Tekan **Kirim** → sistem membuka muatan baru → Asep melihat **harga atap**
+   terkunci di layar Muatanmu.
+3. Login sebagai **Petani Wati** → kirim dari kebunnya sendiri, tujuan berdekatan
+   → sistem mencocokkan ke **muatan yang SAMA** → harga berjalan turun. Kiriman
+   yang justru akan MENAIKKAN harga grup membuka muatannya sendiri, bukan
+   ditolak buntu.
+4. **Petani Dedi** & **Ijah** menyusul → harga turun lagi → atap tiap petani
+   tetap di angka saat dia bergabung.
+5. Login sebagai **Petugas** → **Beranda**: muatan menunggu di **papan tugas**.
+   Tekan **Ambil tugas ini**. Mencoba mengambil muatan kedua → ditolak.
+6. Buka **Muat** → **rute penjemputan berurutan** tampil: nomor, nama petani,
+   alamat lengkap, jarak tiap segmen, tombol arah jalan. Timbang tiap lot —
+   **foto muat wajib**, tombol simpan terkunci tanpa foto.
+7. **Selesai muat** → berangkat → **Lacak**: tekan "Majukan posisi" atau nyalakan
+   "Jalan otomatis" — peta benar-benar bergerak sepanjang rute. Grafik suhu
+   berlabel "Data simulasi — sensor fisik menyusul".
+8. Login sebagai **Penerima** → **Lacak Resi** → masukkan nomor resi → timeline,
+   peta, grafik suhu, dan **INDEKS MUTU** tampil **sebelum** memutuskan.
+   Pilihannya hanya **Terima** atau **Tolak**; tombol Tolak baru muncul kalau
+   penurunan mutu terukur melewati ambang 50%. Tidak ada potongan harga.
+9. **Serah Terima** → atribusi PETANI / LOGISTIK / TIDAK_TERBUKTI / NORMAL
+   dengan **kalimat penjelasan**.
+10. Kembali sebagai petani → **Riwayat**: tiap baris bisa **diklik**, dengan
+    tautan **Lacak** dan **Berita Acara** → cetak (`window.print()` ke PDF).
+11. **Dashboard Dampak** → empat kartu semboyan terisi. **Panel Asumsi** → ubah
+    faktor emisi → kartu emisi ikut berubah.
 
 ## Arsitektur Singkat
 
@@ -90,6 +104,21 @@ kontrak/    openapi.yaml + types.ts + skema.sql  ← kontrak beku antar-modul
   deterministik, berlabel "Data simulasi" di UI.
 - **Vendor logistik** lewat pola adapter: `MOCK` (demo, deterministik) /
   `DELIVEREE` (kerangka).
+- **Rute dua tahap** (`backend/app/domain/rute.py`): titik kumpul → semua lokasi
+  **penjemputan** → semua tujuan, keduanya nearest-neighbor. `jarak_km` (dasar
+  harga) menghitung kedua tahap.
+- **Indeks mutu** (`backend/app/domain/mutu.py`): rata-rata tertimbang sisa umur
+  simpan (Q10) dan ketepatan waktu tempuh — ditampilkan ke penerima **sebelum**
+  dia memutuskan terima/tolak. Murni dari data terpantau; grade tiba sengaja
+  tidak ikut supaya penerima tidak bisa menggerakkan angkanya sendiri.
+- **Alamat & wilayah**: tabel `wilayah` di-seed dari berkas JSON di repo
+  (6.612 baris Jawa Barat, data Kemendagri via [wilayah.id](https://wilayah.id/),
+  diunduh sekali oleh `backend/seed/unduh_wilayah.py`). Autocomplete jalan
+  **tanpa internet**. Reverse geocoding lewat proxy backend
+  (`GET /api/geokode/balik`): memakai Google Geocoding kalau
+  `GOOGLE_MAPS_API_KEY` diisi, kalau tidak jatuh ke wilayah terdekat dari tabel
+  sendiri. **Kunci API tidak pernah masuk browser**, dan demo tetap jalan kalau
+  jaringan bermasalah.
 - **Panel Asumsi**: semua koefisien bisnis hidup di tabel `konfigurasi` +
   `tier_kendaraan` dengan badge TERVERIFIKASI/ASUMSI — tidak ada angka bisnis
   hardcoded di kode.

@@ -75,6 +75,8 @@ def test_telemetri_belum_ada_pengiriman_404(client, db, data_dasar, masuk):
     slot = Slot(
         kode="SM-TELEM-02",
         titik_kumpul_id=tk.id,
+        # K13: petugas melihat muatan yang DITUGASKAN padanya.
+        petugas_id=data_dasar["pengguna"]["titik_kumpul"].id,
         tanggal_kirim=sekarang.date(),
         cutoff_at=sekarang,
         status=StatusSlot.DIBUKA,
@@ -82,6 +84,6 @@ def test_telemetri_belum_ada_pengiriman_404(client, db, data_dasar, masuk):
     )
     db.add(slot)
     db.commit()
-    headers = masuk("081200000011")
+    headers = masuk("081200000001")
     r = client.get(f"/api/lacak/{slot.id}/telemetri", headers=headers)
     assert r.status_code == 404

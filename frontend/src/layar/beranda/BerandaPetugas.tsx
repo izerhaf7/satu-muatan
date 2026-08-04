@@ -1,16 +1,22 @@
-/** Beranda Petugas (§9.2) — sapaan, ringkasan bulan ini sebagai kartu-hero,
- *  tombol buka slot baru, dan daftar slot. Data & hook sama persis dengan
- *  sebelum rombakan visual (§K12) — hanya bahasa tampilan yang berubah. */
+/** Beranda Petugas (§9.2) — sapaan, ringkasan bulan ini, TUGAS SAYA, dan PAPAN
+ *  TUGAS berisi muatan yang bisa diambil.
+ *
+ *  K13: tombol "Buka slot baru" dihapus. Petugas adalah driver Satu Muatan.
+ *  K14: penugasan otomatis diganti papan tugas. K13 menempelkan driver pada
+ *  muatan begitu ia lahir, tanpa batas — satu petugas aktif menyerap SELURUH
+ *  muatan di sistem dan tidak ada satu pun cara mengubahnya. Sekarang muatan
+ *  menunggu diambil, dan satu petugas hanya boleh membawa satu muatan aktif. */
 
-import { Plus } from "lucide-react";
 import type { ReactNode } from "react";
+import { Truck } from "lucide-react";
 
 import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { Skeleton, SkeletonKartu } from "@/komponen/Skeleton";
-import TombolTautan from "@/komponen/TombolTautan";
+import Tombol from "@/komponen/Tombol";
+import { ApiError } from "@/api/client";
 import { useDampakBulanan } from "@/hooks/useDampak";
-import { useDaftarSlot } from "@/hooks/useSlot";
+import { useDaftarSlot, useSlotTersedia, useTerimaTugas } from "@/hooks/useSlot";
 import { useAuthStore } from "@/stores/authStore";
 import { bulanSaatIni, formatAngka, formatBulan, formatRupiah } from "@/utils/format";
 
@@ -19,16 +25,25 @@ import KartuSlotDaftar from "./KartuSlotDaftar";
 export default function BerandaPetugas() {
   const pengguna = useAuthStore((s) => s.pengguna);
   const daftarSlot = useDaftarSlot();
+  const tersedia = useSlotTersedia();
+  const terima = useTerimaTugas();
   const dampak = useDampakBulanan();
 
   const bulanIni = dampak.data?.find((d) => d.bulan === bulanSaatIni()) ?? null;
+
+  const pesanTerima =
+    terima.isError && terima.error instanceof ApiError
+      ? (terima.error.body as { detail?: string } | null)?.detail ?? "Gagal mengambil tugas."
+      : terima.isError
+        ? "Gagal mengambil tugas."
+        : null;
 
   return (
     <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
       <header className="flex flex-col gap-1 pt-1 lg:col-span-2">
         <p className="text-keterangan font-bold uppercase tracking-wide text-daun">Beranda</p>
         <h1 className="text-judul text-tanah">Halo, {pengguna?.nama ?? "Bu/Pak"}</h1>
-        <p className="text-base text-tanah/70">Slot pengiriman titik kumpul kamu</p>
+        <p className="text-base text-tanah/70">Muatan yang ditugaskan untuk kamu bawa</p>
       </header>
 
       <div className="flex flex-col gap-6">
@@ -74,20 +89,56 @@ export default function BerandaPetugas() {
           </div>
           </section>
         )}
-
-        <TombolTautan to="/slot/baru" ikon={Plus} varian="aksi" className="w-full">
-          Buka slot baru
-        </TombolTautan>
       </div>
 
-      <section aria-label="Daftar slot" className="flex flex-col gap-3">
-        <h2 className="text-subjudul text-tanah">Slot kamu</h2>
+      <section aria-label="Tugas saya" className="flex flex-col gap-3">
+        <h2 className="text-subjudul text-tanah">Tugas saya</h2>
         {daftarSlot.isLoading && <SkeletonKartu />}
-        {daftarSlot.isError && <KartuGalat pesan="Gagal memuat daftar slot." onCobaLagi={() => daftarSlot.refetch()} />}
+        {daftarSlot.isError && <KartuGalat pesan="Gagal memuat daftar muatan." onCobaLagi={() => daftarSlot.refetch()} />}
         {daftarSlot.data?.length === 0 && (
-          <KeadaanKosong pesan="Belum ada slot." teksAksi="Buka slot pertama" ke="/slot/baru" />
+          <KeadaanKosong pesan="Belum ada muatan yang kamu bawa. Ambil satu dari papan tugas di bawah." />
         )}
         {daftarSlot.data?.map((slot) => <KartuSlotDaftar key={slot.id} slot={slot} />)}
+      </section>
+
+      <section aria-label="Papan tugas" className="flex flex-col gap-3 lg:col-span-2">
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-subjudul text-tanah">Tersedia diambil</h2>
+          <p className="text-keterangan text-tanah/55">
+            Muatan dari titik kumpulmu yang belum punya sopir. Satu muatan aktif dalam satu waktu.
+          </p>
+        </div>
+
+        {pesanTerima && (
+          <p role="alert" className="text-keterangan font-medium text-tanah-liat">
+            {pesanTerima}
+          </p>
+        )}
+
+        {tersedia.isLoading && <SkeletonKartu />}
+        {tersedia.isError && (
+          <KartuGalat pesan="Gagal memuat papan tugas." onCobaLagi={() => tersedia.refetch()} />
+        )}
+        {tersedia.data?.length === 0 && (
+          <KeadaanKosong pesan="Belum ada muatan yang menunggu sopir. Muatan muncul di sini begitu petani mulai mengirim panen ke arah yang sama." />
+        )}
+
+        <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
+          {tersedia.data?.map((slot) => (
+            <div key={slot.id} className="flex flex-col gap-2">
+              <KartuSlotDaftar slot={slot} />
+              <Tombol
+                type="button"
+                varian="aksi"
+                ikon={Truck}
+                sedangProses={terima.isPending && terima.variables === slot.id}
+                onClick={() => terima.mutate(slot.id)}
+              >
+                Ambil tugas ini
+              </Tombol>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );

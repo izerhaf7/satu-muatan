@@ -1,23 +1,20 @@
-/** Layar Detail Slot (§9.4) — LAYAR UTAMA DEMO. Harga berjalan turun hidup-hidup
- *  di sebelah harga atap yang diam terkunci; juri paham seluruh produk dalam
- *  hitungan detik tanpa penjelasan. Dipoll 3 detik (useDetailSlot). Logika/hook/
- *  polling/pratinjau TIDAK diubah sama sekali — rombakan ini murni visual (§K12). */
+/** Layar "Muatanmu" / Detail Slot (§9.4) — LAYAR UTAMA DEMO. Harga berjalan
+ *  turun hidup-hidup di sebelah harga atap yang diam terkunci; juri paham
+ *  seluruh produk dalam hitungan detik tanpa penjelasan. Dipoll 3 detik.
+ *
+ *  K13: layar ini murni PEMANTAUAN. Tidak ada lagi tombol "Ikut kirim" —
+ *  petani masuk ke sebuah muatan lewat Kirim Panen, bukan dengan memilih. */
 
-import { useState } from "react";
 import { useParams } from "react-router-dom";
 
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
 import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { SkeletonAngka, SkeletonKartu } from "@/komponen/Skeleton";
-import Tombol from "@/komponen/Tombol";
 import { useDetailSlot } from "@/hooks/useDetailSlot";
-import type { LuapanKapasitasOut } from "@/hooks/useGabung";
 import { useAuthStore } from "@/stores/authStore";
 
 import DaftarPeserta from "./detail-slot/DaftarPeserta";
-import DialogLuapanKapasitas from "./detail-slot/DialogLuapanKapasitas";
-import FormIkutKirim from "./detail-slot/FormIkutKirim";
 import HargaBerjalanHero from "./detail-slot/HargaBerjalanHero";
 import HeaderDetailSlot from "./detail-slot/HeaderDetailSlot";
 import KapasitasTierBar from "./detail-slot/KapasitasTierBar";
@@ -29,8 +26,6 @@ export default function DetailSlot() {
   const { id } = useParams();
   const pengguna = useAuthStore((s) => s.pengguna);
   const detail = useDetailSlot(id);
-  const [formTerbuka, setFormTerbuka] = useState(false);
-  const [luapanInfo, setLuapanInfo] = useState<LuapanKapasitasOut | null>(null);
 
   if (!id) {
     return (
@@ -47,17 +42,8 @@ export default function DetailSlot() {
     detail.data?.atap_saya_per_kg !== null &&
     detail.data?.atap_saya_per_kg !== undefined;
 
-  const tampilkanCtaIkutKirim =
-    pengguna?.peran === "PETANI" &&
-    detail.data?.status === "DIBUKA" &&
-    (detail.data?.atap_saya_per_kg === null || detail.data?.atap_saya_per_kg === undefined);
-
   return (
-    <div
-      className={`flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start ${
-        tampilkanCtaIkutKirim ? "pb-24 lg:pb-0" : ""
-      }`}
-    >
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
       <div className="lg:col-span-2">
         {detail.data ? (
           <HeaderDetailSlot slot={detail.data} />
@@ -119,21 +105,9 @@ export default function DetailSlot() {
             )}
           </div>
 
-          {tampilkanCtaIkutKirim && (
-            <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 mx-auto max-w-md border-t border-kabut bg-kertas/95 p-4 backdrop-blur-sm lg:static lg:col-span-2 lg:mx-0 lg:max-w-none lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
-              <Tombol type="button" varian="aksi" className="w-full" onClick={() => setFormTerbuka(true)}>
-                Ikut kirim
-              </Tombol>
-            </div>
-          )}
-
-          <FormIkutKirim
-            slotId={detail.data.id}
-            terbuka={formTerbuka}
-            onTutup={() => setFormTerbuka(false)}
-            onLuapan={setLuapanInfo}
-          />
-          <DialogLuapanKapasitas info={luapanInfo} onTutup={() => setLuapanInfo(null)} />
+          {/* K13: tombol "Ikut kirim" DIHAPUS. Petani tidak memilih muatan —
+              dia mengirim panen lewat layar Kirim Panen dan sistem yang
+              mencocokkan. Layar ini murni untuk memantau harga & progres. */}
         </>
       )}
     </div>

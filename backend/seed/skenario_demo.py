@@ -52,9 +52,9 @@ from app.models import (  # noqa: E402
     Partisipasi,
     Penerima,
     Pengiriman,
-    Permintaan,
     SerahTerima,
     Slot,
+    SlotJemput,
     SlotTujuan,
     Telemetri,
     TitikKumpul,
@@ -134,12 +134,16 @@ def reset_ke_awal_demo(db: Session) -> dict[str, int]:
     # Kiriman (v2 §3) — tidak ada di slot riwayat, jadi selalu ikut dibersihkan.
     db.query(Kiriman).delete(synchronize_session=False)
     db.query(Pengiriman).filter(~Pengiriman.slot_id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
+    # K14: `slot_jemput` mereferensikan `partisipasi`, jadi WAJIB dihapus lebih
+    # dulu — tanpa ini reset demo gagal dengan ForeignKeyViolation.
+    db.query(SlotJemput).filter(~SlotJemput.slot_id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
     db.query(Partisipasi).filter(~Partisipasi.slot_id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
     db.query(SlotTujuan).filter(~SlotTujuan.slot_id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
-    db.query(Permintaan).filter(
-        (Permintaan.slot_id.is_(None)) | (~Permintaan.slot_id.in_(slot_riwayat_ids))
-    ).delete(synchronize_session=False)
     db.query(Slot).filter(~Slot.id.in_(slot_riwayat_ids)).delete(synchronize_session=False)
+    # K13: buang alamat tujuan bentukan sistem dari sesi demo sebelumnya, supaya
+    # buku alamat tidak menggelembung tiap kali demo diulang. Baris seed
+    # (dibuat_otomatis=False) selalu dipertahankan.
+    db.query(Penerima).filter(Penerima.dibuat_otomatis.is_(True)).delete(synchronize_session=False)
 
     _reset_konfigurasi_default(db)
     db.commit()
@@ -225,7 +229,7 @@ def bangun_cheat_sheet(db: Session) -> str:
     L = []
     add = L.append
     add("=" * 78)
-    add("CHEAT-SHEET SKENARIO DEMO v2 (spec §8.2) -- angka DIHITUNG LIVE oleh mesin")
+    add("CHEAT-SHEET SKENARIO DEMO v4 (K14) -- angka DIHITUNG LIVE oleh mesin")
     add("Sumber koefisien: tabel konfigurasi, tier_kendaraan & komoditas saat script")
     add("ini dijalankan (bukan hardcoded). Kalau beda dari catatan demo, mesin yang benar.")
     add("=" * 78)
@@ -233,7 +237,11 @@ def bangun_cheat_sheet(db: Session) -> str:
     add(f"Muatan demo (satu tujuan, alur Kirim Panen): {titik_kumpul.nama} -> {cibiru.nama}")
     add(f"  jarak_km = {round(jarak_km, 2)} · ambang_transit_menit = {ambang_menit}")
     add("")
-    add("Langkah 1. Login Petani Asep -> \"Kirim Panen\": Dapur Katering Cibiru, sawi,")
+    add("Langkah 1. Login Petani Asep -> \"Kirim Panen\". Tandai TITIK JEMPUT (tombol")
+    add("   'Gunakan lokasi saya' / ketuk peta -> alamat terbaca otomatis; ketik nama")
+    add("   desa untuk autocomplete daerah), lalu TUJUAN dengan cara yang sama.")
+    add("   Volume di bawah 50 kg ditolak DI LAYAR, bukan setelah dikirim.")
+    add("   Tujuan Dapur Katering Cibiru, sawi,")
     add(f"   300 kg, besok -> atap {_rp(atap_by_nama['Asep'])}/kg, potensi ± {_rp(potensi_pratinjau)}/kg")
     add("")
     add("Langkah 2. Kirim -> sistem buka muatan baru -> layar \"Muatanmu\" (Detail Slot).")
@@ -248,19 +256,29 @@ def bangun_cheat_sheet(db: Session) -> str:
         f"Hemat {_rp(hemat_asep_rp)}.\""
     )
     add("")
-    add(f"Langkah 5. Login Petugas (Asep) -> tutup slot -> sistem memilih {tier_ringkas} untuk {kumulatif} kg.")
+    add("Langkah 5. Login Petugas -> Beranda: muatan menunggu di PAPAN TUGAS.")
+    add("   Tekan 'Ambil tugas ini'. Mengambil muatan kedua -> DITOLAK (batas 1 aktif).")
+    add(f"   Tutup muatan -> sistem memilih {tier_ringkas} untuk {kumulatif} kg.")
     add(f"   biaya_total = {_rp(hasil.biaya_total)}, selisih_jaminan_atap = {_rp(hasil.subsidi_koperasi)}")
-    add("   Muat: timbang 4 lot, foto, grade mutu: 3 lot \"Sangat baik\", 1 lot \"Cukup\".")
+    add("   Muat: RUTE PENJEMPUTAN berurutan tampil (nomor, petani, alamat, jarak,")
+    add("   tombol arah jalan). Timbang tiap lot -- FOTO MUAT WAJIB, tombol simpan")
+    add("   terkunci tanpa foto. Grade mutu: 3 lot \"Sangat baik\", 1 lot \"Cukup\".")
     add("")
-    add("Langkah 6. Berangkat -> Lacak: grafik suhu naik siang hari (label 'Data simulasi').")
+    add("Langkah 6. Berangkat -> Lacak: tekan 'Majukan posisi' atau nyalakan 'Jalan")
+    add("   otomatis' -- peta benar-benar bergerak sepanjang rute.")
+    add("   Grafik suhu naik siang hari (label 'Data simulasi').")
     add(
         f"   Kartu: suhu maks {paparan.suhu_maks_c:.1f} °C, suhu rata-rata {paparan.suhu_rata_c:.1f} °C, "
         f"sisa umur simpan {paparan.sisa_umur_simpan_persen}%"
     )
     add("")
-    add("Langkah 7. Serah Terima: 3 lot TERIMA, 1 lot POTONG 20% -> atribusi PETANI")
-    add("   (grade asal di bawah standar) + kalimat penjelasan.")
-    add("Langkah 8. Berita Acara -> cetak (window.print()).")
+    add("Langkah 7. Serah Terima: penerima melihat GRAFIK PERJALANAN + INDEKS MUTU dulu,")
+    add("   baru memutuskan. Pilihannya hanya TERIMA atau TOLAK -- tidak ada potongan")
+    add("   harga (K14). Tombol Tolak baru muncul kalau penurunan mutu yang diukur")
+    add("   sistem melewati ambang; server ikut menolak permintaan yang tidak memenuhi.")
+    add("   Lot bergrade asal di bawah standar -> atribusi PETANI + kalimat penjelasan.")
+    add("Langkah 8. Riwayat petani: tiap baris BISA DIKLIK, dengan tautan Lacak &")
+    add("   Berita Acara -> cetak (window.print()).")
     add("Langkah 9. Dashboard Dampak -> EMPAT kartu semboyan terisi (8 slot riwayat + demo).")
     add("Langkah 10. Panel Asumsi -> ubah faktor emisi -> kartu emisi ikut berubah.")
     add("")

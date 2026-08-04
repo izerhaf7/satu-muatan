@@ -26,7 +26,13 @@ export default function HeaderDetailSlot({ slot }: HeaderDetailSlotProps) {
         kembaliKe="/beranda"
         aksi={<BadgeStatus status={slot.status} />}
       />
-      {slot.status === "DIBUKA" && <HitungMundur cutoffAt={slot.cutoff_at} waktuServer={slot.waktu_server} />}
+      {slot.status === "DIBUKA" && (
+        <HitungMundur
+          cutoffAt={slot.cutoff_at}
+          cutoffLewat={slot.cutoff_lewat}
+          waktuServer={slot.waktu_server}
+        />
+      )}
     </div>
   );
 }

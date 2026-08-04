@@ -12,9 +12,9 @@ type LotBeritaOut = components["schemas"]["LotBeritaOut"];
 type KeputusanSerahTerima = components["schemas"]["KeputusanSerahTerima"];
 type Atribusi = components["schemas"]["Atribusi"];
 
+// K14: "Potong" dihapus — penerima tidak punya tuas komersial.
 const labelKeputusan: Record<KeputusanSerahTerima, string> = {
   TERIMA: "Terima",
-  POTONG: "Potong",
   TOLAK: "Tolak",
 };
 
@@ -69,8 +69,8 @@ export default function TabelLot({ lot }: TabelLotProps) {
                 {serah_terima ? (
                   <>
                     {labelKeputusan[serah_terima.keputusan]}
-                    {serah_terima.keputusan === "POTONG" && (
-                      <span className="angka text-tanah/70"> {serah_terima.persen_potongan}%</span>
+                    {serah_terima.indeks_mutu !== null && serah_terima.indeks_mutu !== undefined && (
+                      <span className="angka text-tanah/70"> · mutu {serah_terima.indeks_mutu}</span>
                     )}
                   </>
                 ) : (

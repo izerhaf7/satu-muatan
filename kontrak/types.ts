@@ -64,6 +64,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/aturan-kiriman": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Aturan Kiriman
+         * @description K14: ambang kiriman untuk divalidasi di layar Kirim Panen — supaya petani
+         *     tahu batasnya SEBELUM menekan tombol, bukan lewat galat 422 sesudahnya.
+         */
+        get: operations["aturan_kiriman_api_aturan_kiriman_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/komoditas": {
         parameters: {
             query?: never;
@@ -110,6 +131,51 @@ export interface paths {
          * @description Titik kumpul milik pengguna login (titik awal rute). Rename v2 §2: dulu /koperasi/saya.
          */
         get: operations["titik_kumpul_saya_api_titik_kumpul_saya_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/wilayah/cari": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Cari Wilayah
+         * @description Autocomplete daerah dari tabel `wilayah` (data Kemendagri, di-seed lokal).
+         *
+         *     Yang diawali kata kunci diutamakan daripada yang sekadar mengandungnya —
+         *     mengetik "cika" harus memunculkan Cikajang lebih dulu, bukan nama panjang
+         *     yang kebetulan memuat potongan itu di tengah.
+         */
+        get: operations["cari_wilayah_api_wilayah_cari_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/geokode/balik": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Geokode Balik Endpoint
+         * @description Koordinat → alamat. Hasilnya di-cache per titik yang dibulatkan, jadi
+         *     ketukan berulang di peta tidak pernah memanggil jaringan dua kali.
+         */
+        get: operations["geokode_balik_endpoint_api_geokode_balik_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -186,27 +252,6 @@ export interface paths {
         patch: operations["ubah_tier_api_tier_kendaraan__tier_id__patch"];
         trace?: never;
     };
-    "/api/permintaan": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Daftar Permintaan
-         * @description Ter-scope per peran (K6): PENERIMA -> miliknya; PETUGAS (& lainnya) -> semua yang terbuka.
-         */
-        get: operations["daftar_permintaan_api_permintaan_get"];
-        put?: never;
-        /** Buat Permintaan */
-        post: operations["buat_permintaan_api_permintaan_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/kiriman": {
         parameters: {
             query?: never;
@@ -219,8 +264,10 @@ export interface paths {
         /**
          * Kirim Panen
          * @description Kirim panen — sistem cocokkan ke muatan (baru atau yang sudah ada, §3.4).
-         *     Menggantikan alur 'pilih slot → gabung'. PETUGAS pun bisa kirim — dia juga
-         *     petani yang ditunjuk (§2.3).
+         *     Menggantikan alur 'pilih slot → gabung'.
+         *
+         *     K14: hanya PETANI. Petugas adalah driver Satu Muatan — dia menjemput dan
+         *     mengantar panen orang lain, bukan menyetorkan panennya sendiri.
          */
         post: operations["kirim_panen_api_kiriman_post"];
         delete?: never;
@@ -263,18 +310,40 @@ export interface paths {
          */
         get: operations["daftar_slot_api_slot_get"];
         put?: never;
-        /**
-         * Buka Slot
-         * @description Buka slot baru (§9.3). Server menghitung urutan drop nearest-neighbor + jarak_km.
-         */
-        post: operations["buka_slot_api_slot_post"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/api/slot/pratinjau": {
+    "/api/slot/tersedia": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Slot Tersedia
+         * @description K14: PAPAN TUGAS — muatan yang belum punya driver dan berangkat dari titik
+         *     kumpul petugas ini.
+         *
+         *     K13 menugaskan driver otomatis saat muatan lahir, tanpa batas: satu petugas
+         *     aktif menyerap SELURUH muatan di sistem, dan tidak ada satu pun endpoint yang
+         *     bisa mengubahnya. Sekarang muatan menunggu diambil, dan pengambilan itu
+         *     tindakan sadar driver.
+         */
+        get: operations["slot_tersedia_api_slot_tersedia_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/slot/{slot_id}/terima": {
         parameters: {
             query?: never;
             header?: never;
@@ -284,10 +353,14 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Pratinjau Slot
-         * @description Pratinjau §9.3: jarak rute + tabel harga/kg pada berbagai skenario volume.
+         * Terima Tugas
+         * @description K14: petugas mengambil satu muatan — dan HANYA satu dalam satu waktu.
+         *
+         *     Batasnya dari konfigurasi (`maks_muatan_aktif_per_petugas`), bukan angka di
+         *     kode (CLAUDE.md aturan #1). Sopir tidak bisa membawa dua truk sekaligus;
+         *     membiarkannya menumpuk tugas membuat papan tugas jadi hiasan.
          */
-        post: operations["pratinjau_slot_api_slot_pratinjau_post"];
+        post: operations["terima_tugas_api_slot__slot_id__terima_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -462,8 +535,11 @@ export interface paths {
         };
         /**
          * Lot Masuk
-         * @description 'Pilih dari daftar' (§9.7, K6): lot menuju penerima login yang belum
-         *     diserahterimakan — jalur demo teraman.
+         * @description 'Pilih dari daftar' (§9.7) — kenyamanan demo di samping pencarian resi.
+         *
+         *     K13: akun penerima yang masih terikat satu alamat tetap (data seed) dibatasi
+         *     ke alamat itu; akun tanpa ikatan melihat semua lot yang sedang jalan, karena
+         *     tujuan kini bebas dan kepemilikan ditentukan oleh nomor resi.
          */
         get: operations["lot_masuk_api_lot_masuk_get"];
         put?: never;
@@ -483,7 +559,12 @@ export interface paths {
         };
         /**
          * Bukti Lot
-         * @description Bukti lot dari scan QR: foto muat, berat, waktu, transit berjalan vs ambang.
+         * @description Bukti lot dari NOMOR RESI: foto muat, berat, waktu, transit berjalan vs ambang.
+         *
+         *     K13: tidak ada lagi cek `lot.penerima_id == pengguna.penerima_id`. Tujuan kini
+         *     bebas ditulis petani, jadi penerima tidak terikat satu alamat tetap —
+         *     memegang nomor resi itu sendiri yang menjadi bukti berhak, persis seperti
+         *     surat jalan sungguhan.
          */
         get: operations["bukti_lot_api_lot_qr__kode_qr__get"];
         put?: never;
@@ -505,7 +586,12 @@ export interface paths {
         put?: never;
         /**
          * Serah Terima
-         * @description Terima / Terima dengan potongan / Tolak -> atribusi + PENJELASAN (§6, §9.7).
+         * @description Terima / Tolak -> atribusi + PENJELASAN (§6, §9.7).
+         *
+         *     K13: berhak menerima = memegang nomor resinya (lihat `bukti_lot`).
+         *     K14: tidak ada lagi "terima dengan potongan", dan TOLAK hanya sah kalau
+         *     penurunan mutu yang DIUKUR SISTEM melewati ambang. Aturan itu ditegakkan di
+         *     sini, bukan cuma disembunyikan tombolnya — klien tidak boleh dipercaya.
          */
         post: operations["serah_terima_api_lot__lot_id__serah_terima_post"];
         delete?: never;
@@ -555,6 +641,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lacak/resi/{kode_resi}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Perjalanan Resi
+         * @description K14: seluruh perjalanan satu resi — timeline, jejak posisi, dan telemetri.
+         *
+         *     Otorisasinya RESI, bukan alamat. `pastikan_bisa_lihat_slot` untuk penerima
+         *     masih membandingkan `pengguna.penerima_id` dengan tujuan muatan, dan K13
+         *     membuat tujuan bebas — jadi jalur itu tidak lagi bisa dipakai penerima yang
+         *     sah. Memegang nomor resi adalah buktinya, persis seperti surat jalan.
+         */
+        get: operations["perjalanan_resi_api_lacak_resi__kode_resi__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pengiriman/{pengiriman_id}/majukan": {
         parameters: {
             query?: never;
@@ -569,6 +680,31 @@ export interface paths {
          * @description Majukan state simulasi MockVendor satu langkah (K5) — deterministik, untuk demo.
          */
         post: operations["majukan_pengiriman_api_pengiriman__pengiriman_id__majukan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pengiriman/{pengiriman_id}/geser": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Geser Posisi
+         * @description K13: majukan POSISI kendaraan satu langkah sepanjang rute, bukan status.
+         *
+         *     Tiap panggilan menulis satu titik `JejakPosisi` hasil interpolasi + satu
+         *     sampel telemetri, sehingga peta benar-benar bergerak saat didemokan.
+         *     Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
+         *     "jalan otomatis" di layar Lacak.
+         */
+        post: operations["geser_posisi_api_pengiriman__pengiriman_id__geser_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -684,6 +820,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/demo/muatan/{slot_id}/berangkatkan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Berangkatkan Demo
+         * @description K13 (tambahan demo): SATU tombol — tutup muatan → terbitkan resi → timbang
+         *     otomatis → berangkat, supaya pelacakan bisa langsung didemokan tanpa mengetik
+         *     berat & foto satu per satu di depan juri.
+         *
+         *     Sengaja memanggil ulang handler sungguhan (`tutup_slot`, `selesai_muat`)
+         *     supaya jalan pintas ini TIDAK PERNAH menyimpang dari alur asli — kalau alur
+         *     aslinya berubah, jalan pintas ini ikut berubah dengan sendirinya.
+         */
+        post: operations["berangkatkan_demo_api_demo_muatan__slot_id__berangkatkan_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/healthz": {
         parameters: {
             query?: never;
@@ -707,16 +869,67 @@ export interface components {
     schemas: {
         /**
          * AkunDemo
-         * @description Akun demo (v2 §8). Tombol masuk cepat di layar Masuk; Dedi & Ijah masuk
-         *     manual via nomor HP + PIN di skenario demo.
+         * @description Akun demo (v2 §8). Tombol masuk cepat di layar Masuk untuk Petugas/Wati/
+         *     Dedi/Penerima; Ijah masuk manual via nomor HP + PIN di skenario demo.
          * @enum {string}
          */
         AkunDemo: "PETUGAS" | "PETANI_WATI" | "PETANI_DEDI" | "PETANI_IJAH" | "PENERIMA_CIBIRU";
+        /**
+         * AlamatIn
+         * @description Alamat terstruktur mengikuti standar penulisan ekspedisi Indonesia (K14).
+         *
+         *     Satu baris teks bebas tidak cukup untuk logistik sungguhan: kurir butuh nama
+         *     & nomor telepon yang bisa dihubungi, komponen wilayah yang bisa dibaca
+         *     terpisah, kode pos, dan patokan. Surat jalan pun mensyaratkan data pengirim
+         *     dan penerima yang lengkap, bukan sekadar "Warung Bu Imas".
+         *
+         *     Hanya `alamat` (ringkasan) yang wajib — sisanya boleh menyusul supaya petani
+         *     tidak terkunci di formulir panjang saat sedang di kebun.
+         */
+        AlamatIn: {
+            /** Alamat */
+            alamat: string;
+            /** Nama */
+            nama?: string | null;
+            /** Telepon */
+            telepon?: string | null;
+            /** Jalan */
+            jalan?: string | null;
+            /** Rt Rw */
+            rt_rw?: string | null;
+            /** Desa */
+            desa?: string | null;
+            /** Kecamatan */
+            kecamatan?: string | null;
+            /** Kabupaten */
+            kabupaten?: string | null;
+            /** Provinsi */
+            provinsi?: string | null;
+            /** Kode Pos */
+            kode_pos?: string | null;
+            /** Patokan */
+            patokan?: string | null;
+        };
         /**
          * Atribusi
          * @enum {string}
          */
         Atribusi: "PETANI" | "LOGISTIK" | "TIDAK_TERBUKTI" | "NORMAL";
+        /**
+         * AturanKirimanOut
+         * @description K14: ambang yang harus DIKETAHUI petani sebelum menekan Kirim.
+         *
+         *     Panel Asumsi hanya boleh dibaca PETUGAS, jadi klien petani dulu tidak punya
+         *     cara tahu batas 50 kg — tombol Kirim tetap aktif di 10 kg dan petani baru
+         *     ditolak setelah mengirim. Nilainya tetap datang dari tabel `konfigurasi`
+         *     (CLAUDE.md aturan #1), bukan ditanam di frontend.
+         */
+        AturanKirimanOut: {
+            /** Volume Minimal Kg */
+            volume_minimal_kg: number;
+            /** Jarak Maks Layanan Km */
+            jarak_maks_layanan_km: number;
+        };
         /** BeritaAcaraOut */
         BeritaAcaraOut: {
             /** Kode Slot */
@@ -755,6 +968,7 @@ export interface components {
             durasi_transit_berjalan_menit?: number | null;
             /** Ambang Transit Menit */
             ambang_transit_menit: number;
+            mutu?: components["schemas"]["IndeksMutuOut"] | null;
             serah_terima?: components["schemas"]["SerahTerimaOut"] | null;
         };
         /**
@@ -784,6 +998,22 @@ export interface components {
             emisi: components["schemas"]["KartuDampakOut"];
             transparansi_perjalanan: components["schemas"]["KartuDampakOut"];
             keamanan_pangan: components["schemas"]["KartuDampakOut"];
+        };
+        /** DemoBerangkatOut */
+        DemoBerangkatOut: {
+            /**
+             * Slot Id
+             * Format: uuid
+             */
+            slot_id: string;
+            /** Status */
+            status: string;
+            /** Pengiriman Id */
+            pengiriman_id?: string | null;
+            /** Resi */
+            resi: string[];
+            /** Pesan */
+            pesan: string;
         };
         /** DemoResetOut */
         DemoResetOut: {
@@ -822,6 +1052,23 @@ export interface components {
             /** Harga Atap Per Kg */
             harga_atap_per_kg: number;
         };
+        /** GeokodeOut */
+        GeokodeOut: {
+            /** Alamat */
+            alamat: string;
+            /** Desa */
+            desa?: string | null;
+            /** Kecamatan */
+            kecamatan?: string | null;
+            /** Kabupaten */
+            kabupaten?: string | null;
+            /** Provinsi */
+            provinsi?: string | null;
+            /** Kode Pos */
+            kode_pos?: string | null;
+            /** Sumber */
+            sumber: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -831,6 +1078,32 @@ export interface components {
         HealthOut: {
             /** Status */
             status: string;
+        };
+        /**
+         * IndeksMutuOut
+         * @description K14 — penilaian mutu SISTEM, dihitung sebelum penerima memutuskan.
+         *
+         *     Seluruhnya dari data terpantau (telemetri suhu + waktu tempuh). Grade tiba
+         *     sengaja tidak ikut: itu penilaian manusia yang baru ada setelah keputusan,
+         *     dan memasukkannya akan membuat penerima bisa menggerakkan angkanya sendiri.
+         */
+        IndeksMutuOut: {
+            /** Indeks Mutu */
+            indeks_mutu: number;
+            /** Penurunan Mutu Persen */
+            penurunan_mutu_persen: number;
+            /** Skor Umur Simpan */
+            skor_umur_simpan: number;
+            /** Skor Transit */
+            skor_transit: number;
+            /** Sisa Umur Simpan Persen */
+            sisa_umur_simpan_persen?: number | null;
+            /** Boleh Tolak */
+            boleh_tolak: boolean;
+            /** Ambang Tolak Persen */
+            ambang_tolak_persen: number;
+            /** Alasan Boleh Tolak */
+            alasan_boleh_tolak: string;
         };
         /** KartuDampakOut */
         KartuDampakOut: {
@@ -848,9 +1121,16 @@ export interface components {
         };
         /**
          * KeputusanSerahTerima
+         * @description K14: POTONG DIHAPUS. Penerima tidak boleh punya tuas komersial.
+         *
+         *     "Terima dengan potongan" membuat penerima bisa menekan harga sepihak dengan
+         *     alasan mutu yang dia nilai sendiri — dan selama ini `persen_potongan` bahkan
+         *     tidak pernah memengaruhi pembayaran, jadi ia murni ruang tawar-menawar tanpa
+         *     akibat yang tercatat. Pilihannya kini hanya TERIMA atau TOLAK, dan TOLAK
+         *     hanya terbuka kalau penurunan mutu yang DIUKUR SISTEM melewati ambang.
          * @enum {string}
          */
-        KeputusanSerahTerima: "TERIMA" | "POTONG" | "TOLAK";
+        KeputusanSerahTerima: "TERIMA" | "TOLAK";
         /** KirimanCreate */
         KirimanCreate: {
             /**
@@ -871,6 +1151,12 @@ export interface components {
             lng_tujuan: number;
             /** Alamat Tujuan */
             alamat_tujuan: string;
+            rincian_tujuan?: components["schemas"]["AlamatIn"] | null;
+            /** Lat Asal */
+            lat_asal?: number | null;
+            /** Lng Asal */
+            lng_asal?: number | null;
+            rincian_asal?: components["schemas"]["AlamatIn"] | null;
         };
         /**
          * KirimanPratinjauResponse
@@ -883,10 +1169,6 @@ export interface components {
             harga_potensial_per_kg?: number | null;
             /** Slot Cocok Ada */
             slot_cocok_ada: boolean;
-            /** Penerima Terdekat Id */
-            penerima_terdekat_id?: string | null;
-            /** Nama Penerima Terdekat */
-            nama_penerima_terdekat?: string | null;
             /** Jarak Ke Penerima Km */
             jarak_ke_penerima_km?: number | null;
             /** Pesan */
@@ -972,6 +1254,8 @@ export interface components {
              * Format: uuid
              */
             partisipasi_id: string;
+            /** Slot Id */
+            slot_id?: string | null;
             /** Nama Petani */
             nama_petani: string;
             /** Nama Komoditas */
@@ -1020,7 +1304,7 @@ export interface components {
         MasukRequest: {
             /**
              * No Hp
-             * @example 081234567001
+             * @example 81234567001
              */
             no_hp: string;
             /**
@@ -1200,59 +1484,20 @@ export interface components {
          * @enum {string}
          */
         PeranPengguna: "PETANI" | "PETUGAS" | "PENERIMA";
-        /** PermintaanCreate */
-        PermintaanCreate: {
-            /**
-             * Komoditas Id
-             * Format: uuid
-             */
-            komoditas_id: string;
-            /** Volume Kg */
-            volume_kg: number;
-            /**
-             * Tanggal Dibutuhkan
-             * Format: date
-             */
-            tanggal_dibutuhkan: string;
-        };
-        /** PermintaanOut */
-        PermintaanOut: {
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /**
-             * Penerima Id
-             * Format: uuid
-             */
-            penerima_id: string;
-            /** Nama Penerima */
-            nama_penerima: string;
-            /**
-             * Komoditas Id
-             * Format: uuid
-             */
-            komoditas_id: string;
-            /** Nama Komoditas */
-            nama_komoditas: string;
-            /** Volume Kg */
-            volume_kg: number;
-            /** Volume Terpenuhi Kg */
-            volume_terpenuhi_kg: number;
-            /**
-             * Tanggal Dibutuhkan
-             * Format: date
-             */
-            tanggal_dibutuhkan: string;
-            status: components["schemas"]["StatusPermintaan"];
-            /** Slot Id */
-            slot_id?: string | null;
-            /**
-             * Dibuat Pada
-             * Format: date-time
-             */
-            dibuat_pada: string;
+        /**
+         * PerjalananResiOut
+         * @description K14 — seluruh perjalanan satu resi dalam sekali panggil.
+         *
+         *     Penerima berhak melihat SELURUH data perjalanan sebelum memutuskan menerima
+         *     atau menolak; sebelumnya ia hanya mendapat dua angka ringkas dan grafiknya
+         *     cuma bisa dibuka peran lain.
+         */
+        PerjalananResiOut: {
+            pengiriman: components["schemas"]["PengirimanOut"];
+            telemetri: components["schemas"]["TelemetriOut"];
+            titik_kumpul: components["schemas"]["TitikPetaOut"];
+            /** Tujuan */
+            tujuan: components["schemas"]["TitikPetaOut"][];
         };
         /** PosisiOut */
         PosisiOut: {
@@ -1267,25 +1512,6 @@ export interface components {
             waktu: string;
             sumber: components["schemas"]["SumberPosisi"];
         };
-        /** PratinjauSlotRequest */
-        PratinjauSlotRequest: {
-            /** Tujuan */
-            tujuan: string[];
-            /**
-             * Skenario Volume
-             * @description mis. [300, 800, 2000]
-             */
-            skenario_volume: number[];
-        };
-        /** PratinjauSlotResponse */
-        PratinjauSlotResponse: {
-            /** Jarak Km */
-            jarak_km: number;
-            /** Rute */
-            rute: components["schemas"]["RuteSegmenOut"][];
-            /** Tabel Harga */
-            tabel_harga: components["schemas"]["SkenarioHargaOut"][];
-        };
         /**
          * RencanaArmadaOut
          * @description Rencana armada saat ini — sumber denominator bar kapasitas & petunjuk naik kelas tier (§9.4 butir 4).
@@ -1297,6 +1523,32 @@ export interface components {
             biaya_total: number;
             /** Kapasitas Total Kg */
             kapasitas_total_kg: number;
+        };
+        /**
+         * RuteJemputOut
+         * @description K14 — perhentian penjemputan, urut sesuai jalur petugas.
+         *
+         *     Inilah yang membuat peran petugas sebagai penghubung terlihat: dia mendapat
+         *     daftar alamat yang harus didatangi, bukan cuma satu titik kumpul abstrak.
+         */
+        RuteJemputOut: {
+            /** Urutan */
+            urutan: number;
+            /**
+             * Partisipasi Id
+             * Format: uuid
+             */
+            partisipasi_id: string;
+            /** Nama Petani */
+            nama_petani: string;
+            /** Alamat */
+            alamat: string;
+            /** Jarak Segmen Km */
+            jarak_segmen_km: number;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
         };
         /** RuteSegmenOut */
         RuteSegmenOut: {
@@ -1311,15 +1563,17 @@ export interface components {
             nama_penerima: string;
             /** Jarak Segmen Km */
             jarak_segmen_km: number;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
         };
-        /** SerahTerimaCreate */
+        /**
+         * SerahTerimaCreate
+         * @description K14: `persen_potongan` dihapus — hanya TERIMA atau TOLAK, tanpa tawar.
+         */
         SerahTerimaCreate: {
             keputusan: components["schemas"]["KeputusanSerahTerima"];
-            /**
-             * Persen Potongan
-             * @default 0
-             */
-            persen_potongan: number;
             /** Alasan */
             alasan?: string | null;
             /** Foto Bongkar Base64 */
@@ -1352,8 +1606,6 @@ export interface components {
             /** Foto Bongkar */
             foto_bongkar?: string | null;
             keputusan: components["schemas"]["KeputusanSerahTerima"];
-            /** Persen Potongan */
-            persen_potongan: number;
             /** Alasan */
             alasan?: string | null;
             /** Durasi Transit Menit */
@@ -1369,40 +1621,8 @@ export interface components {
             grade_tiba?: number | null;
             /** Sisa Umur Simpan Persen */
             sisa_umur_simpan_persen?: number | null;
-        };
-        /** SkenarioHargaOut */
-        SkenarioHargaOut: {
-            /** Volume Kg */
-            volume_kg: number;
-            /** Harga Per Kg */
-            harga_per_kg: number;
-            /** Biaya Total */
-            biaya_total: number;
-            /** Kendaraan */
-            kendaraan: string[];
-        };
-        /** SlotCreate */
-        SlotCreate: {
-            /**
-             * Tanggal Kirim
-             * Format: date
-             */
-            tanggal_kirim: string;
-            /**
-             * Cutoff At
-             * Format: date-time
-             */
-            cutoff_at: string;
-            /**
-             * Tujuan
-             * @description penerima_id, urutan drop dihitung server (nearest-neighbor)
-             */
-            tujuan: string[];
-            /**
-             * Permintaan Ids
-             * @description permintaan yang hendak dipenuhi slot ini (K6)
-             */
-            permintaan_ids?: string[];
+            /** Indeks Mutu */
+            indeks_mutu?: number | null;
         };
         /**
          * SlotDetailOut
@@ -1428,6 +1648,11 @@ export interface components {
              */
             cutoff_at: string;
             /**
+             * Cutoff Lewat
+             * @default false
+             */
+            cutoff_lewat: boolean;
+            /**
              * Waktu Server
              * Format: date-time
              */
@@ -1435,6 +1660,11 @@ export interface components {
             /** Jarak Km */
             jarak_km: number;
             titik_kumpul: components["schemas"]["TitikKumpulOut"];
+            /**
+             * Jemput
+             * @default []
+             */
+            jemput: components["schemas"]["RuteJemputOut"][];
             /** Tujuan */
             tujuan: components["schemas"]["RuteSegmenOut"][];
             /** Volume Total Kg */
@@ -1480,6 +1710,11 @@ export interface components {
              * Format: date-time
              */
             cutoff_at: string;
+            /**
+             * Cutoff Lewat
+             * @default false
+             */
+            cutoff_lewat: boolean;
             status: components["schemas"]["StatusSlot"];
             /** Jarak Km */
             jarak_km: number;
@@ -1496,12 +1731,7 @@ export interface components {
          * StatusPartisipasi
          * @enum {string}
          */
-        StatusPartisipasi: "TERDAFTAR" | "TERKUNCI" | "DIMUAT" | "SELESAI" | "BATAL";
-        /**
-         * StatusPermintaan
-         * @enum {string}
-         */
-        StatusPermintaan: "TERBUKA" | "TERPENUHI_SEBAGIAN" | "TERPENUHI" | "KEDALUWARSA";
+        StatusPartisipasi: "TERDAFTAR" | "TERKUNCI" | "DIMUAT" | "SELESAI" | "DITOLAK" | "BATAL";
         /**
          * StatusSlot
          * @enum {string}
@@ -1663,6 +1893,15 @@ export interface components {
             /** Lng */
             lng: number;
         };
+        /** TitikPetaOut */
+        TitikPetaOut: {
+            /** Nama */
+            nama: string;
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
         /** TokenResponse */
         TokenResponse: {
             /** Token */
@@ -1681,6 +1920,23 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** WilayahOut */
+        WilayahOut: {
+            /** Kode */
+            kode: string;
+            /** Nama */
+            nama: string;
+            /** Tingkat */
+            tingkat: string;
+            /** Jalur */
+            jalur: string;
+            /** Kode Pos */
+            kode_pos?: string | null;
+            /** Lat */
+            lat?: number | null;
+            /** Lng */
+            lng?: number | null;
         };
     };
     responses: never;
@@ -1777,6 +2033,26 @@ export interface operations {
             };
         };
     };
+    aturan_kiriman_api_aturan_kiriman_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AturanKirimanOut"];
+                };
+            };
+        };
+    };
     daftar_komoditas_api_komoditas_get: {
         parameters: {
             query?: never;
@@ -1833,6 +2109,71 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TitikKumpulOut"];
+                };
+            };
+        };
+    };
+    cari_wilayah_api_wilayah_cari_get: {
+        parameters: {
+            query: {
+                /** @description Potongan nama desa/kecamatan/kabupaten */
+                q: string;
+                batas?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WilayahOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    geokode_balik_endpoint_api_geokode_balik_get: {
+        parameters: {
+            query: {
+                lat: number;
+                lng: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GeokodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1947,59 +2288,6 @@ export interface operations {
             };
         };
     };
-    daftar_permintaan_api_permintaan_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PermintaanOut"][];
-                };
-            };
-        };
-    };
-    buat_permintaan_api_permintaan_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PermintaanCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PermintaanOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     kirim_panen_api_kiriman_post: {
         parameters: {
             query?: never;
@@ -2098,51 +2386,14 @@ export interface operations {
             };
         };
     };
-    buka_slot_api_slot_post: {
+    slot_tersedia_api_slot_tersedia_get: {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SlotCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SlotDetailOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    pratinjau_slot_api_slot_pratinjau_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PratinjauSlotRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -2150,7 +2401,29 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PratinjauSlotResponse"];
+                    "application/json": components["schemas"]["SlotItemOut"][];
+                };
+            };
+        };
+    };
+    terima_tugas_api_slot__slot_id__terima_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotItemOut"];
                 };
             };
             /** @description Validation Error */
@@ -2581,7 +2854,69 @@ export interface operations {
             };
         };
     };
+    perjalanan_resi_api_lacak_resi__kode_resi__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kode_resi: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PerjalananResiOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     majukan_pengiriman_api_pengiriman__pengiriman_id__majukan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pengiriman_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PengirimanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    geser_posisi_api_pengiriman__pengiriman_id__geser_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -2719,6 +3054,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DemoResetOut"];
+                };
+            };
+        };
+    };
+    berangkatkan_demo_api_demo_muatan__slot_id__berangkatkan_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DemoBerangkatOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

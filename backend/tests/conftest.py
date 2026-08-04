@@ -31,12 +31,16 @@ PIN_DEMO = "123456"
 _SEMUA_TABEL = [
     "serah_terima",
     "jejak_posisi",
+    "telemetri",
     "lot",
     "pengiriman",
+    "kiriman",
+    "slot_jemput",
     "partisipasi",
     "slot_tujuan",
-    "permintaan",
     "slot",
+    "wilayah",
+    "geokode_cache",
     "pengguna",
     "tier_kendaraan",
     "konfigurasi",
@@ -219,3 +223,42 @@ def masuk(client):
         return {"Authorization": f"Bearer {token}"}
 
     return _masuk
+
+
+@pytest.fixture()
+def ambil_tugas(client):
+    """K14: muatan lahir tanpa driver — petugas harus mengambilnya dari papan
+    tugas sebelum boleh menutup, memuat, atau memberangkatkan."""
+
+    def _ambil(header: dict, slot_id) -> None:
+        r = client.post(f"/api/slot/{slot_id}/terima", headers=header)
+        assert r.status_code == 200, r.text
+
+    return _ambil
+
+
+@pytest.fixture()
+def kirim_panen(client):
+    """K13: satu-satunya jalan masuk ke sebuah muatan.
+
+    Endpoint `POST /api/slot` (buka slot) sudah tidak ada — muatan lahir sendiri
+    dari kiriman petani, jadi test pun harus lewat pintu yang sama seperti
+    pengguna sungguhan."""
+
+    def _kirim(header: dict, komoditas_id, volume_kg: int, tujuan, tanggal_siap, alamat: str | None = None):
+        lat, lng = tujuan
+        r = client.post(
+            "/api/kiriman",
+            headers=header,
+            json={
+                "komoditas_id": str(komoditas_id),
+                "volume_kg": volume_kg,
+                "tanggal_siap": str(tanggal_siap),
+                "lat_tujuan": lat,
+                "lng_tujuan": lng,
+                "alamat_tujuan": alamat or f"Tujuan {lat:.4f},{lng:.4f}",
+            },
+        )
+        return r
+
+    return _kirim

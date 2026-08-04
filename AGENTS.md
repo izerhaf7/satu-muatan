@@ -37,13 +37,14 @@ uvicorn app.main:app --reload --port 8100
 cd backend
 pytest -v
 pytest tests/test_harga_domain.py -v
+pytest tests/test_api_kiriman.py::test_kiriman_pertama_membuka_muatan_baru -v
 
 # Frontend
 cd frontend
 npm install
 npm run dev      # http://localhost:5173
 npm run build    # tsc --noEmit && vite build
-npm run test     # vitest run
+npm run test     # currently exits 1: Vitest is configured but no test files exist
 ```
 
 > **Port 8100, not 8000.** Port 8000 is used by another local service. Use `127.0.0.1`, not `localhost`, on Windows to avoid IPv6 Docker stalls.
@@ -54,7 +55,9 @@ npm run test     # vitest run
 - Health: `GET /healthz`.
 - Config: `backend/app/config.py` reads `.env`. In production, env vars are injected by the platform; do not commit `.env`.
 - DB: `backend/app/database.py` (SQLAlchemy 2, `DeclarativeBase`). Models live in `backend/app/models/`.
-- Domain: pure functions in `backend/app/domain/` (armada, harga, atribusi, dampak). No DB, no I/O, no `datetime.now()`.
+- Domain: pure functions in `backend/app/domain/` (including armada, harga, pencocokan, rute, paparan, mutu, atribusi, dampak). No DB, no I/O, no `datetime.now()`.
+- Current product flow is defined by `KEPUTUSAN.md` K13/K14: only PETANI creates `/api/kiriman`; the system creates/matches a load; PETUGAS claims an unassigned load from `/api/slot/tersedia`; route is pickup-first then delivery; PENERIMA tracks and receives by receipt number. Do not restore `POST /api/slot`, `/slot/baru`, recipient demand, automatic driver assignment, or price-cut decisions.
+- Address autocomplete is local DB data (`wilayah`). Reverse geocoding is backend-only: optional Google key, local nearest-region fallback, cached result. Never expose `GOOGLE_MAPS_API_KEY` to frontend.
 - Vendor adapter: `backend/app/adapters/` — `MOCK` (default, deterministic) and `DELIVEREE` (stub). Set via `VENDOR_ADAPTER`.
 - Auth: JWT, PIN 6 digits. Demo login endpoint is active when `DEMO_MODE=true`.
 - No lint/format/typecheck tools are configured (no ruff, black, prettier, eslint). Keep code clean and match existing style.
@@ -65,10 +68,11 @@ npm run test     # vitest run
 - State: Zustand (`frontend/src/stores/`). Server state: TanStack Query.
 - API client: `frontend/src/api/client.ts`. `BASE_URL = import.meta.env.VITE_API_URL ?? ""`. Calls are already prefixed with `/api/...`.
 - Vite dev proxy: `/api` → `http://127.0.0.1:8100`.
-- PWA: `VitePWA` with `injectManifest` strategy (not `generateSW`), `src/sw.ts`. Precaches `woff2` fonts.
+- PWA: `VitePWA` with `injectManifest` strategy (not `generateSW`), `src/sw.ts`. Precaches shell + `woff2`; never cache API data.
+- React runs under `StrictMode`. Keep Leaflet inside `BingkaiPeta`; react-leaflet 4 can destroy its map during StrictMode's simulated remount. Keep `BatasGalat` outside `Suspense` so stale lazy chunks do not become a blank screen.
 - Tailwind: 5-color palette only (`tanah`, `kertas`, `daun`, `tanah-liat`, `kabut`). Use opacity modifiers (`/5`, `/10`, `/20`, `/40`, `/60`, `/80`) for tones.
 - Design system: minimum touch target 48 px, body base 16 px, custom font sizes `keterangan`, `subjudul`, `judul`, `display`.
-- Mobile-first: layout max-width `max-w-md`, no heavy desktop chrome.
+- Mobile-first: core flow must work at 360 px; authenticated shell expands at desktop breakpoints, so do not force every screen to `max-w-md`.
 - Mock dev mode: `VITE_MOCK=1 npm run dev` activates `frontend/vite.mockApi.ts` for local UI-only development.
 
 ## Database / migrations
@@ -81,10 +85,10 @@ npm run test     # vitest run
 ## Tests
 
 - Backend tests: `backend/tests/`. `conftest.py` sets `DATABASE_URL` to `satu_muatan_test` at module import time (before `app.config.get_settings()` is cached).
-- Tests reset the schema once per session and truncate all tables before each test.
+- Tests **drop and recreate the `public` schema** in `satu_muatan_test` once per session, then truncate all tables before each test. Never point pytest at the dev or production DB.
 - Domain tests are independent of DB; API/integration tests need the Postgres container running.
 - Run a single test: `pytest tests/test_harga_domain.py -v` or `pytest tests/test_api_auth.py::test_masuk_berhasil -v`.
-- Frontend: `vitest` configured via `package.json` scripts. No test files exist yet.
+- Frontend: `vitest` is configured but no test files exist; `npm run test` therefore exits 1. Use `npm run build` as the frontend verification gate until tests are added.
 
 ## Deploy / env
 
@@ -101,6 +105,7 @@ npm run test     # vitest run
 - No AI trail in commit messages (no `Co-Authored-By`).
 - `kontrak/` is frozen; only the `arsitek` agent may change it. Other agents must stop and report if they need contract changes.
 - Worktrees (`../sm-domain`, `../sm-api`, etc.) may be used. Copy `CLAUDE.md`, `KEPUTUSAN.md`, and `spek_satu_muatan.md` from the main checkout before working there.
+- Repo may already contain broad uncommitted K13/K14 work. Inspect status first and never reset, overwrite, or fold unrelated changes into the task.
 
 ## Scope guard
 

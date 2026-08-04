@@ -30,7 +30,7 @@ export default function PanelTutupSlot({ slotId }: PanelTutupSlotProps) {
         <div className="flex flex-col gap-4">
           <p className="text-base text-tanah/80">
             Harga final akan ditetapkan dari volume yang terkumpul sekarang. Petani yang sudah bergabung tidak akan
-            ditagih di atas harga atapnya — kalau ada selisih, selisihnya dijamin platform. Slot yang sudah ditutup Slot yang sudah ditutup
+            ditagih di atas harga atapnya — kalau ada selisih, selisihnya dijamin platform. Slot yang sudah ditutup
             tidak bisa dibuka kembali.
           </p>
           {tutupSlot.isError && <p className="text-keterangan text-tanah-liat">Gagal menutup slot. Coba lagi.</p>}

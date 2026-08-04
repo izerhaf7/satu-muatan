@@ -56,6 +56,62 @@ def _tujuan_3_sppg(data_dasar) -> list[str]:
     return [str(penerima["cibiru"].id), str(penerima["ujungberung"].id), str(penerima["panyileukan"].id)]
 
 
+def _buat_muatan_3_tujuan(db, data_dasar, kode="SM-DEMO-01"):
+    """Muatan 3 tujuan dengan rute nearest-neighbor SUNGGUHAN (= 70,03 km, K2).
+
+    K13 menghapus `POST /api/slot`: muatan lahir dari kiriman petani dan selalu
+    mulai dari satu tujuan. Untuk test angka acuan K1/K2 kita tetap butuh rute
+    3-tujuan yang persis sama, jadi muatannya dirakit langsung lewat ORM memakai
+    fungsi rute yang sama dengan yang dipakai produksi — bukan angka yang diketik
+    ulang di sini (CLAUDE.md aturan #1).
+    """
+    from decimal import Decimal
+
+    from app.domain.armada import TujuanInput, urutkan_tujuan_nearest_neighbor
+    from app.models import Slot, SlotTujuan
+    from app.models.enums import StatusSlot
+    from app.services.konfigurasi import baca_konfigurasi
+
+    tk = data_dasar["titik_kumpul"]
+    penerima = data_dasar["penerima"]
+    faktor_jalan = baca_konfigurasi(db, "faktor_jalan")
+    urutan = urutkan_tujuan_nearest_neighbor(
+        (tk.lat, tk.lng),
+        [
+            TujuanInput(penerima_id=p.id, lat=p.lat, lng=p.lng)
+            for p in (penerima["cibiru"], penerima["ujungberung"], penerima["panyileukan"])
+        ],
+        faktor_jalan,
+    )
+    jarak_total = sum(t.jarak_segmen_km for t in urutan)
+
+    slot = Slot(
+        kode=kode,
+        titik_kumpul_id=tk.id,
+        petugas_id=data_dasar["pengguna"]["titik_kumpul"].id,
+        tanggal_kirim=_besok(),
+        cutoff_at=datetime.now(timezone.utc) + timedelta(hours=6),
+        status=StatusSlot.DIBUKA,
+        jarak_km=Decimal(str(round(jarak_total, 2))),
+        volume_terkunci_kg=0,
+        selisih_jaminan_atap=0,
+    )
+    db.add(slot)
+    db.flush()
+    for t in urutan:
+        db.add(
+            SlotTujuan(
+                slot_id=slot.id,
+                penerima_id=t.penerima_id,
+                urutan=t.urutan,
+                jarak_segmen_km=Decimal(str(round(t.jarak_segmen_km, 2))),
+            )
+        )
+    db.commit()
+    db.refresh(slot)
+    return slot
+
+
 # ---------------------------------------------------------------------------
 # Skenario demo §11.2 penuh, 13 langkah, via TestClient murni (tanpa sentuh DB
 # manual selain fixture data induk) -- DoD butir "Skenario demo §11.2 bisa
@@ -63,60 +119,29 @@ def _tujuan_3_sppg(data_dasar) -> list[str]:
 # ---------------------------------------------------------------------------
 
 
-def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
+def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk, db):
     kubis_id = str(data_dasar["komoditas"]["kubis"].id)
-    tujuan = _tujuan_3_sppg(data_dasar)
 
-    header_rina = masuk("081200000021")  # PENERIMA_CIBIRU (Kepala Dapur)
-    header_titik_kumpul = masuk("081200000001")  # Bu Nia
+    header_rina = masuk("081200000021")  # PENERIMA (Kepala Dapur)
+    header_titik_kumpul = masuk("081200000001")  # Bu Nia — petugas/driver
     header_asep = masuk("081200000011")
     header_wati = masuk("081200000012")
     header_dedi = masuk("081200000013")
     header_ijah = masuk("081200000014")
 
     # -----------------------------------------------------------------
-    # Langkah 1: Bu Rina (Kepala Dapur SPPG Cibiru) input permintaan 300 kg
-    # kubis untuk besok.
+    # Langkah 1-2 (K13): tidak ada lagi "penerima memesan" maupun "petugas
+    # membuka slot". Muatan adalah lapisan abstraksi — di sini dirakit langsung
+    # dengan rute 3 tujuan supaya angka acuan K1/K2 (70,03 km) tetap teruji.
     # -----------------------------------------------------------------
-    r = client.post(
-        "/api/permintaan",
-        headers=header_rina,
-        json={"komoditas_id": kubis_id, "volume_kg": 300, "tanggal_dibutuhkan": str(_besok())},
-    )
-    assert r.status_code == 201, r.text
-    permintaan = r.json()
-    assert permintaan["status"] == "TERBUKA"
-    assert permintaan["nama_penerima"] == "SPPG Cibiru 3"
-    permintaan_id = permintaan["id"]
+    slot_row = _buat_muatan_3_tujuan(db, data_dasar)
+    slot_id = str(slot_row.id)
 
-    # -----------------------------------------------------------------
-    # Langkah 2: Bu Nia buka slot, pilih 3 tujuan. Pratinjau dulu (layar
-    # 9.3 menunjukkan jarak + tabel harga sebelum submit) lalu benar-benar
-    # membuka slot -- keduanya harus sepakat (mesin yang sama).
-    # -----------------------------------------------------------------
-    r = client.post(
-        "/api/slot/pratinjau", headers=header_titik_kumpul, json={"tujuan": tujuan, "skenario_volume": [300]}
-    )
+    r = client.get(f"/api/slot/{slot_id}", headers=header_titik_kumpul)
     assert r.status_code == 200, r.text
-    pratinjau = r.json()
-    assert pratinjau["jarak_km"] == pytest.approx(70.03, abs=0.1)
-    assert pratinjau["tabel_harga"][0]["harga_per_kg"] == 1007  # K2
-
-    r = client.post(
-        "/api/slot",
-        headers=header_titik_kumpul,
-        json={
-            "tanggal_kirim": str(_besok()),
-            "cutoff_at": _cutoff(),
-            "tujuan": tujuan,
-            "permintaan_ids": [permintaan_id],
-        },
-    )
-    assert r.status_code == 201, r.text
     slot = r.json()
     assert slot["status"] == "DIBUKA"
     assert slot["jarak_km"] == pytest.approx(70.03, abs=0.1)  # K2: rute nearest-neighbor seed §11.1
-    slot_id = slot["id"]
 
     # -----------------------------------------------------------------
     # Langkah 3: Asep ikut kirim 300 kg -> HARGA ATAP TERKUNCI Rp1.007/kg.
@@ -252,34 +277,40 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
     assert r.json()["status_vendor"] == "TIBA"
 
     # -----------------------------------------------------------------
-    # Langkah 10: Serah terima -- 3 lot TERIMA, 1 lot (Ijah) POTONG 20%.
+    # Langkah 10: Serah terima -- semua lot TERIMA (K14: tidak ada lagi POTONG).
     # Atribusi Ijah wajib PETANI (cacat sudah terlihat sejak muat), sisanya
     # TIDAK_TERBUKTI (tidak ada cacat & transit simulasi jauh di bawah
     # ambang 181 menit karena test berjalan dalam hitungan detik).
     # -----------------------------------------------------------------
-    r = client.get("/api/lot/masuk", headers=header_rina)
-    assert r.status_code == 200
-    assert len(r.json()) == 4
+    # K13: penerima menemukan kiriman lewat NOMOR RESI, bukan lewat ikatan alamat
+    # tetap. Memegang resi = berhak melihat & menyerahterimakan.
+    # K14: bukti lot WAJIB membawa indeks mutu -- penerima harus bisa melihat
+    # angkanya SEBELUM memutuskan, bukan sesudah.
+    for lot in lot_by_petani.values():
+        r = client.get(f"/api/lot/qr/{lot['kode_qr']}", headers=header_rina)
+        assert r.status_code == 200, r.text
+        assert r.json()["lot"]["kode_qr"] == lot["kode_qr"]
+        mutu = r.json()["mutu"]
+        assert 0 <= mutu["indeks_mutu"] <= 100
+        assert mutu["penurunan_mutu_persen"] == 100 - mutu["indeks_mutu"]
 
     hasil_serah = {}
     for nama, lot in lot_by_petani.items():
         if nama == "Ijah":
             body = {
-                "keputusan": "POTONG",
-                "persen_potongan": 20,
+                "keputusan": "TERIMA",
                 "alasan": "Mutu memang sudah di bawah standar saat ditimbang & difoto saat muat.",
                 "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=",
                 "grade_tiba": 2,
             }
         else:
-            body = {"keputusan": "TERIMA", "persen_potongan": 0, "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=", "grade_tiba": 3}
+            body = {"keputusan": "TERIMA", "foto_bongkar_base64": "ZmFrZS1mb3RvLWJvbmdrYXI=", "grade_tiba": 3}
         r = client.post(f"/api/lot/{lot['id']}/serah-terima", headers=header_rina, json=body)
         assert r.status_code == 201, r.text
         hasil_serah[nama] = r.json()
 
     st_ijah = hasil_serah["Ijah"]
-    assert st_ijah["keputusan"] == "POTONG"
-    assert st_ijah["persen_potongan"] == 20
+    assert st_ijah["keputusan"] == "TERIMA"
     assert st_ijah["atribusi"] == "PETANI"
     assert isinstance(st_ijah["penjelasan"], str) and len(st_ijah["penjelasan"]) > 20
     assert "di bawah standar" in st_ijah["penjelasan"].lower()
@@ -376,21 +407,15 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk):
 # ---------------------------------------------------------------------------
 
 
-def test_harga_atap_tidak_pernah_berubah_meski_peserta_lain_bergabung(client, data_dasar, masuk):
+def test_harga_atap_tidak_pernah_berubah_meski_peserta_lain_bergabung(client, data_dasar, masuk, db):
     kubis_id = str(data_dasar["komoditas"]["kubis"].id)
-    tujuan = _tujuan_3_sppg(data_dasar)
 
     header_titik_kumpul = masuk("081200000001")
     header_asep = masuk("081200000011")
     header_wati = masuk("081200000012")
     header_dedi = masuk("081200000013")
 
-    r = client.post(
-        "/api/slot",
-        headers=header_titik_kumpul,
-        json={"tanggal_kirim": str(_besok()), "cutoff_at": _cutoff(), "tujuan": tujuan},
-    )
-    slot_id = r.json()["id"]
+    slot_id = str(_buat_muatan_3_tujuan(db, data_dasar, kode="SM-ATAP-01").id)
 
     r = client.post(
         f"/api/slot/{slot_id}/gabung", headers=header_asep, json={"komoditas_id": kubis_id, "volume_kg": 300}
@@ -431,33 +456,20 @@ def test_harga_atap_tidak_pernah_berubah_meski_peserta_lain_bergabung(client, da
 # ---------------------------------------------------------------------------
 
 
-def test_luapan_kapasitas_409_body_lengkap(client, data_dasar, masuk):
+def test_luapan_kapasitas_409_body_lengkap(client, data_dasar, masuk, db):
     kubis_id = str(data_dasar["komoditas"]["kubis"].id)
-    tujuan = _tujuan_3_sppg(data_dasar)
 
     header_titik_kumpul = masuk("081200000001")
     header_asep = masuk("081200000011")
     header_wati = masuk("081200000012")
 
-    r = client.post(
-        "/api/slot",
-        headers=header_titik_kumpul,
-        json={"tanggal_kirim": str(_besok()), "cutoff_at": _cutoff(), "tujuan": tujuan},
-    )
-    assert r.status_code == 201, r.text
-    slot_id = r.json()["id"]
-    jarak_km = r.json()["jarak_km"]
-    assert jarak_km == pytest.approx(70.03, abs=0.1)
+    slot_row = _buat_muatan_3_tujuan(db, data_dasar, kode="SM-LUAP-01")
+    slot_id = str(slot_row.id)
+    assert float(slot_row.jarak_km) == pytest.approx(70.03, abs=0.1)
 
-    # Slot alternatif: DIBUKA, titik_kumpul & tanggal sama -> harus muncul di
-    # slot_alternatif_id (dua pilihan dialog: "gabung slot berikutnya").
-    r_alt = client.post(
-        "/api/slot",
-        headers=header_titik_kumpul,
-        json={"tanggal_kirim": str(_besok()), "cutoff_at": _cutoff(), "tujuan": tujuan},
-    )
-    assert r_alt.status_code == 201, r_alt.text
-    slot_alt_id = r_alt.json()["id"]
+    # Muatan alternatif: DIBUKA, titik kumpul & tanggal sama -> harus muncul di
+    # slot_alternatif_id (dua pilihan dialog: "gabung muatan berikutnya").
+    slot_alt_id = str(_buat_muatan_3_tujuan(db, data_dasar, kode="SM-LUAP-02").id)
 
     # Isi ~800 kg (penuh kapasitas VAN pada 70,03 km) dengan Asep sendirian.
     r = client.post(

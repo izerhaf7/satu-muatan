@@ -31,6 +31,18 @@ class PenerimaOut(BaseModel):
     lng: float
 
 
+class AturanKirimanOut(BaseModel):
+    """K14: ambang yang harus DIKETAHUI petani sebelum menekan Kirim.
+
+    Panel Asumsi hanya boleh dibaca PETUGAS, jadi klien petani dulu tidak punya
+    cara tahu batas 50 kg — tombol Kirim tetap aktif di 10 kg dan petani baru
+    ditolak setelah mengirim. Nilainya tetap datang dari tabel `konfigurasi`
+    (CLAUDE.md aturan #1), bukan ditanam di frontend."""
+
+    volume_minimal_kg: int
+    jarak_maks_layanan_km: float
+
+
 class TitikKumpulOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

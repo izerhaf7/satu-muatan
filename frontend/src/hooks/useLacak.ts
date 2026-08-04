@@ -51,3 +51,17 @@ export function useMajukanPengiriman(slotId: string | undefined) {
     },
   });
 }
+
+/** K13: majukan POSISI kendaraan satu langkah sepanjang rute (bukan status).
+ *  Inilah yang membuat peta benar-benar bergerak saat didemokan. */
+export function useGeserPosisi(slotId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (pengirimanId: string) =>
+      api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/geser`, { method: "POST" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "pengiriman"] });
+      void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "telemetri"] });
+    },
+  });
+}

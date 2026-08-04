@@ -14,6 +14,8 @@ from app.domain import armada as _armada
 from app.domain import atribusi as _atribusi
 from app.domain import dampak as _dampak
 from app.domain import harga as _harga
+from app.domain import mutu as _mutu
+from app.domain import rute as _rute
 from app.services import stub_domain as _stub
 
 _T = TypeVar("_T")
@@ -45,6 +47,11 @@ tetapkan_harga_final = _dengan_fallback(_harga.tetapkan_harga_final, _stub.tetap
 ambang_transit_menit = _dengan_fallback(_atribusi.ambang_transit_menit, _stub.ambang_transit_menit)
 tentukan_atribusi = _dengan_fallback(_atribusi.tentukan_atribusi, _stub.tentukan_atribusi)
 
+# K14 — indeks mutu & rute dua tahap tidak punya pasangan stub: keduanya lahir
+# setelah Fase 1 selesai, jadi tidak ada masa transisi yang perlu dijembatani.
+hitung_indeks_mutu = _mutu.hitung_indeks_mutu
+urutkan_rute_dua_tahap = _rute.urutkan_rute_dua_tahap
+
 hitung_dampak = _dengan_fallback(_dampak.hitung_dampak, _stub.hitung_dampak)
 persen_penghematan_ongkos = _dengan_fallback(_dampak.persen_penghematan_ongkos, _stub.persen_penghematan_ongkos)
 
@@ -60,3 +67,5 @@ HasilPenetapanHarga = _harga.HasilPenetapanHarga
 HasilCekLuapan = _harga.HasilCekLuapan
 PartisipasiDampak = _dampak.PartisipasiDampak
 Dampak = _dampak.Dampak
+HasilIndeksMutu = _mutu.HasilIndeksMutu
+RuteDuaTahap = _rute.RuteDuaTahap

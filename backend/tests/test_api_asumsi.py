@@ -2,26 +2,34 @@
 
 
 def test_konfigurasi_patch_mempengaruhi_pratinjau(client, data_dasar, masuk):
-    headers = masuk("081200000001")
-    cibiru_id = str(data_dasar["penerima"]["cibiru"].id)
+    """K13: pratinjau slot milik petugas sudah dihapus; pratinjau yang tersisa
+    adalah milik PETANI di layar Kirim Panen. Buktinya sama: mengubah satu baris
+    konfigurasi langsung menggeser jarak & harga."""
+    headers_petugas = masuk("081200000001")
+    headers_petani = masuk("081200000011")
+    cibiru = data_dasar["penerima"]["cibiru"]
+    from datetime import date, timedelta
 
-    r1 = client.post(
-        "/api/slot/pratinjau", headers=headers, json={"tujuan": [cibiru_id], "skenario_volume": [800]}
-    )
+    params = {
+        "volume_kg": 800,
+        "lat": cibiru.lat,
+        "lng": cibiru.lng,
+        "tanggal": (date.today() + timedelta(days=1)).isoformat(),
+    }
+
+    r1 = client.get("/api/kiriman/pratinjau", params=params, headers=headers_petani)
     assert r1.status_code == 200, r1.text
-    jarak_awal = r1.json()["jarak_km"]
-    harga_awal = r1.json()["tabel_harga"][0]["harga_per_kg"]
+    jarak_awal = r1.json()["jarak_ke_penerima_km"]
+    harga_awal = r1.json()["harga_atap_per_kg"]
 
-    r2 = client.patch("/api/konfigurasi/faktor_jalan", headers=headers, json={"nilai": "2.0"})
+    r2 = client.patch("/api/konfigurasi/faktor_jalan", headers=headers_petugas, json={"nilai": "2.0"})
     assert r2.status_code == 200, r2.text
     assert r2.json()["nilai"] == "2.0"
 
-    r3 = client.post(
-        "/api/slot/pratinjau", headers=headers, json={"tujuan": [cibiru_id], "skenario_volume": [800]}
-    )
+    r3 = client.get("/api/kiriman/pratinjau", params=params, headers=headers_petani)
     assert r3.status_code == 200, r3.text
-    jarak_baru = r3.json()["jarak_km"]
-    harga_baru = r3.json()["tabel_harga"][0]["harga_per_kg"]
+    jarak_baru = r3.json()["jarak_ke_penerima_km"]
+    harga_baru = r3.json()["harga_atap_per_kg"]
 
     # faktor_jalan naik dari 1.30 -> 2.0: jarak & harga wajib ikut naik (bukti bahwa
     # tidak ada angka bisnis hardcoded — semua dari tabel konfigurasi, CLAUDE.md #1).

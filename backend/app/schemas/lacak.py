@@ -59,3 +59,22 @@ class TelemetriRingkasanOut(BaseModel):
 class TelemetriOut(BaseModel):
     sampel: list[TelemetriSampelOut]
     ringkasan: TelemetriRingkasanOut | None = None  # None sebelum berangkat
+
+
+class TitikPetaOut(BaseModel):
+    nama: str
+    lat: float
+    lng: float
+
+
+class PerjalananResiOut(BaseModel):
+    """K14 — seluruh perjalanan satu resi dalam sekali panggil.
+
+    Penerima berhak melihat SELURUH data perjalanan sebelum memutuskan menerima
+    atau menolak; sebelumnya ia hanya mendapat dua angka ringkas dan grafiknya
+    cuma bisa dibuka peran lain."""
+
+    pengiriman: PengirimanOut
+    telemetri: TelemetriOut
+    titik_kumpul: TitikPetaOut
+    tujuan: list[TitikPetaOut]

@@ -9,19 +9,21 @@ from sqlalchemy.orm import Session
 from app.auth import get_pengguna_aktif, wajib_peran
 from app.database import get_db
 from app.domain.paparan import SampelTelemetri, hitung_paparan
-from app.models import JejakPosisi, Komoditas, Lot, Partisipasi, Penerima, Pengiriman, Slot
+from app.models import JejakPosisi, Komoditas, Lot, Partisipasi, Penerima, Pengiriman, Slot, TitikKumpul
 from app.models.enums import StatusPartisipasi, SumberPosisi
 from app.schemas.lacak import (
     PengirimanOut,
+    PerjalananResiOut,
     PosisiOut,
     TelemetriOut,
     TelemetriRingkasanOut,
     TelemetriSampelOut,
     TimelineOut,
+    TitikPetaOut,
 )
 from app.services import mesin
 from app.services.konfigurasi import baca_konfigurasi
-from app.services.otorisasi import pastikan_bisa_lihat_slot
+from app.services.otorisasi import pastikan_bisa_lihat_slot, pastikan_petugas_muatan
 from app.services.telemetri import pastikan_telemetri
 
 router = APIRouter(tags=["lacak"])
@@ -96,7 +98,50 @@ def telemetri_slot(slot_id: UUID, pengguna=Depends(get_pengguna_aktif), db: Sess
     pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one_or_none()
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Slot ini belum punya pengiriman (belum ditutup)")
+    return _telemetri_out(db, slot, pengiriman)
 
+
+@router.get("/lacak/resi/{kode_resi}", response_model=PerjalananResiOut)
+def perjalanan_resi(kode_resi: str, pengguna=Depends(wajib_peran("PENERIMA")), db: Session = Depends(get_db)):
+    """K14: seluruh perjalanan satu resi — timeline, jejak posisi, dan telemetri.
+
+    Otorisasinya RESI, bukan alamat. `pastikan_bisa_lihat_slot` untuk penerima
+    masih membandingkan `pengguna.penerima_id` dengan tujuan muatan, dan K13
+    membuat tujuan bebas — jadi jalur itu tidak lagi bisa dipakai penerima yang
+    sah. Memegang nomor resi adalah buktinya, persis seperti surat jalan."""
+    lot = db.query(Lot).filter_by(kode_qr=kode_resi).one_or_none()
+    if lot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Nomor resi tidak ditemukan")
+
+    partisipasi = db.get(Partisipasi, lot.partisipasi_id)
+    slot = db.get(Slot, partisipasi.slot_id) if partisipasi else None
+    pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one_or_none() if slot else None
+    if slot is None or pengiriman is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resi ini belum punya pengiriman")
+
+    return PerjalananResiOut(
+        pengiriman=_ke_pengiriman_out(pengiriman, slot, db),
+        telemetri=_telemetri_out(db, slot, pengiriman),
+        titik_kumpul=_titik_kumpul_out(db, slot),
+        tujuan=_tujuan_out(db, slot),
+    )
+
+
+def _titik_kumpul_out(db: Session, slot: Slot) -> TitikPetaOut:
+    tk = db.get(TitikKumpul, slot.titik_kumpul_id)
+    return TitikPetaOut(nama=tk.nama if tk else "Titik kumpul", lat=tk.lat if tk else 0.0, lng=tk.lng if tk else 0.0)
+
+
+def _tujuan_out(db: Session, slot: Slot) -> list[TitikPetaOut]:
+    hasil = []
+    for t in sorted(slot.tujuan, key=lambda x: x.urutan):
+        p = db.get(Penerima, t.penerima_id)
+        if p is not None:
+            hasil.append(TitikPetaOut(nama=p.nama, lat=p.lat, lng=p.lng))
+    return hasil
+
+
+def _telemetri_out(db: Session, slot: Slot, pengiriman: Pengiriman) -> TelemetriOut:
     baris = pastikan_telemetri(db, pengiriman, slot)
     sampel_out = [
         TelemetriSampelOut(
@@ -158,8 +203,9 @@ def majukan_pengiriman(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGA
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
     slot = db.get(Slot, pengiriman.slot_id)
-    if slot is None or slot.titik_kumpul_id != pengguna.titik_kumpul_id:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Pengiriman bukan milik titik kumpul Anda")
+    if slot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Muatan tidak ditemukan")
+    pastikan_petugas_muatan(pengguna, slot)
 
     saat_ini = pengiriman.status_vendor or "DIPESAN"
     idx = _URUTAN_STATUS.index(saat_ini) if saat_ini in _URUTAN_STATUS else 0
@@ -188,4 +234,85 @@ def majukan_pengiriman(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGA
         db.commit()
         db.refresh(pengiriman)
 
+    return _ke_pengiriman_out(pengiriman, slot, db)
+
+
+def _rute_titik(db: Session, slot: Slot) -> list[tuple[float, float]]:
+    """Titik rute rencana: titik kumpul lalu tiap tujuan sesuai urutan drop."""
+    titik_kumpul = db.get(TitikKumpul, slot.titik_kumpul_id)
+    titik: list[tuple[float, float]] = []
+    if titik_kumpul is not None:
+        titik.append((titik_kumpul.lat, titik_kumpul.lng))
+    for t in sorted(slot.tujuan, key=lambda x: x.urutan):
+        penerima = db.get(Penerima, t.penerima_id)
+        if penerima is not None:
+            titik.append((penerima.lat, penerima.lng))
+    return titik
+
+
+def _posisi_pada_fraksi(titik: list[tuple[float, float]], fraksi: float) -> tuple[float, float]:
+    """Interpolasi linear sepanjang rangkaian titik rute. fraksi 0..1."""
+    if not titik:
+        return (0.0, 0.0)
+    if len(titik) == 1 or fraksi <= 0:
+        return titik[0]
+    if fraksi >= 1:
+        return titik[-1]
+    total_segmen = len(titik) - 1
+    posisi = fraksi * total_segmen
+    idx = min(int(posisi), total_segmen - 1)
+    sisa = posisi - idx
+    lat0, lng0 = titik[idx]
+    lat1, lng1 = titik[idx + 1]
+    return (lat0 + (lat1 - lat0) * sisa, lng0 + (lng1 - lng0) * sisa)
+
+
+@router.post("/pengiriman/{pengiriman_id}/geser", response_model=PengirimanOut)
+def geser_posisi(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
+    """K13: majukan POSISI kendaraan satu langkah sepanjang rute, bukan status.
+
+    Tiap panggilan menulis satu titik `JejakPosisi` hasil interpolasi + satu
+    sampel telemetri, sehingga peta benar-benar bergerak saat didemokan.
+    Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
+    "jalan otomatis" di layar Lacak."""
+    pengiriman = db.get(Pengiriman, pengiriman_id)
+    if pengiriman is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
+    slot = db.get(Slot, pengiriman.slot_id)
+    if slot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Muatan tidak ditemukan")
+    pastikan_petugas_muatan(pengguna, slot)
+    if pengiriman.waktu_berangkat is None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Muatan belum berangkat")
+    if pengiriman.waktu_tiba is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Muatan sudah tiba")
+
+    langkah_total = baca_konfigurasi(db, "langkah_geser_demo")
+    sudah = db.query(JejakPosisi).filter_by(pengiriman_id=pengiriman.id).count()
+    # Titik jejak pertama (di titik kumpul) ditulis saat berangkat, jadi ia tidak
+    # dihitung sebagai langkah perjalanan.
+    langkah_ke = min(max(sudah, 1), langkah_total)
+    fraksi = langkah_ke / langkah_total
+
+    titik = _rute_titik(db, slot)
+    lat, lng = _posisi_pada_fraksi(titik, fraksi)
+    sekarang = datetime.now(timezone.utc)
+    db.add(
+        JejakPosisi(
+            pengiriman_id=pengiriman.id,
+            lat=lat,
+            lng=lng,
+            waktu=sekarang,
+            sumber=SumberPosisi.SIMULASI,
+        )
+    )
+
+    if fraksi >= 1:
+        pengiriman.waktu_tiba = sekarang
+        pengiriman.status_vendor = "TIBA"
+    else:
+        pengiriman.status_vendor = "JALAN"
+
+    db.commit()
+    db.refresh(pengiriman)
     return _ke_pengiriman_out(pengiriman, slot, db)
