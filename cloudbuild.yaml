@@ -10,3 +10,6 @@ steps:
 
 images:
   - ${_IMAGE_REPOSITORY}:${COMMIT_SHA}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
