@@ -1,18 +1,39 @@
-/** Nav publik sticky — translucent, muncul di atas semua section landing. */
+/** Nav fixed translucent — jadi solid+blur setelah scroll > 80px (setupNav
+ *  desain asli, diterjemahkan ke useState + scroll listener pasif). */
 
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
-import TombolTautan from "@/komponen/TombolTautan";
-
 export default function Nav() {
+  const [solid, setSolid] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setSolid(window.scrollY > 80);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   return (
-    <header className="sticky top-0 z-40 border-b border-kabut/60 bg-kertas/80 backdrop-blur-md">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-2.5">
-        <Link to="/" className="flex items-center gap-2.5 rounded-lg py-1">
-          <img src="/ikon-192.png" alt="" className="h-8 w-8 rounded-lg" />
-          <span className="text-base font-bold text-tanah">Satu Muatan</span>
-        </Link>
-        <TombolTautan to="/masuk">Masuk</TombolTautan>
+    <header className={`lp-nav ${solid ? "lp-nav--solid" : ""}`}>
+      <div className="lp-nav__inner">
+        <a href="#atas" className="lp-nav__brand">
+          <img src="/logo-satu-muatan.svg" alt="Satu Muatan" />
+        </a>
+        <nav className="lp-nav__links">
+          <a className="lp-nav__link" href="#masalah">
+            Masalah
+          </a>
+          <a className="lp-nav__link" href="#cara-kerja">
+            Cara Kerja
+          </a>
+          <a className="lp-nav__link" href="#perjalanan">
+            Simulasi Perjalanan
+          </a>
+          <Link to="/masuk" className="lp-btn lp-btn--isi">
+            Mulai
+          </Link>
+        </nav>
       </div>
     </header>
   );

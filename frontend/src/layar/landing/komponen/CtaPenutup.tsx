@@ -1,25 +1,37 @@
-/** CTA penutup — kartu-hero terpusat, ajakan terakhir sebelum footer. */
+/** #demo — CTA penutup "Cek dulu, gratis." + Footer bersarang di blok navy yang
+ *  sama (persis desain). CTA utama → /masuk (React Router, bukan anchor). */
 
-import TombolTautan from "@/komponen/TombolTautan";
+import { Link } from "react-router-dom";
 
-import { kelasScrollReveal, useTampilSaatScroll } from "../useTampilSaatScroll";
+import { useTampilSaatScroll } from "../useTampilSaatScroll";
+import Footer from "./Footer";
 
 export default function CtaPenutup() {
-  const { ref, terlihat } = useTampilSaatScroll<HTMLDivElement>();
+  const reveal = useTampilSaatScroll<HTMLDivElement>();
 
   return (
-    <section className="mx-auto max-w-5xl px-5 py-16 sm:py-20">
-      <div
-        ref={ref}
-        className={`kartu-hero flex flex-col items-center gap-5 px-6 py-14 text-center sm:px-12 ${kelasScrollReveal(terlihat)}`}
-      >
-        <h2 className="text-judul text-kertas">Siap mengirim bersama?</h2>
-        <p className="max-w-md text-base text-kertas/85">
-          Masuk sebagai petugas, petani, atau penerima — coba langsung akun demo tanpa perlu daftar.
+    <section id="demo" className="lp-penutup" aria-labelledby="penutup-judul">
+      <div ref={reveal.ref} className="lp-penutup__inner">
+        <h2 id="penutup-judul" className={`lp-penutup__judul lp-reveal ${reveal.terlihat ? "is-visible" : ""}`}>
+          Cek dulu, gratis.
+        </h2>
+        <p
+          className={`lp-penutup__desc lp-reveal ${reveal.terlihat ? "is-visible" : ""}`}
+          style={{ transitionDelay: reveal.terlihat ? "60ms" : "0ms" }}
+        >
+          Masukkan tujuan dan jumlah kilogram. Beberapa detik kemudian kamu tahu ongkos angkutnya berapa, dan
+          bisa turun sampai berapa.
         </p>
-        <TombolTautan to="/masuk" varian="sekunder" className="!border-kertas !text-kertas hover:!bg-kertas/10">
-          Masuk
-        </TombolTautan>
+        <div
+          className={`lp-penutup__cta lp-reveal ${reveal.terlihat ? "is-visible" : ""}`}
+          style={{ transitionDelay: reveal.terlihat ? "120ms" : "0ms" }}
+        >
+          <Link to="/masuk" className="lp-btn lp-btn--isi">
+            Hitung ongkos kirimanku
+          </Link>
+        </div>
+
+        <Footer />
       </div>
     </section>
   );

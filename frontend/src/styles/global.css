@@ -1,7 +1,13 @@
 /* Font self-host (offline-friendly, ikut precache PWA — K12) */
 @import "@fontsource-variable/plus-jakarta-sans/index.css";
 @import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
 @import "@fontsource/jetbrains-mono/700.css";
+/* Font display landing publik (Poppins) — dipakai lewat --font-landing-display,
+   scoped ke frontend/src/layar/landing/landing.css, TIDAK menyentuh token font aplikasi. */
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
+@import "@fontsource/poppins/800.css";
 
 @tailwind base;
 @tailwind components;

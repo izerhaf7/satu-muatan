@@ -1,88 +1,106 @@
-/** Section hero Landing — teks kiri / truk 3D kanan (stack di mobile).
- *  HeroTiga (three.js) di-lazy-load lewat React.lazy supaya `three` +
- *  `@react-three/fiber` jadi chunk terpisah, tidak ikut bundle awal (verifikasi
- *  di `npm run build`). Suspense fallback = PosterTruk (statis) selagi chunk itu
- *  diunduh, jadi tidak ada layar kosong.
- *
- *  Truk 3D HANYA dipasang kalau: (1) bukan prefers-reduced-motion, DAN (2) kanvas
- *  browser benar-benar punya konteks WebGL. Selain itu, PosterTruk tampil permanen
- *  sebagai pengganti — bukan cuma fallback sementara. */
+/** Hero — headline word-reveal (CSS murni, animasi sekali muncul di load), dua
+ *  CTA (utama → /masuk, sekunder → #cara-kerja), dan TrukIlustrasi 2D beranimasi.
+ *  Truk memudar halus saat discroll lewat (mengikuti window.scrollY, bukan
+ *  progres section #perjalanan — dua efek independen demi kesederhanaan). */
 
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 
-import { kelasDasarTombol, kelasVarianTombol } from "@/komponen/Tombol";
-import TombolTautan from "@/komponen/TombolTautan";
+import { useTampilSaatScroll } from "../useTampilSaatScroll";
+import TrukIlustrasi from "./TrukIlustrasi";
 
-import PosterTruk from "./PosterTruk";
-
-const HeroTiga = lazy(() => import("./HeroTiga"));
-
-function dukunganWebGL(): boolean {
-  if (typeof document === "undefined") return false;
-  try {
-    const kanvas = document.createElement("canvas");
-    return !!(kanvas.getContext("webgl2") || kanvas.getContext("webgl") || kanvas.getContext("experimental-webgl"));
-  } catch {
-    return false;
-  }
+function gerakanDikurangi(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
 }
 
 export default function Hero() {
-  const wadahRef = useRef<HTMLDivElement>(null);
-  const [pakai3d, setPakai3d] = useState(false);
-  const [terlihat, setTerlihat] = useState(true);
+  const truckWrapRef = useRef<HTMLDivElement>(null);
+  const leadReveal = useTampilSaatScroll<HTMLParagraphElement>();
+  const ctaReveal = useTampilSaatScroll<HTMLDivElement>();
+  const noteReveal = useTampilSaatScroll<HTMLParagraphElement>();
 
-  // Deteksi kemampuan sekali saat mount — tidak reaktif terhadap perubahan setelahnya
-  // (kalau pengguna mengganti pengaturan OS di tengah sesi, refresh cukup adil).
   useEffect(() => {
-    const gerakanDikurangi = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
-    setPakai3d(!gerakanDikurangi && dukunganWebGL());
+    if (gerakanDikurangi()) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const wrap = truckWrapRef.current;
+        if (!wrap) return;
+        const vh = window.innerHeight || 1;
+        const f = Math.max(0, Math.min(1, window.scrollY / (vh * 0.7)));
+        wrap.style.opacity = String(1 - f);
+        wrap.style.transform = `translateY(${(f * 48).toFixed(1)}px)`;
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
   }, []);
 
-  // IntersectionObserver: matikan loop invalidate begitu hero discroll lewat,
-  // nyalakan lagi kalau discroll balik ke atas.
-  useEffect(() => {
-    if (!pakai3d) return;
-    const elemen = wadahRef.current;
-    if (!elemen) return;
-    const observer = new IntersectionObserver(([entri]) => setTerlihat(entri.isIntersecting), { threshold: 0.05 });
-    observer.observe(elemen);
-    return () => observer.disconnect();
-  }, [pakai3d]);
-
   return (
-    <section className="mx-auto grid min-h-[88vh] max-w-6xl grid-cols-1 items-center gap-10 px-5 py-14 lg:grid-cols-2 lg:gap-12 lg:py-0">
-      <div className="flex flex-col items-center gap-5 text-center lg:items-start lg:text-left">
-        <p className="text-keterangan font-bold uppercase tracking-wide text-daun">
-          Titik kumpul · Kirim bersama
-        </p>
-        <h1 className="text-display text-tanah">
-          Satu muatan penuh.
-          <br />
-          <span className="text-daun">Ongkos turun sampai 75%.</span>
-        </h1>
-        <p className="max-w-md text-base text-tanah/70">
-          Titik kumpul menggabungkan panen beberapa petani jadi satu pengiriman. Begitu Anda ikut, harga
-          atap langsung terkunci — tidak pernah naik lagi walau slotnya makin penuh.
-        </p>
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
-          <TombolTautan to="/masuk" varian="aksi">
-            Masuk
-          </TombolTautan>
-          <a href="#cara-kerja" className={`${kelasDasarTombol} ${kelasVarianTombol.sekunder}`}>
-            Lihat cara kerja
-          </a>
-        </div>
-      </div>
+    <section id="atas" className="lp-hero" aria-labelledby="hero-judul">
+      <div className="lp-hero__grid">
+        <div>
+          <h1 id="hero-judul" className="lp-hero__title">
+            <span className="lp-hero__word">
+              <span>Turunkan ongkos angkut,</span>
+            </span>
+            <span className="lp-hero__word">
+              <span style={{ animationDelay: "90ms" }}>kurangi emisi, amankan muatan —</span>
+            </span>
+            <span className="lp-hero__word lp-hero__word--accent">
+              <span className="lp-hero__accent" style={{ animationDelay: "180ms" }}>
+                dari kebun sampai meja makan.
+                <svg
+                  aria-hidden="true"
+                  className="lp-hero__underline"
+                  viewBox="0 0 300 24"
+                  preserveAspectRatio="none"
+                >
+                  <path
+                    d="M4 15 C 62 5, 118 20, 176 10 C 226 2, 268 12, 296 7"
+                    fill="none"
+                    stroke="#16A34A"
+                    strokeWidth={7}
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </span>
+          </h1>
 
-      <div ref={wadahRef} className="relative mx-auto h-[320px] w-full max-w-[420px] lg:h-[460px] lg:max-w-none">
-        {pakai3d ? (
-          <Suspense fallback={<PosterTruk className="h-full w-full" />}>
-            <HeroTiga aktif={terlihat} wadahRef={wadahRef} />
-          </Suspense>
-        ) : (
-          <PosterTruk className="h-full w-full" />
-        )}
+          <p ref={leadReveal.ref} className={`lp-hero__lead lp-reveal ${leadReveal.terlihat ? "is-visible" : ""}`}>
+            <strong style={{ fontWeight: 700, opacity: 1 }}>Satu Muatan</strong> menggabungkan kiriman beberapa
+            petani yang searah menjadi satu truk penuh. Satu perjalanan menggantikan empat — ongkosnya dibagi,
+            emisinya berkurang, dan kondisi muatannya tercatat sepanjang jalan.
+          </p>
+
+          <div ref={ctaReveal.ref} className={`lp-hero__ctas lp-reveal ${ctaReveal.terlihat ? "is-visible" : ""}`}>
+            <Link to="/masuk" className="lp-btn lp-btn--isi">
+              Hitung ongkos kirimanku
+            </Link>
+            <a href="#cara-kerja" className="lp-btn lp-btn--garis">
+              Lihat cara kerjanya
+            </a>
+          </div>
+          <p ref={noteReveal.ref} className={`lp-hero__note lp-reveal ${noteReveal.terlihat ? "is-visible" : ""}`}>
+            Gratis dicoba. Pembelimu tetap pembelimu.
+          </p>
+        </div>
+
+        <div ref={truckWrapRef} className="lp-hero__truck-wrap">
+          <div className="lp-hero__ground" aria-hidden="true" />
+          <div className="lp-hero__ground-accent" aria-hidden="true" />
+          <TrukIlustrasi />
+          <div className="lp-hero__stats">
+            <span>CDD · 2.000 KG</span>
+            <span>TERISI 1.200 KG</span>
+            <span className="lp-hero__stats--aksen angka">RP426/KG</span>
+          </div>
+        </div>
       </div>
     </section>
   );
