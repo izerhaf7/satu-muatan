@@ -1,0 +1,5 @@
+# Skrip yang dieksekusi di dalam container Linux HARUS LF — CRLF mematahkan
+# shebang (#!/bin/sh\r) dan container gagal start. Ditemukan lewat kegagalan
+# deploy Cloud Run nyata: docker-entrypoint.sh ter-checkout CRLF di Windows
+# tanpa file ini, gambar gagal start dengan "no such file or directory".
+*.sh text eol=lf
