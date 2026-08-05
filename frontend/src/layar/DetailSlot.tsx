@@ -10,6 +10,7 @@ import { useParams } from "react-router-dom";
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
 import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
+import RingkasanResi from "@/komponen/RingkasanResi";
 import { SkeletonAngka, SkeletonKartu } from "@/komponen/Skeleton";
 import { useDetailSlot } from "@/hooks/useDetailSlot";
 import { useAuthStore } from "@/stores/authStore";
@@ -95,6 +96,8 @@ export default function DetailSlot() {
               <h2 className="text-subjudul text-tanah">Peserta</h2>
               <DaftarPeserta partisipasi={detail.data.partisipasi} />
             </section>
+
+            <RingkasanResi resi={detail.data.resi} />
 
             {detail.data.status !== "DIBUKA" && pengguna && (
               <RingkasanPenutupan slot={detail.data} peran={pengguna.peran} penggunaId={pengguna.id} />
