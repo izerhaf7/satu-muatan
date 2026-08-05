@@ -46,6 +46,7 @@ from app.services import mesin
 from app.services.konfigurasi import baca_konfigurasi, baca_tiers_aktif
 from app.services.pencocokan import STATUS_MUATAN_AKTIF, cutoff_lewat
 from app.services.otorisasi import pastikan_bisa_lihat_slot, pastikan_petugas_muatan, query_slot_untuk_peran
+from app.services.rute_snapshot import simpan_snapshot_rute
 from app.services.vendor import dapatkan_adapter_vendor
 
 router = APIRouter(prefix="/slot", tags=["slot"])
@@ -519,25 +520,32 @@ def tutup_slot(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Sess
 
     # Pesan ke vendor (MockVendorAdapter, K5).
     titik_kumpul = db.get(TitikKumpul, slot.titik_kumpul_id)
+    if titik_kumpul is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Titik kumpul tidak ditemukan")
     titik = [Titik(lat=titik_kumpul.lat, lng=titik_kumpul.lng, label="Titik kumpul")]
     for t in sorted(slot.tujuan, key=lambda x: x.urutan):
         penerima = db.get(Penerima, t.penerima_id)
-        titik.append(Titik(lat=penerima.lat, lng=penerima.lng, label=penerima.nama if penerima else ""))
+        if penerima is not None:
+            titik.append(Titik(lat=penerima.lat, lng=penerima.lng, label=penerima.nama))
 
     adapter = dapatkan_adapter_vendor(db)
     kuotasi = adapter.kuotasi(titik, tier_dominan.kode)
     pesanan = adapter.pesan(kuotasi.kuotasi_id, Kontak(nama=pengguna.nama, no_hp=pengguna.no_hp))
-    db.add(
-        Pengiriman(
-            slot_id=slot.id,
-            vendor=adapter.nama,
-            vendor_ref=pesanan.vendor_ref,
-            status_vendor=pesanan.status,
-            kuotasi_json=kuotasi.rincian,
-        )
+    pengiriman = Pengiriman(
+        slot_id=slot.id,
+        vendor=adapter.nama,
+        vendor_ref=pesanan.vendor_ref,
+        status_vendor=pesanan.status,
+        kuotasi_json=kuotasi.rincian,
     )
-
+    db.add(pengiriman)
+    db.flush()
+    # Canonical price, lots, vendor order, and Pengiriman commit BEFORE optional
+    # provider snapshot. Snapshot owns a later best-effort transaction.
     db.commit()
+    db.refresh(pengiriman)
+    db.refresh(slot)
+    simpan_snapshot_rute(db, pengiriman, slot)
     db.refresh(slot)
     return _bangun_slot_detail(slot, db, pengguna)
 

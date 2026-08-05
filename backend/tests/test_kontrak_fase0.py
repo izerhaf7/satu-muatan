@@ -44,6 +44,7 @@ RUTE_WAJIB = {
     ("GET", "/api/partisipasi/saya"),
     ("POST", "/api/demo/reset"),
     ("POST", "/api/demo/muatan/{slot_id}/berangkatkan"),  # K13: demo pelacakan
+    ("GET", "/health"),
     ("GET", "/healthz"),
 }
 
@@ -66,6 +67,13 @@ def test_semua_rute_kontrak_terdaftar():
 def test_healthz():
     client = TestClient(app)
     r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
+def test_health_alias():
+    client = TestClient(app)
+    r = client.get("/health")
     assert r.status_code == 200
     assert r.json() == {"status": "ok"}
 

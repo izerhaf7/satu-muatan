@@ -33,6 +33,10 @@ class PengirimanOut(BaseModel):
     estimasi_tiba: datetime | None = None  # dari ambang_transit_menit
     ambang_transit_menit: int
     jejak: list[PosisiOut]
+    rute_polyline: str | None = None
+    rute_versi: int | None = None
+    eta_sumber: str | None = None
+    eta_dihitung_pada: datetime | None = None
 
 
 class TelemetriSampelOut(BaseModel):

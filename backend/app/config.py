@@ -22,6 +22,17 @@ class Settings(BaseSettings):
     # miliknya sendiri. Dipanggil dari SERVER, jadi kuncinya tidak pernah masuk
     # browser dan tidak ikut ter-bundle ke aplikasi.
     google_maps_api_key: str = ""
+    geo_provider_enabled: bool = True
+    # Centroid wilayah bersifat kasar. Batas 25 km masih menoleransi titik
+    # pedesaan di sekitar pusat kecamatan, tetapi menolak centroid kota lain.
+    geo_local_max_distance_km: float = 25.0
+    alamat_provider_timeout_detik: float = 4.0
+    alamat_provider_response_max_bytes: int = 32_768
+    alamat_saran_max_hasil: int = 5
+    alamat_bias_radius_max_meter: float = 50_000
+    alamat_rate_limit_per_jendela: int = 30
+    alamat_rate_limit_jendela_detik: int = 60
+    alamat_rate_limit_max_pengguna: int = 2_000
 
     @property
     def daftar_cors_origins(self) -> list[str]:

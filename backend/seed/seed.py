@@ -612,6 +612,7 @@ def seed_riwayat(db: Session) -> int:
             dibuat_pada=cutoff_at,
         )
         db.add(pengiriman)
+        db.flush()
 
         penerima_volume_terkirim: dict[uuid.UUID, int] = {}
         waktu_bongkar_list = []

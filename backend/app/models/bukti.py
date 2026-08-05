@@ -69,6 +69,14 @@ class Pengiriman(Base):
     waktu_berangkat: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     waktu_tiba: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     kuotasi_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Snapshot provider bersifat informasional; tidak pernah menjadi dasar harga.
+    rute_polyline: Mapped[str | None] = mapped_column(Text)
+    rute_versi: Mapped[int | None] = mapped_column(Integer)
+    rute_input_hash: Mapped[str | None] = mapped_column(Text)
+    rute_jarak_provider_km: Mapped[Decimal | None] = mapped_column(Numeric(10, 3))
+    rute_durasi_provider_menit: Mapped[int | None] = mapped_column(Integer)
+    rute_dihitung_pada: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rute_sumber: Mapped[str | None] = mapped_column(Text)
     # K6: timestamp langkah "Dipesan" pada timeline Lacak
     dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

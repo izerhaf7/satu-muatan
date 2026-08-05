@@ -42,6 +42,7 @@ class HealthOut(BaseModel):
     status: str
 
 
+@app.get("/health", response_model=HealthOut, tags=["health"])
 @app.get("/healthz", response_model=HealthOut, tags=["health"])
 def healthz():
     return HealthOut(status="ok")

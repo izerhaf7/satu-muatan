@@ -254,6 +254,95 @@ def test_tutup_slot_kosong_ditolak(client, data_dasar, masuk, db):
     assert r.status_code == 422
 
 
+def test_tutup_slot_tetap_berhasil_saat_snapshot_provider_gagal(client, data_dasar, masuk, db, monkeypatch):
+    """Snapshot provider berjalan setelah canonical close dan gagal tanpa rollback harga/vendor."""
+    from types import SimpleNamespace
+
+    from app.adapters.routes.google import GoogleRoutesAdapter
+    from app.models import Pengiriman
+    from app.services import rute_snapshot
+
+    slot = _buat_slot_jarak_80(db, data_dasar, kode="SM-SNAPSHOT-GAGAL")
+    kubis = data_dasar["komoditas"]["kubis"]
+    db.add(
+        Partisipasi(
+            slot_id=slot.id,
+            petani_id=data_dasar["pengguna"]["asep"].id,
+            komoditas_id=kubis.id,
+            volume_kg=300,
+            harga_atap_per_kg=1107,
+            status=StatusPartisipasi.TERDAFTAR,
+        )
+    )
+    slot.volume_terkunci_kg = 300
+    db.commit()
+
+    class GagalProvider:
+        def __init__(self, key):
+            pass
+
+        def route(self, origin, stops, destination):
+            raise OSError("provider down")
+
+    monkeypatch.setattr(rute_snapshot, "get_settings", lambda: SimpleNamespace(geo_provider_enabled=True, google_maps_api_key="key"))
+    monkeypatch.setattr(rute_snapshot, "GoogleRoutesAdapter", GagalProvider)
+
+    response = client.post(f"/api/slot/{slot.id}/tutup", headers=masuk("081200000001"))
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "TERKUNCI"
+    db.expire_all()
+    tersimpan_slot = db.get(Slot, slot.id)
+    pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one()
+    assert tersimpan_slot.harga_final_per_kg is not None
+    assert pengiriman.vendor_ref is not None
+    assert pengiriman.rute_polyline is None
+
+
+def test_tutup_slot_tetap_persist_saat_commit_snapshot_kedua_gagal(client, data_dasar, masuk, db, monkeypatch):
+    """Failure committing optional snapshot cannot undo already committed close state."""
+    from types import SimpleNamespace
+
+    from app.adapters.geo.base import RouteDisplayResult
+    from app.models import Pengiriman
+    from app.services import rute_snapshot
+
+    slot = _buat_slot_jarak_80(db, data_dasar, kode="SM-SNAPSHOT-COMMIT-GAGAL")
+    kubis = data_dasar["komoditas"]["kubis"]
+    db.add(
+        Partisipasi(
+            slot_id=slot.id,
+            petani_id=data_dasar["pengguna"]["asep"].id,
+            komoditas_id=kubis.id,
+            volume_kg=300,
+            harga_atap_per_kg=1107,
+            status=StatusPartisipasi.TERDAFTAR,
+        )
+    )
+    slot.volume_terkunci_kg = 300
+    db.commit()
+
+    class Provider:
+        def __init__(self, key):
+            pass
+
+        def route(self, origin, stops, destination):
+            return RouteDisplayResult(jarak_km=80.0, durasi_menit=120, sumber="GOOGLE_ROUTES", polyline="encoded", versi=1)
+
+    monkeypatch.setattr(rute_snapshot, "get_settings", lambda: SimpleNamespace(geo_provider_enabled=True, google_maps_api_key="key"))
+    monkeypatch.setattr(rute_snapshot, "GoogleRoutesAdapter", Provider)
+    monkeypatch.setattr(rute_snapshot, "_commit_snapshot", lambda sesi: (_ for _ in ()).throw(RuntimeError("commit down")))
+
+    response = client.post(f"/api/slot/{slot.id}/tutup", headers=masuk("081200000001"))
+    assert response.status_code == 200, response.text
+    db.expire_all()
+    tersimpan_slot = db.get(Slot, slot.id)
+    pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one()
+    assert tersimpan_slot.status == StatusSlot.TERKUNCI
+    assert tersimpan_slot.harga_final_per_kg is not None
+    assert pengiriman.vendor_ref is not None
+    assert pengiriman.rute_polyline is None
+
+
 def test_daftar_slot_ter_scope_per_peran(client, data_dasar, masuk, db):
     """K13 mengubah dasar scoping:
     - PETUGAS melihat muatan yang DITUGASKAN kepadanya (bukan semua muatan di

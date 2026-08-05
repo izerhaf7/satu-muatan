@@ -71,6 +71,10 @@ def _ke_pengiriman_out(pengiriman: Pengiriman, slot: Slot, db: Session) -> Pengi
         estimasi_tiba=estimasi_tiba,
         ambang_transit_menit=ambang,
         jejak=[PosisiOut(lat=j.lat, lng=j.lng, waktu=j.waktu, sumber=j.sumber) for j in jejak],
+        rute_polyline=pengiriman.rute_polyline,
+        rute_versi=pengiriman.rute_versi,
+        eta_sumber=pengiriman.rute_sumber,
+        eta_dihitung_pada=pengiriman.rute_dihitung_pada,
     )
 
 
