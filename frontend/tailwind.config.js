@@ -1,5 +1,10 @@
 /** Palet 5 warna — spec §10. JANGAN menambah warna; nuansa lewat modifier
- *  opasitas (/5 /10 /20 /40 /60 /80) sebagai sistem tone resmi (K12). */
+ *  opasitas (/5 /10 /20 /40 /60 /80) sebagai sistem tone resmi (K12).
+ *  Direvisi mengikuti palet landing (navy+hijau) — nama token tetap sama
+ *  supaya seluruh kelas `text-tanah`/`bg-daun`/dst di app tidak perlu diubah,
+ *  hanya nilai hex-nya. tanah-liat sengaja TIDAK ikut palet landing (landing
+ *  tidak punya warna bahaya/tolak) — dipertahankan merah terpisah demi
+ *  kejelasan status TOLAK/error. */
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
@@ -7,11 +12,11 @@ export default {
     colors: {
       transparent: "transparent",
       current: "currentColor",
-      tanah: "#2B2119", // teks utama, latar gelap
-      kertas: "#FAF7F2", // latar utama
-      daun: "#2F6B3A", // aksi utama, status baik
-      "tanah-liat": "#C1502E", // peringatan, penolakan
-      kabut: "#D8D2C7", // garis, pemisah, nonaktif
+      tanah: "#0F2D4A", // teks utama, latar gelap (Secondary landing)
+      kertas: "#F5F6F8", // latar utama (Neutral Gray landing)
+      daun: "#16A34A", // aksi utama, status baik (Primary landing)
+      "tanah-liat": "#DC2626", // peringatan, penolakan — tidak ada di palet landing, dipertahankan agar TOLAK/error tetap jelas
+      kabut: "#DDE3EA", // garis, pemisah, nonaktif (border landing)
     },
     fontFamily: {
       // Angka & display teknis: JetBrains Mono (dimuat via @fontsource di global.css)
@@ -29,8 +34,8 @@ export default {
       },
       boxShadow: {
         // Elevasi halus — BUKAN kartu melayang berbayang tebal (larangan §10)
-        lembut: "0 1px 2px 0 rgba(43, 33, 25, 0.08)",
-        sedang: "0 2px 8px -2px rgba(43, 33, 25, 0.12)",
+        lembut: "0 1px 2px 0 rgba(15, 45, 74, 0.08)",
+        sedang: "0 2px 8px -2px rgba(15, 45, 74, 0.12)",
       },
       minHeight: {
         sentuh: "48px", // target sentuh minimum (spec §10)

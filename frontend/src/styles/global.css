@@ -13,13 +13,15 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Palet 5 warna (spec §10) — sumber yang sama dengan tailwind.config.js */
+/* Palet 5 warna (spec §10) — sumber yang sama dengan tailwind.config.js.
+   Direvisi mengikuti palet landing (navy+hijau); tanah-liat tetap merah
+   terpisah karena landing tidak punya warna bahaya/tolak. */
 :root {
-  --tanah: #2b2119;
-  --kertas: #faf7f2;
-  --daun: #2f6b3a;
-  --tanah-liat: #c1502e;
-  --kabut: #d8d2c7;
+  --tanah: #0f2d4a;
+  --kertas: #f5f6f8;
+  --daun: #16a34a;
+  --tanah-liat: #dc2626;
+  --kabut: #dde3ea;
 }
 
 @layer base {
@@ -40,7 +42,7 @@
   }
 
   ::selection {
-    background: rgba(47, 107, 58, 0.25);
+    background: rgba(22, 163, 74, 0.25);
   }
 }
 

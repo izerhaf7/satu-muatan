@@ -30,8 +30,8 @@ export default defineConfig({
         description: "Konsolidasi muatan & bukti mutu rantai pasok hortikultura",
         lang: "id",
         display: "standalone",
-        background_color: "#FAF7F2",
-        theme_color: "#2F6B3A",
+        background_color: "#F5F6F8",
+        theme_color: "#16A34A",
         icons: [
           { src: "/ikon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/ikon-512.png", sizes: "512x512", type: "image/png" },

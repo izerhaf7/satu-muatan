@@ -12,9 +12,9 @@ import { formatAngka, formatBulan, formatRupiah } from "@/utils/format";
 type DampakBulananOut = components["schemas"]["DampakBulananOut"];
 
 // Palet 5 warna (spec §10 / tailwind.config.js) — jangan tambah warna lain.
-const WARNA_DAUN = "#2F6B3A";
-const WARNA_KABUT = "#D8D2C7";
-const WARNA_TANAH_60 = "rgba(43, 33, 25, 0.6)"; // teks sumbu — tanah/60, bukan solid
+const WARNA_DAUN = "#16A34A";
+const WARNA_KABUT = "#DDE3EA";
+const WARNA_TANAH_60 = "rgba(15, 45, 74, 0.6)"; // teks sumbu — tanah/60, bukan solid
 
 function labelBulanSingkat(bulan: string): string {
   const [tahun, bulanKe] = bulan.split("-").map(Number);

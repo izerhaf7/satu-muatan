@@ -7,6 +7,6 @@ export function buatQrDataUrl(teks: string): Promise<string> {
   return QRCode.toDataURL(teks, {
     margin: 1,
     width: 240,
-    color: { dark: "#2B2119", light: "#FAF7F2" },
+    color: { dark: "#0F2D4A", light: "#F5F6F8" },
   });
 }

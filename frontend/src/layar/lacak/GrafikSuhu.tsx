@@ -20,10 +20,10 @@ import type { components } from "@/api/client";
 type TelemetriOut = components["schemas"]["TelemetriOut"];
 
 // Palet 5 warna (spec §10 / tailwind.config.js) — jangan tambah warna lain.
-const WARNA_DAUN = "#2F6B3A";
-const WARNA_TANAH_LIAT = "#C1502E";
-const WARNA_KABUT = "#D8D2C7";
-const WARNA_TANAH_60 = "rgba(43, 33, 25, 0.6)";
+const WARNA_DAUN = "#16A34A";
+const WARNA_TANAH_LIAT = "#DC2626";
+const WARNA_KABUT = "#DDE3EA";
+const WARNA_TANAH_60 = "rgba(15, 45, 74, 0.6)";
 
 interface TitikSuhu {
   waktu: string;
