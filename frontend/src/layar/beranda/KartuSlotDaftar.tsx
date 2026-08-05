@@ -8,6 +8,7 @@ import { Link } from "react-router-dom";
 import BadgeStatus from "@/komponen/BadgeStatus";
 import BarKapasitas from "@/komponen/BarKapasitas";
 import HitungMundur from "@/komponen/HitungMundur";
+import RingkasanResi from "@/komponen/RingkasanResi";
 import type { components } from "@/api/client";
 import { formatAngka, formatTanggal } from "@/utils/format";
 
@@ -41,6 +42,8 @@ export default function KartuSlotDaftar({ slot }: KartuSlotDaftarProps) {
         <Users aria-hidden className="h-3.5 w-3.5" />
         {slot.jumlah_petani} petani sudah bergabung
       </p>
+
+      <RingkasanResi resi={slot.resi} />
     </Link>
   );
 }

@@ -3,7 +3,7 @@ kelompok kelebihan muatan di service layer (§3.2 catatan, P4)."""
 
 from datetime import date, timedelta
 
-from app.models import Slot, StatusSlot
+from app.models import Lot, Partisipasi, Slot, StatusSlot
 
 BESOK = date.today() + timedelta(days=1)
 
@@ -179,11 +179,19 @@ def test_muatan_lahir_tanpa_driver_lalu_muncul_di_papan_tugas(client, data_dasar
 
     slot = db.get(Slot, slot_id)
     assert slot.petugas_id is None
+    partisipasi = db.query(Partisipasi).filter_by(slot_id=slot_id).one()
+    db.add(Lot(partisipasi_id=partisipasi.id, kode_qr="LOT-TERSedia-TIDAK-BOCOR", grade_asal=5))
+    db.commit()
 
     header_petugas = masuk("081200000001")
     tersedia = client.get("/api/slot/tersedia", headers=header_petugas)
     assert tersedia.status_code == 200, tersedia.text
     assert slot_id in [s["id"] for s in tersedia.json()]
+    assert all(s["resi"] == [] for s in tersedia.json())
+
+    diterima = client.post(f"/api/slot/{slot_id}/terima", headers=header_petugas)
+    assert diterima.status_code == 200, diterima.text
+    assert diterima.json()["resi"] == [{"lot_id": str(db.query(Lot).filter_by(partisipasi_id=partisipasi.id).one().id), "kode_qr": "LOT-TERSedia-TIDAK-BOCOR"}]
 
 
 def test_petugas_hanya_boleh_membawa_satu_muatan_aktif(client, data_dasar, masuk, db):

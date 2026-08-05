@@ -36,6 +36,7 @@ from app.schemas.slot import (
     LuapanKapasitasOut,
     PartisipasiOut,
     RencanaArmadaOut,
+    ResiLotRingkasOut,
     RuteJemputOut,
     RuteSegmenOut,
     SlotDetailOut,
@@ -72,7 +73,20 @@ def _dominan(tiers: list[Tier]) -> Tier:
     return max(tiers, key=lambda t: t.kapasitas_kg)
 
 
-def _ke_slot_item(slot: Slot, db: Session) -> SlotItemOut:
+def _resi_slot(slot: Slot, db: Session, pengguna: Pengguna, tampilkan_resi: bool = True) -> list[ResiLotRingkasOut]:
+    if not tampilkan_resi:
+        return []
+
+    query = db.query(Lot).join(Partisipasi, Lot.partisipasi_id == Partisipasi.id).filter(Partisipasi.slot_id == slot.id)
+    if pengguna.peran == PeranPengguna.PETANI:
+        query = query.filter(Partisipasi.petani_id == pengguna.id)
+    elif pengguna.peran != PeranPengguna.PETUGAS or slot.petugas_id != pengguna.id:
+        return []
+
+    return [ResiLotRingkasOut(lot_id=lot.id, kode_qr=lot.kode_qr) for lot in query.order_by(Lot.kode_qr).all()]
+
+
+def _ke_slot_item(slot: Slot, db: Session, pengguna: Pengguna, tampilkan_resi: bool = True) -> SlotItemOut:
     jumlah_petani = len({p.petani_id for p in slot.partisipasi if p.status != StatusPartisipasi.BATAL})
     kapasitas_rencana: int | None = None
     tier_ringkas: str | None = None
@@ -101,6 +115,7 @@ def _ke_slot_item(slot: Slot, db: Session) -> SlotItemOut:
         kapasitas_rencana_kg=kapasitas_rencana,
         tier_ringkas=tier_ringkas,
         jumlah_petani=jumlah_petani,
+        resi=_resi_slot(slot, db, pengguna, tampilkan_resi),
     )
 
 
@@ -227,6 +242,7 @@ def _bangun_slot_detail(slot: Slot, db: Session, pengguna: Pengguna) -> SlotDeta
         biaya_total=slot.biaya_total,
         harga_final_per_kg=slot.harga_final_per_kg,
         selisih_jaminan_atap=slot.selisih_jaminan_atap,
+        resi=_resi_slot(slot, db, pengguna),
     )
 
 
@@ -247,7 +263,7 @@ def daftar_slot(status: StatusSlot | None = None, pengguna=Depends(get_pengguna_
     """Ter-scope per peran (K6): PETUGAS -> miliknya; PETANI -> slot titik kumpulnya;
     PENERIMA -> slot yang tujuannya memuat dirinya."""
     baris = query_slot_untuk_peran(db, pengguna, status)
-    return [_ke_slot_item(s, db) for s in baris]
+    return [_ke_slot_item(s, db, pengguna) for s in baris]
 
 
 # K13: `POST /slot` (buka slot) dan `POST /slot/pratinjau` DIHAPUS. Muatan bukan
@@ -275,7 +291,7 @@ def slot_tersedia(pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depend
         .order_by(Slot.tanggal_kirim, Slot.dibuat_pada)
         .all()
     )
-    return [_ke_slot_item(s, db) for s in baris]
+    return [_ke_slot_item(s, db, pengguna, tampilkan_resi=False) for s in baris]
 
 
 @router.post("/{slot_id}/terima", response_model=SlotItemOut)
@@ -290,7 +306,7 @@ def terima_tugas(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Se
         raise HTTPException(status.HTTP_409_CONFLICT, "Muatan ini sudah tidak terbuka untuk diambil")
     if slot.petugas_id is not None:
         if slot.petugas_id == pengguna.id:
-            return _ke_slot_item(slot, db)
+            return _ke_slot_item(slot, db, pengguna)
         raise HTTPException(status.HTTP_409_CONFLICT, "Muatan ini sudah diambil petugas lain")
 
     maks_aktif = baca_konfigurasi(db, "maks_muatan_aktif_per_petugas")
@@ -309,7 +325,7 @@ def terima_tugas(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Se
     slot.petugas_id = pengguna.id
     db.commit()
     db.refresh(slot)
-    return _ke_slot_item(slot, db)
+    return _ke_slot_item(slot, db, pengguna)
 
 
 @router.get("/{slot_id}", response_model=SlotDetailOut)

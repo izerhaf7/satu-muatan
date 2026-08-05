@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.models.enums import StatusPartisipasi
+from app.schemas.slot import ResiLotRingkasOut
 
 
 class PartisipasiRiwayatOut(BaseModel):
@@ -19,3 +20,4 @@ class PartisipasiRiwayatOut(BaseModel):
     harga_final_per_kg: int | None = None
     kembalian_rp: int
     status: StatusPartisipasi
+    resi: list[ResiLotRingkasOut] = []

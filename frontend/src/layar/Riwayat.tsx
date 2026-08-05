@@ -14,6 +14,7 @@ import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
 import IkonGembok from "@/komponen/IkonGembok";
 import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
+import RingkasanResi from "@/komponen/RingkasanResi";
 import { SkeletonKartu } from "@/komponen/Skeleton";
 import { useRiwayatSaya } from "@/hooks/useRiwayat";
 import { formatAngka, formatRupiah, formatTanggal } from "@/utils/format";
@@ -124,6 +125,8 @@ function BarisRiwayat({ partisipasi }: { partisipasi: PartisipasiRiwayatOut }) {
           <span className="angka text-lg font-bold text-daun">{formatRupiah(partisipasi.kembalian_rp)}</span>
         </div>
       )}
+
+      <RingkasanResi resi={partisipasi.resi} />
 
       {sudahJalan && (
         <div className="flex flex-wrap gap-2 border-t border-kabut/60 pt-3">

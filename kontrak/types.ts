@@ -1557,6 +1557,8 @@ export interface components {
             /** Kembalian Rp */
             kembalian_rp: number;
             status: components["schemas"]["StatusPartisipasi"];
+            /** Resi */
+            resi?: components["schemas"]["ResiLotRingkasOut"][];
         };
         /** PenerimaOut */
         PenerimaOut: {
@@ -1697,6 +1699,16 @@ export interface components {
             /** Lng */
             lng: number;
         };
+        /** ResiLotRingkasOut */
+        ResiLotRingkasOut: {
+            /**
+             * Lot Id
+             * Format: uuid
+             */
+            lot_id: string;
+            /** Kode Qr */
+            kode_qr: string;
+        };
         /** RuteSegmenOut */
         RuteSegmenOut: {
             /** Urutan */
@@ -1834,6 +1846,8 @@ export interface components {
              * @default 0
              */
             selisih_jaminan_atap: number;
+            /** Resi */
+            resi?: components["schemas"]["ResiLotRingkasOut"][];
         };
         /**
          * SlotItemOut
@@ -1873,6 +1887,8 @@ export interface components {
             tier_ringkas?: string | null;
             /** Jumlah Petani */
             jumlah_petani: number;
+            /** Resi */
+            resi?: components["schemas"]["ResiLotRingkasOut"][];
         };
         /**
          * StatusPartisipasi

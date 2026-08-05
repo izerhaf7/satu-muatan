@@ -9,6 +9,7 @@ import AmbilFoto from "@/komponen/AmbilFoto";
 import AreaTeks from "@/komponen/AreaTeks";
 import InputTeks from "@/komponen/InputTeks";
 import PilihGrade from "@/komponen/PilihGrade";
+import RingkasanResi from "@/komponen/RingkasanResi";
 import Tombol from "@/komponen/Tombol";
 import type { components } from "@/api/client";
 import { formatAngka } from "@/utils/format";
@@ -140,7 +141,7 @@ export default function KartuLotMuat({ lot, onSimpan, sedangMenyimpan, gagalMeny
         <div className="rounded-xl border-2 border-kabut bg-kertas p-3">
           {qrDataUrl && <img src={qrDataUrl} alt={`QR lot ${lot.kode_qr}`} className="h-28 w-28" />}
         </div>
-        <p className="angka text-keterangan text-tanah/70">{lot.kode_qr}</p>
+        <RingkasanResi resi={[{ lot_id: lot.id, kode_qr: lot.kode_qr }]} />
       </div>
     </div>
   );

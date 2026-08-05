@@ -52,6 +52,13 @@ class RencanaArmadaOut(BaseModel):
     kapasitas_total_kg: int
 
 
+class ResiLotRingkasOut(BaseModel):
+    """Resi kanonik satu lot, ditampilkan hanya kepada aktor yang berwenang."""
+
+    lot_id: UUID
+    kode_qr: str
+
+
 class PartisipasiOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -86,6 +93,7 @@ class SlotItemOut(BaseModel):
     kapasitas_rencana_kg: int | None = None
     tier_ringkas: str | None = None  # mis. "VAN" atau "VAN+FUSO"
     jumlah_petani: int
+    resi: list[ResiLotRingkasOut] = []
 
 
 class SlotDetailOut(BaseModel):
@@ -112,6 +120,7 @@ class SlotDetailOut(BaseModel):
     biaya_total: int | None = None
     harga_final_per_kg: int | None = None
     selisih_jaminan_atap: int = 0  # "Selisih dijamin platform" (§5.5, rename v2 §2)
+    resi: list[ResiLotRingkasOut] = []
 
 
 class GabungRequest(BaseModel):

@@ -367,3 +367,51 @@ def test_daftar_slot_ter_scope_per_peran(client, data_dasar, masuk, db):
     header_penerima = masuk("081200000021")
     r_penerima = client.get("/api/slot", headers=header_penerima)
     assert len(r_penerima.json()) == 1  # Cibiru adalah tujuan slot ini
+
+
+def test_resi_slot_hanya_untuk_petani_pemilik_dan_petugas_tertugas(client, data_dasar, masuk, db):
+    slot = _buat_slot_jarak_80(db, data_dasar, kode="SM-RESI-01")
+    kubis = data_dasar["komoditas"]["kubis"]
+    asep = data_dasar["pengguna"]["asep"]
+    wati = data_dasar["pengguna"]["wati"]
+    db.add_all(
+        [
+            Partisipasi(
+                slot_id=slot.id,
+                petani_id=asep.id,
+                komoditas_id=kubis.id,
+                volume_kg=300,
+                harga_atap_per_kg=1107,
+                status=StatusPartisipasi.TERDAFTAR,
+            ),
+            Partisipasi(
+                slot_id=slot.id,
+                petani_id=wati.id,
+                komoditas_id=kubis.id,
+                volume_kg=300,
+                harga_atap_per_kg=1107,
+                status=StatusPartisipasi.TERDAFTAR,
+            ),
+        ]
+    )
+    slot.volume_terkunci_kg = 600
+    db.commit()
+
+    tertutup = client.post(f"/api/slot/{slot.id}/tutup", headers=masuk("081200000001"))
+    assert tertutup.status_code == 200, tertutup.text
+    semua_resi = {item["kode_qr"] for item in tertutup.json()["resi"]}
+    assert len(semua_resi) == 2
+
+    detail_asep = client.get(f"/api/slot/{slot.id}", headers=masuk("081200000011"))
+    assert detail_asep.status_code == 200, detail_asep.text
+    resi_asep = detail_asep.json()["resi"]
+    assert len(resi_asep) == 1
+    assert resi_asep[0]["kode_qr"] in semua_resi
+
+    daftar_asep = client.get("/api/slot", headers=masuk("081200000011"))
+    assert daftar_asep.status_code == 200, daftar_asep.text
+    assert daftar_asep.json()[0]["resi"] == resi_asep
+
+    detail_petugas = client.get(f"/api/slot/{slot.id}", headers=masuk("081200000001"))
+    assert detail_petugas.status_code == 200, detail_petugas.text
+    assert {item["kode_qr"] for item in detail_petugas.json()["resi"]} == semua_resi

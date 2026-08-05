@@ -200,11 +200,8 @@ paths:
     get:
       tags:
       - alamat
-      summary: Daftar Wilayah Anak
-      description: 'Daftar wilayah pada tingkat yang diminta. `induk_kode` dilarang untuk
-        `tingkat=PROVINSI`; wajib ada dan tidak boleh kosong untuk `KABUPATEN`,
-        `KECAMATAN`, dan `DESA`. Aturan lintas-parameter ini divalidasi saat runtime.'
-      operationId: daftar_wilayah_anak_api_wilayah_anak_get
+      summary: Anak Wilayah
+      operationId: anak_wilayah_api_wilayah_anak_get
       security:
       - HTTPBearer: []
       parameters:
@@ -212,20 +209,20 @@ paths:
         in: query
         required: true
         schema:
-          type: string
           enum:
           - PROVINSI
           - KABUPATEN
           - KECAMATAN
           - DESA
+          type: string
           title: Tingkat
       - name: induk_kode
         in: query
         required: false
-        description: 'Dilarang untuk `tingkat=PROVINSI`; wajib ada dan tidak boleh kosong
-          untuk tingkat lain. Divalidasi saat runtime.'
         schema:
-          type: string
+          anyOf:
+          - type: string
+          - type: 'null'
           title: Induk Kode
       responses:
         '200':
@@ -236,7 +233,7 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/WilayahOut'
-                title: Response Daftar Wilayah Anak Api Wilayah Anak Get
+                title: Response Anak Wilayah Api Wilayah Anak Get
         '422':
           description: Validation Error
           content:
@@ -290,20 +287,18 @@ paths:
       tags:
       - alamat
       summary: Saran Alamat
-      description: 'Cari paling banyak lima alamat untuk dipilih. `place_id` adalah token
-        opaque yang hanya dikirim kembali ke `/api/alamat/resolusi`; browser tidak
-        menerima URL, kunci, session token, atau objek mentah penyedia. Saat penyedia
-        tidak tersedia, server dapat mengembalikan saran lokal atau respons tindakan
-        aman untuk isian/peta manual.'
+      description: Cari paling banyak lima alamat untuk dipilih. `place_id` adalah
+        token opaque yang hanya dikirim kembali ke `/api/alamat/resolusi`; browser
+        tidak menerima URL, kunci, session token, atau objek mentah penyedia. Saat
+        penyedia tidak tersedia, server dapat mengembalikan saran lokal atau respons
+        tindakan aman untuk isian/peta manual.
       operationId: saran_alamat_api_alamat_saran_post
-      security:
-      - HTTPBearer: []
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AlamatSaranRequest'
+        required: true
       responses:
         '200':
           description: Saran alamat atau status fallback yang dapat ditindaklanjuti
@@ -317,44 +312,45 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorOut'
+        '429':
+          description: Batas permintaan alamat tercapai; coba lagi setelah header
+            Retry-After
+          headers:
+            Retry-After:
+              description: Detik sampai klien boleh mencoba lagi.
+              schema:
+                type: integer
+                minimum: 1.0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOut'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-        '429':
-          description: Batas permintaan alamat tercapai; coba lagi setelah header Retry-After
-          headers:
-            Retry-After:
-              description: Detik sampai klien boleh mencoba lagi.
-              schema:
-                type: integer
-                minimum: 1
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorOut'
+      security:
+      - HTTPBearer: []
   /api/alamat/resolusi:
     post:
       tags:
       - alamat
       summary: Resolusi Alamat
-      description: 'Resolusi token `place_id` pilihan pengguna menjadi alamat terstruktur.
+      description: Resolusi token `place_id` pilihan pengguna menjadi alamat terstruktur.
         Token lokal juga opaque dan diselesaikan server-side. `lat` dan `lng` selalu
         hadir bersama atau keduanya tidak ada; server menegakkan invarian lintas-field.
-        Pada `KOORDINAT_TIDAK_PRESISI`, tampilkan pesan lalu minta pengguna memilih titik
-        peta atau melengkapi alamat. `alamat_lengkap` wajib bernilai untuk `OK` dan
-        `KOORDINAT_TIDAK_PRESISI`, dan null hanya untuk `TIDAK_DITEMUKAN`.'
+        Pada `KOORDINAT_TIDAK_PRESISI`, tampilkan pesan lalu minta pengguna memilih
+        titik peta atau melengkapi alamat. `alamat_lengkap` wajib bernilai untuk `OK`
+        dan `KOORDINAT_TIDAK_PRESISI`, dan null hanya untuk `TIDAK_DITEMUKAN`.
       operationId: resolusi_alamat_api_alamat_resolusi_post
-      security:
-      - HTTPBearer: []
       requestBody:
-        required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/AlamatResolusiRequest'
+        required: true
       responses:
         '200':
           description: Alamat terstruktur dan status ketelitian koordinat
@@ -368,24 +364,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorOut'
+        '429':
+          description: Batas permintaan alamat tercapai; coba lagi setelah header
+            Retry-After
+          headers:
+            Retry-After:
+              description: Detik sampai klien boleh mencoba lagi.
+              schema:
+                type: integer
+                minimum: 1.0
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOut'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-        '429':
-          description: Batas permintaan alamat tercapai; coba lagi setelah header Retry-After
-          headers:
-            Retry-After:
-              description: Detik sampai klien boleh mencoba lagi.
-              schema:
-                type: integer
-                minimum: 1
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorOut'
+      security:
+      - HTTPBearer: []
   /api/konfigurasi:
     get:
       tags:
@@ -1416,243 +1415,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthOut'
+  /health:
+    get:
+      tags:
+      - health
+      summary: Healthz
+      operationId: healthz_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthOut'
 components:
   schemas:
-    AlamatResolusiRequest:
-      properties:
-        place_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-          pattern: '^[A-Za-z0-9][A-Za-z0-9._~-]{0,255}$'
-          title: Place Id
-          description: Token opaque dari `AlamatSaranOut`; berlaku untuk sumber GOOGLE maupun LOKAL.
-      type: object
-      required:
-      - place_id
-      title: AlamatResolusiRequest
-    AlamatResolusiOut:
-      properties:
-        alamat_lengkap:
-          anyOf:
-          - type: string
-            minLength: 1
-            maxLength: 500
-          - type: 'null'
-          title: Alamat Lengkap
-          description: Wajib bernilai untuk status OK dan KOORDINAT_TIDAK_PRESISI; null hanya untuk TIDAK_DITEMUKAN.
-        jalan:
-          anyOf:
-          - type: string
-            maxLength: 200
-          - type: 'null'
-          title: Jalan
-        kode_pos:
-          anyOf:
-          - type: string
-            maxLength: 10
-          - type: 'null'
-          title: Kode Pos
-        desa:
-          anyOf:
-          - type: string
-            maxLength: 120
-          - type: 'null'
-          title: Desa
-        kecamatan:
-          anyOf:
-          - type: string
-            maxLength: 120
-          - type: 'null'
-          title: Kecamatan
-        kabupaten_kota:
-          anyOf:
-          - type: string
-            maxLength: 120
-          - type: 'null'
-          title: Kabupaten Kota
-        provinsi:
-          anyOf:
-          - type: string
-            maxLength: 120
-          - type: 'null'
-          title: Provinsi
-        lat:
-          type: number
-          minimum: -90
-          maximum: 90
-          title: Lat
-        lng:
-          type: number
-          minimum: -180
-          maximum: 180
-          title: Lng
-        granularitas:
-          anyOf:
-          - $ref: '#/components/schemas/GranularitasAlamat'
-          - type: 'null'
-        sumber:
-          $ref: '#/components/schemas/SumberAlamat'
-        status:
-          $ref: '#/components/schemas/StatusResolusiAlamat'
-        pesan:
-          anyOf:
-          - type: string
-            maxLength: 300
-          - type: 'null'
-          title: Pesan
-      type: object
-      oneOf:
-      - required:
-        - lat
-        - lng
-      - not:
-          anyOf:
-          - required:
-            - lat
-          - required:
-            - lng
-      required:
-      - alamat_lengkap
-      - sumber
-      - status
-      title: AlamatResolusiOut
-      description: Koordinat selalu berpasangan. Server juga menegakkan alamat_lengkap non-null berdasarkan status.
-    AlamatSaranBias:
-      properties:
-        lat:
-          type: number
-          minimum: -90
-          maximum: 90
-          title: Lat
-        lng:
-          type: number
-          minimum: -180
-          maximum: 180
-          title: Lng
-        radius_meter:
-          type: number
-          exclusiveMinimum: 0
-          maximum: 50000
-          title: Radius Meter
-      type: object
-      required:
-      - lat
-      - lng
-      - radius_meter
-      title: AlamatSaranBias
-      description: Bias opsional berbentuk titik dan radius lengkap. Server menolak pasangan atau radius parsial.
-    AlamatSaranItemOut:
-      properties:
-        place_id:
-          type: string
-          minLength: 1
-          maxLength: 256
-          pattern: '^[A-Za-z0-9][A-Za-z0-9._~-]{0,255}$'
-          title: Place Id
-          description: Token opaque aman; termasuk token lokal yang dapat diresolusikan tanpa penyedia eksternal.
-        teks_utama:
-          type: string
-          minLength: 1
-          maxLength: 200
-          title: Teks Utama
-        teks_lengkap:
-          type: string
-          minLength: 1
-          maxLength: 500
-          title: Teks Lengkap
-        teks_sekunder:
-          anyOf:
-          - type: string
-            maxLength: 300
-          - type: 'null'
-          title: Teks Sekunder
-        sumber:
-          $ref: '#/components/schemas/SumberAlamat'
-      type: object
-      required:
-      - place_id
-      - teks_utama
-      - teks_lengkap
-      - sumber
-      title: AlamatSaranItemOut
-    AlamatSaranListOut:
-      properties:
-        saran:
-          type: array
-          maxItems: 5
-          items:
-            $ref: '#/components/schemas/AlamatSaranItemOut'
-          title: Saran
-        status:
-          $ref: '#/components/schemas/StatusSaranAlamat'
-        pesan:
-          anyOf:
-          - type: string
-            maxLength: 300
-          - type: 'null'
-          title: Pesan
-      type: object
-      required:
-      - saran
-      - status
-      title: AlamatSaranListOut
-      description: Maksimal lima saran. Status fallback/tidak tersedia memberi UI tindakan aman tanpa mengungkap detail penyedia.
-    AlamatSaranRequest:
-      properties:
-        query:
-          type: string
-          minLength: 3
-          maxLength: 200
-          title: Query
-        bias:
-          anyOf:
-          - $ref: '#/components/schemas/AlamatSaranBias'
-          - type: 'null'
-      type: object
-      required:
-      - query
-      title: AlamatSaranRequest
-    ErrorOut:
-      properties:
-        detail:
-          type: string
-          title: Detail
-      type: object
-      required:
-      - detail
-      title: ErrorOut
-    GranularitasAlamat:
-      type: string
-      enum:
-      - ALAMAT
-      - JALAN
-      - DESA
-      - KECAMATAN
-      - KABUPATEN_KOTA
-      - PROVINSI
-      title: GranularitasAlamat
-    StatusResolusiAlamat:
-      type: string
-      enum:
-      - OK
-      - KOORDINAT_TIDAK_PRESISI
-      - TIDAK_DITEMUKAN
-      title: StatusResolusiAlamat
-    StatusSaranAlamat:
-      type: string
-      enum:
-      - OK
-      - FALLBACK_LOKAL
-      - PENYEDIA_TIDAK_TERSEDIA
-      - TIDAK_DITEMUKAN
-      title: StatusSaranAlamat
-    SumberAlamat:
-      type: string
-      enum:
-      - GOOGLE
-      - LOKAL
-      title: SumberAlamat
     AkunDemo:
       type: string
       enum:
@@ -1752,6 +1529,207 @@ components:
         Hanya `alamat` (ringkasan) yang wajib — sisanya boleh menyusul supaya petani
 
         tidak terkunci di formulir panjang saat sedang di kebun.'
+    AlamatResolusiOut:
+      oneOf:
+      - required:
+        - lat
+        - lng
+      - not:
+          anyOf:
+          - required:
+            - lat
+          - required:
+            - lng
+      properties:
+        alamat_lengkap:
+          anyOf:
+          - type: string
+            maxLength: 500
+            minLength: 1
+          - type: 'null'
+          title: Alamat Lengkap
+          description: Wajib bernilai untuk status OK dan KOORDINAT_TIDAK_PRESISI;
+            null hanya untuk TIDAK_DITEMUKAN.
+        jalan:
+          anyOf:
+          - type: string
+            maxLength: 200
+          - type: 'null'
+          title: Jalan
+        kode_pos:
+          anyOf:
+          - type: string
+            maxLength: 10
+          - type: 'null'
+          title: Kode Pos
+        desa:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Desa
+        kecamatan:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Kecamatan
+        kabupaten_kota:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Kabupaten Kota
+        provinsi:
+          anyOf:
+          - type: string
+            maxLength: 120
+          - type: 'null'
+          title: Provinsi
+        lat:
+          type: number
+          maximum: 90.0
+          minimum: -90.0
+          title: Lat
+        lng:
+          type: number
+          maximum: 180.0
+          minimum: -180.0
+          title: Lng
+        granularitas:
+          anyOf:
+          - $ref: '#/components/schemas/GranularitasAlamat'
+          - type: 'null'
+        sumber:
+          $ref: '#/components/schemas/SumberAlamat'
+        status:
+          $ref: '#/components/schemas/StatusResolusiAlamat'
+        pesan:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Pesan
+      type: object
+      required:
+      - alamat_lengkap
+      - sumber
+      - status
+      title: AlamatResolusiOut
+      description: Koordinat selalu berpasangan. Server juga menegakkan alamat_lengkap
+        non-null berdasarkan status.
+    AlamatResolusiRequest:
+      properties:
+        place_id:
+          type: string
+          maxLength: 256
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._~-]{0,255}$
+          title: Place Id
+          description: Token opaque dari `AlamatSaranOut`; berlaku untuk sumber GOOGLE
+            maupun LOKAL.
+      type: object
+      required:
+      - place_id
+      title: AlamatResolusiRequest
+    AlamatSaranBias:
+      properties:
+        lat:
+          type: number
+          maximum: 90.0
+          minimum: -90.0
+          title: Lat
+        lng:
+          type: number
+          maximum: 180.0
+          minimum: -180.0
+          title: Lng
+        radius_meter:
+          type: number
+          maximum: 50000.0
+          exclusiveMinimum: 0.0
+          title: Radius Meter
+      type: object
+      required:
+      - lat
+      - lng
+      - radius_meter
+      title: AlamatSaranBias
+      description: Bias opsional berbentuk titik dan radius lengkap. Server menolak
+        pasangan atau radius parsial.
+    AlamatSaranItemOut:
+      properties:
+        place_id:
+          type: string
+          maxLength: 256
+          minLength: 1
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._~-]{0,255}$
+          title: Place Id
+          description: Token opaque aman; termasuk token lokal yang dapat diresolusikan
+            tanpa penyedia eksternal.
+        teks_utama:
+          type: string
+          maxLength: 200
+          minLength: 1
+          title: Teks Utama
+        teks_lengkap:
+          type: string
+          maxLength: 500
+          minLength: 1
+          title: Teks Lengkap
+        teks_sekunder:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Teks Sekunder
+        sumber:
+          $ref: '#/components/schemas/SumberAlamat'
+      type: object
+      required:
+      - place_id
+      - teks_utama
+      - teks_lengkap
+      - sumber
+      title: AlamatSaranItemOut
+    AlamatSaranListOut:
+      properties:
+        saran:
+          items:
+            $ref: '#/components/schemas/AlamatSaranItemOut'
+          type: array
+          maxItems: 5
+          title: Saran
+        status:
+          $ref: '#/components/schemas/StatusSaranAlamat'
+        pesan:
+          anyOf:
+          - type: string
+            maxLength: 300
+          - type: 'null'
+          title: Pesan
+      type: object
+      required:
+      - saran
+      - status
+      title: AlamatSaranListOut
+      description: Maksimal lima saran. Status fallback/tidak tersedia memberi UI
+        tindakan aman tanpa mengungkap detail penyedia.
+    AlamatSaranRequest:
+      properties:
+        query:
+          type: string
+          maxLength: 200
+          minLength: 3
+          title: Query
+        bias:
+          anyOf:
+          - $ref: '#/components/schemas/AlamatSaranBias'
+          - type: 'null'
+      type: object
+      required:
+      - query
+      title: AlamatSaranRequest
     Atribusi:
       type: string
       enum:
@@ -1952,6 +1930,15 @@ components:
       required:
       - pesan
       title: DemoResetOut
+    ErrorOut:
+      properties:
+        detail:
+          type: string
+          title: Detail
+      type: object
+      required:
+      - detail
+      title: ErrorOut
     GabungPratinjauRequest:
       properties:
         volume_kg:
@@ -2041,29 +2028,37 @@ components:
           - type: string
           - type: 'null'
           title: Kode Pos
-        jarak_meter:
-          anyOf:
-          - type: number
-            minimum: 0
-          - type: 'null'
-          title: Jarak Meter
-          description: Jarak titik input ke centroid wilayah lokal terpilih, dalam meter. Null bila hasil lokal atau metadatanya tidak tersedia.
-        keyakinan:
-          anyOf:
-          - type: number
-            minimum: 0
-            maximum: 1
-          - type: 'null'
-          title: Keyakinan
-          description: Tingkat keyakinan hasil reverse-geocode lokal dari 0 sampai 1. Null bila hasil lokal atau metadatanya tidak tersedia.
         sumber:
           type: string
           title: Sumber
+        jarak_meter:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Jarak Meter
+        keyakinan:
+          anyOf:
+          - type: number
+            maximum: 1.0
+            minimum: 0.0
+          - type: 'null'
+          title: Keyakinan
       type: object
       required:
       - alamat
       - sumber
       title: GeokodeOut
+    GranularitasAlamat:
+      type: string
+      enum:
+      - ALAMAT
+      - JALAN
+      - DESA
+      - KECAMATAN
+      - KABUPATEN_KOTA
+      - PROVINSI
+      title: GranularitasAlamat
     HTTPValidationError:
       properties:
         detail:
@@ -2676,6 +2671,12 @@ components:
           title: Kembalian Rp
         status:
           $ref: '#/components/schemas/StatusPartisipasi'
+        resi:
+          items:
+            $ref: '#/components/schemas/ResiLotRingkasOut'
+          type: array
+          title: Resi
+          default: []
       type: object
       required:
       - id
@@ -2781,6 +2782,14 @@ components:
             format: date-time
           - type: 'null'
           title: Estimasi Tiba
+        ambang_transit_menit:
+          type: integer
+          title: Ambang Transit Menit
+        jejak:
+          items:
+            $ref: '#/components/schemas/PosisiOut'
+          type: array
+          title: Jejak
         rute_polyline:
           anyOf:
           - type: string
@@ -2802,14 +2811,6 @@ components:
             format: date-time
           - type: 'null'
           title: Eta Dihitung Pada
-        ambang_transit_menit:
-          type: integer
-          title: Ambang Transit Menit
-        jejak:
-          items:
-            $ref: '#/components/schemas/PosisiOut'
-          type: array
-          title: Jejak
       type: object
       required:
       - id
@@ -2898,6 +2899,21 @@ components:
       title: RencanaArmadaOut
       description: Rencana armada saat ini — sumber denominator bar kapasitas & petunjuk
         naik kelas tier (§9.4 butir 4).
+    ResiLotRingkasOut:
+      properties:
+        lot_id:
+          type: string
+          format: uuid
+          title: Lot Id
+        kode_qr:
+          type: string
+          title: Kode Qr
+      type: object
+      required:
+      - lot_id
+      - kode_qr
+      title: ResiLotRingkasOut
+      description: Resi kanonik satu lot, ditampilkan hanya kepada aktor yang berwenang.
     RuteJemputOut:
       properties:
         urutan:
@@ -3151,6 +3167,12 @@ components:
           type: integer
           title: Selisih Jaminan Atap
           default: 0
+        resi:
+          items:
+            $ref: '#/components/schemas/ResiLotRingkasOut'
+          type: array
+          title: Resi
+          default: []
       type: object
       required:
       - id
@@ -3208,6 +3230,12 @@ components:
         jumlah_petani:
           type: integer
           title: Jumlah Petani
+        resi:
+          items:
+            $ref: '#/components/schemas/ResiLotRingkasOut'
+          type: array
+          title: Resi
+          default: []
       type: object
       required:
       - id
@@ -3231,6 +3259,21 @@ components:
       - DITOLAK
       - BATAL
       title: StatusPartisipasi
+    StatusResolusiAlamat:
+      type: string
+      enum:
+      - OK
+      - KOORDINAT_TIDAK_PRESISI
+      - TIDAK_DITEMUKAN
+      title: StatusResolusiAlamat
+    StatusSaranAlamat:
+      type: string
+      enum:
+      - OK
+      - FALLBACK_LOKAL
+      - PENYEDIA_TIDAK_TERSEDIA
+      - TIDAK_DITEMUKAN
+      title: StatusSaranAlamat
     StatusSlot:
       type: string
       enum:
@@ -3247,6 +3290,12 @@ components:
       - TERVERIFIKASI
       - ASUMSI
       title: StatusSumber
+    SumberAlamat:
+      type: string
+      enum:
+      - GOOGLE
+      - LOKAL
+      title: SumberAlamat
     SumberPosisi:
       type: string
       enum:
@@ -3597,11 +3646,6 @@ components:
         kode:
           type: string
           title: Kode
-        induk_kode:
-          anyOf:
-          - type: string
-          - type: 'null'
-          title: Induk Kode
         nama:
           type: string
           title: Nama
@@ -3626,6 +3670,11 @@ components:
           - type: number
           - type: 'null'
           title: Lng
+        induk_kode:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Induk Kode
       type: object
       required:
       - kode
