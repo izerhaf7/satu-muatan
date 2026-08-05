@@ -186,7 +186,7 @@ def bangun_cheat_sheet(db: Session) -> str:
     jarak_km = mesin.jarak_haversine_km(titik_kumpul.lat, titik_kumpul.lng, cibiru.lat, cibiru.lng) * faktor_jalan
     ambang_menit = ambang_transit_menit(jarak_km, kecepatan, toleransi_transit)
 
-    langkah_petani = [("Asep", 300), ("Wati", 200), ("Dedi", 180), ("Ijah", 100)]
+    langkah_petani = [("Bu Nia", 300), ("Wati", 200), ("Dedi", 180), ("Ijah", 100)]
     kumulatif = 0
     atap_by_nama: dict[str, int] = {}
     baris_kaskade: list[tuple[str, int, int, int]] = []
@@ -203,8 +203,8 @@ def bangun_cheat_sheet(db: Session) -> str:
     ]
     hasil = tetapkan_harga_final(partisipasi_final, jarak_km, tiers, maks_kendaraan)
     tier_ringkas = "+".join(t.kode for t in hasil.rencana.tier)
-    hemat_asep_per_kg = atap_by_nama["Asep"] - hasil.harga_final_per_kg
-    hemat_asep_rp = hemat_asep_per_kg * langkah_petani[0][1]
+    hemat_bu_nia_per_kg = atap_by_nama["Bu Nia"] - hasil.harga_final_per_kg
+    hemat_bu_nia_rp = hemat_bu_nia_per_kg * langkah_petani[0][1]
 
     # Simulasi telemetri perjalanan siang (berangkat 13.00 WIB, 3 jam) → angka
     # kartu suhu & sisa umur simpan sawi (q10 dari tabel komoditas).
@@ -237,23 +237,23 @@ def bangun_cheat_sheet(db: Session) -> str:
     add(f"Muatan demo (satu tujuan, alur Kirim Panen): {titik_kumpul.nama} -> {cibiru.nama}")
     add(f"  jarak_km = {round(jarak_km, 2)} · ambang_transit_menit = {ambang_menit}")
     add("")
-    add("Langkah 1. Login Petani Asep -> \"Kirim Panen\". Tandai TITIK JEMPUT (tombol")
+    add("Langkah 1. Login Petani Bu Nia -> \"Kirim Panen\". Tandai TITIK JEMPUT (tombol")
     add("   'Gunakan lokasi saya' / ketuk peta -> alamat terbaca otomatis; ketik nama")
     add("   desa untuk autocomplete daerah), lalu TUJUAN dengan cara yang sama.")
     add("   Volume di bawah 50 kg ditolak DI LAYAR, bukan setelah dikirim.")
     add("   Tujuan Dapur Katering Cibiru, sawi,")
-    add(f"   300 kg, besok -> atap {_rp(atap_by_nama['Asep'])}/kg, potensi ± {_rp(potensi_pratinjau)}/kg")
+    add(f"   300 kg, besok -> atap {_rp(atap_by_nama['Bu Nia'])}/kg, potensi ± {_rp(potensi_pratinjau)}/kg")
     add("")
     add("Langkah 2. Kirim -> sistem buka muatan baru -> layar \"Muatanmu\" (Detail Slot).")
     add("")
-    add("Langkah 3. Login Petani Wati -> kirim 200 kg, tujuan 8 km dari tujuan Asep")
+    add("Langkah 3. Login Petani Wati -> kirim 200 kg, tujuan 8 km dari tujuan Bu Nia")
     add(f"   (radius koridor 15 km) -> muatan SAMA -> harga berjalan turun ke {_rp(baris_kaskade[1][3])}/kg [animasi]")
     add("")
     add(f"Langkah 4. Dedi +180 kg (kumulatif {baris_kaskade[2][2]} kg) -> {_rp(baris_kaskade[2][3])}/kg [animasi]")
     add(f"           Ijah +100 kg (kumulatif {baris_kaskade[3][2]} kg) -> {_rp(baris_kaskade[3][3])}/kg [animasi]")
     add(
-        f"   Layar Asep: \"Atap {_rp(atap_by_nama['Asep'])} (terkunci). Sekarang {_rp(hasil.harga_final_per_kg)}. "
-        f"Hemat {_rp(hemat_asep_rp)}.\""
+        f"   Layar Bu Nia: \"Atap {_rp(atap_by_nama['Bu Nia'])} (terkunci). Sekarang {_rp(hasil.harga_final_per_kg)}. "
+        f"Hemat {_rp(hemat_bu_nia_rp)}.\""
     )
     add("")
     add("Langkah 5. Login Petugas -> Beranda: muatan menunggu di PAPAN TUGAS.")

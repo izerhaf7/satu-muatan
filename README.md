@@ -12,11 +12,11 @@ kalau mutu turun.
 
 ## URL Produksi
 
-- Aplikasi (Vercel): _[diisi setelah deploy — target 3 Agustus]_
-- API (Render): _[diisi setelah deploy — target 3 Agustus]_
+- Aplikasi (Vercel): https://satu-muatan.vercel.app/
+- API (Render): _[diisi setelah backend Render live — verifikasi via `GET /healthz`]_
 
-**Wajib diuji dari jaringan seluler** (bukan wifi rumah/kampus) sebelum tanggal
-di atas — lihat langkah 5 di bagian [Deploy](#deploy) di bawah.
+**Wajib diuji dari jaringan seluler** (bukan wifi rumah/kampus) — lihat langkah
+5 di bagian [Deploy](#deploy) di bawah.
 
 ## Kredensial Demo
 
@@ -25,8 +25,8 @@ layar Masuk (4 tombol: Petugas Asep, Petani Wati, Petani Dedi, Penerima).
 
 | Peran | Nama | No. HP | PIN |
 |---|---|---|---|
-| Petugas Satu Muatan | Bu Nia | `081200000001` | `123456` |
-| Petani | Asep | `081200000011` | `123456` |
+| Petugas Satu Muatan | Asep | `081200000011` | `123456` |
+| Petani | Bu Nia | `081200000001` | `123456` |
 | Petani | Wati | `081200000012` | `123456` |
 | Petani | Dedi | `081200000013` | `123456` |
 | Petani | Ijah | `081200000014` | `123456` |
@@ -38,9 +38,10 @@ mengantarkannya. Dia BUKAN pengirim: menu Kirim Panen tidak ada di perannya.
 Muatan tidak ditugaskan otomatis kepadanya — muatan menunggu di **papan tugas**
 dan diambil sendiri, satu muatan aktif dalam satu waktu.
 
-Ijah masuk manual via nomor HP + PIN (tidak ada tombol cepatnya). Dua petani
-tambahan di data seed (Ujang `081200000015`, Euis `081200000016`, PIN sama)
-muncul di riwayat 8 slot lama untuk mengisi grafik Dashboard Dampak.
+Bu Nia (petani pertama di skenario) dan Ijah masuk manual via nomor HP + PIN
+(tidak ada tombol cepatnya). Dua petani tambahan di data seed (Ujang
+`081200000015`, Euis `081200000016`, PIN sama) muncul di riwayat 8 slot lama
+untuk mengisi grafik Dashboard Dampak.
 
 ## Skenario Demo (±8 menit, spec v2 §8.2)
 
@@ -50,12 +51,12 @@ idempoten): tombol reset di aplikasi (mode demo) memanggil `POST
 — mencetak cheat-sheet lengkap dengan angka yang dihitung ULANG saat itu juga
 oleh mesin harga sungguhan (bukan angka yang ditulis manual di dokumen ini).
 
-1. Login sebagai **Petani Asep** → **Kirim Panen** → tandai titik **penjemputan**
+1. Login sebagai **Petani Bu Nia** → **Kirim Panen** → tandai titik **penjemputan**
    (tombol "Gunakan lokasi saya" atau ketuk peta) — alamatnya terbaca otomatis,
    dan mengetik nama desa memunculkan **autocomplete daerah**. Lalu tandai
    **tujuan** dengan cara yang sama. Volume di bawah **50 kg ditolak di layar**,
    bukan setelah dikirim.
-2. Tekan **Kirim** → sistem membuka muatan baru → Asep melihat **harga atap**
+2. Tekan **Kirim** → sistem membuka muatan baru → Bu Nia melihat **harga atap**
    terkunci di layar Muatanmu.
 3. Login sebagai **Petani Wati** → kirim dari kebunnya sendiri, tujuan berdekatan
    → sistem mencocokkan ke **muatan yang SAMA** → harga berjalan turun. Kiriman
