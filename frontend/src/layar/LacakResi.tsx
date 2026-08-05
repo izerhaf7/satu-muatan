@@ -143,6 +143,7 @@ function HasilLacak({ bukti, onSerahTerima }: { bukti: BuktiLotOut; onSerahTerim
                 }))}
                 posisiTerakhir={posisiTerakhir ? { ...posisiTerakhir, label: "Posisi terakhir" } : null}
                 jejak={jejak}
+                rutePolyline={perjalanan.data.pengiriman.rute_polyline}
               />
             </section>
           )}

@@ -16,12 +16,25 @@
  *  Rincian dilipat secara bawaan supaya petani yang sedang di kebun tidak
  *  dihadang formulir panjang; ringkasannya tetap tampak. */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 
 import InputTeks from "@/komponen/InputTeks";
-import PilihWilayah from "@/komponen/PilihWilayah";
+import Select from "@/komponen/Select";
 import type { components } from "@/api/client";
+import { useCariWilayahAnak } from "@/hooks/useAlamat";
+import {
+  buatPilihanWilayah,
+  isiKodePosOtomatis,
+  kodeWilayahAktif,
+  pilihWilayah,
+  resetKodePosOtomatis,
+  ubahKodePosManual,
+  type KodeWilayahTersimpan,
+  type NilaiWilayahCascade,
+  type TingkatWilayah,
+  type WilayahAnak,
+} from "./wilayahCascade";
 
 type AlamatIn = components["schemas"]["AlamatIn"];
 type GeokodeOut = components["schemas"]["GeokodeOut"];
@@ -52,15 +65,15 @@ export function ringkasAlamat(a: NilaiAlamat): string {
   return bagian.length > 0 ? bagian.join(", ") : a.alamat.trim();
 }
 
-/** Terapkan hasil reverse geocoding tanpa menimpa apa yang sudah diketik
- *  pengguna — pin adalah bantuan, bukan atasan. */
+/** Hasil geokode mengganti hirarki lama agar alamat sesuai titik terkonfirmasi.
+ *  Field manual lain tetap dipertahankan. */
 export function terapkanGeokode(a: NilaiAlamat, g: GeokodeOut): NilaiAlamat {
   return {
     ...a,
-    desa: a.desa || g.desa || null,
-    kecamatan: a.kecamatan || g.kecamatan || null,
-    kabupaten: a.kabupaten || g.kabupaten || null,
-    provinsi: a.provinsi || g.provinsi || null,
+    desa: g.desa ?? a.desa,
+    kecamatan: g.kecamatan ?? a.kecamatan,
+    kabupaten: g.kabupaten ?? a.kabupaten,
+    provinsi: g.provinsi ?? a.provinsi,
     kode_pos: a.kode_pos || g.kode_pos || null,
     alamat: a.alamat || g.alamat,
   };
@@ -70,7 +83,7 @@ export function terapkanGeokode(a: NilaiAlamat, g: GeokodeOut): NilaiAlamat {
  *  spesifik ke yang paling umum. */
 export function terapkanWilayah(a: NilaiAlamat, w: WilayahOut): NilaiAlamat {
   const bagian = w.jalur.split(",").map((b) => b.trim());
-  const dasar: NilaiAlamat = { ...a, kode_pos: w.kode_pos ?? a.kode_pos };
+  const dasar: NilaiAlamat = { ...a, kode_pos: a.kode_pos || w.kode_pos || null };
 
   if (w.tingkat === "DESA") {
     return { ...dasar, desa: bagian[0] ?? null, kecamatan: bagian[1] ?? null, kabupaten: bagian[2] ?? null, provinsi: bagian[3] ?? null };
@@ -81,8 +94,25 @@ export function terapkanWilayah(a: NilaiAlamat, w: WilayahOut): NilaiAlamat {
   return { ...dasar, kabupaten: bagian[0] ?? null, provinsi: bagian[1] ?? null };
 }
 
+function placeholderWilayah(
+  siap: boolean,
+  sedangMemuat: boolean,
+  galat: boolean,
+  kosong: boolean,
+  pilih: string,
+  prasyarat: string,
+): string {
+  if (!siap) return prasyarat;
+  if (sedangMemuat) return "Memuat…";
+  if (galat) return "Gagal memuat wilayah";
+  if (kosong) return "Wilayah tidak tersedia";
+  return pilih;
+}
+
 interface FormAlamatProps {
   judul: string;
+  /** Menandai apakah alamat ini wajib untuk membuat kiriman. */
+  wajib: boolean;
   /** Prefix id supaya dua form di satu halaman tidak bertabrakan labelnya. */
   idPrefix: string;
   nilai: NilaiAlamat;
@@ -97,6 +127,7 @@ interface FormAlamatProps {
 
 export default function FormAlamat({
   judul,
+  wajib,
   idPrefix,
   nilai,
   onUbah,
@@ -106,19 +137,94 @@ export default function FormAlamat({
   keterangan,
 }: FormAlamatProps) {
   const [rincianTerbuka, setRincianTerbuka] = useState(false);
+  const [kodeWilayah, setKodeWilayah] = useState({
+    provinsi: null as KodeWilayahTersimpan | null,
+    kabupaten: null as KodeWilayahTersimpan | null,
+    kecamatan: null as KodeWilayahTersimpan | null,
+    desa: null as KodeWilayahTersimpan | null,
+  });
+  const kodePosOtomatis = useRef<string | null>(null);
+  const kodePosSebelumnya = useRef(nilai.kode_pos ?? null);
+  const kodePosSaatIni = nilai.kode_pos ?? null;
+
+  useEffect(() => {
+    if (kodePosSebelumnya.current === null && kodePosSaatIni !== null && kodePosOtomatis.current === null) {
+      kodePosOtomatis.current = kodePosSaatIni;
+    }
+    kodePosSebelumnya.current = kodePosSaatIni;
+  }, [kodePosSaatIni]);
+
+  const provinsi = useCariWilayahAnak("PROVINSI");
+  const provinsiKode = kodeWilayahAktif(nilai.provinsi ?? null, kodeWilayah.provinsi, provinsi.data);
+  const kabupaten = useCariWilayahAnak("KABUPATEN", provinsiKode);
+  const kabupatenKode = kodeWilayahAktif(nilai.kabupaten ?? null, kodeWilayah.kabupaten, kabupaten.data);
+  const kecamatan = useCariWilayahAnak("KECAMATAN", kabupatenKode);
+  const kecamatanKode = kodeWilayahAktif(nilai.kecamatan ?? null, kodeWilayah.kecamatan, kecamatan.data);
+  const desa = useCariWilayahAnak("DESA", kecamatanKode);
+  const desaKode = kodeWilayahAktif(nilai.desa ?? null, kodeWilayah.desa, desa.data);
 
   function ubah(bagian: Partial<NilaiAlamat>) {
     onUbah({ ...nilai, ...bagian });
   }
 
-  const jalurWilayah = [nilai.desa, nilai.kecamatan, nilai.kabupaten, nilai.provinsi]
-    .filter(Boolean)
-    .join(", ");
+  function ubahWilayah(wilayah: WilayahAnak) {
+    const cascade: NilaiWilayahCascade = {
+      provinsi: nilai.provinsi ?? null,
+      provinsiKode,
+      kabupaten: nilai.kabupaten ?? null,
+      kabupatenKode,
+      kecamatan: nilai.kecamatan ?? null,
+      kecamatanKode,
+      desa: nilai.desa ?? null,
+      desaKode,
+      kode_pos: nilai.kode_pos ?? null,
+    };
+    const hasil = pilihWilayah(cascade, wilayah);
+    const statusKodePos =
+      wilayah.tingkat === "DESA"
+        ? isiKodePosOtomatis(nilai.kode_pos ?? null, wilayah.kode_pos)
+        : resetKodePosOtomatis(nilai.kode_pos ?? null, kodePosOtomatis.current);
+    kodePosOtomatis.current = statusKodePos.otomatis;
+    setKodeWilayah({
+      provinsi:
+        hasil.provinsiKode && hasil.provinsi ? { kode: hasil.provinsiKode, nama: hasil.provinsi } : null,
+      kabupaten:
+        hasil.kabupatenKode && hasil.kabupaten ? { kode: hasil.kabupatenKode, nama: hasil.kabupaten } : null,
+      kecamatan:
+        hasil.kecamatanKode && hasil.kecamatan ? { kode: hasil.kecamatanKode, nama: hasil.kecamatan } : null,
+      desa: hasil.desaKode && hasil.desa ? { kode: hasil.desaKode, nama: hasil.desa } : null,
+    });
+    onUbah({
+      ...nilai,
+      provinsi: hasil.provinsi,
+      kabupaten: hasil.kabupaten,
+      kecamatan: hasil.kecamatan,
+      desa: hasil.desa,
+      kode_pos: statusKodePos.nilai,
+    });
+    if (wilayah.lat != null && wilayah.lng != null && Number.isFinite(wilayah.lat) && Number.isFinite(wilayah.lng)) {
+      onWilayahBerkoordinat?.({ lat: wilayah.lat, lng: wilayah.lng });
+    }
+  }
+
+  function saatPilih(tingkat: TingkatWilayah, kode: string, daftar: WilayahAnak[] | undefined) {
+    const wilayah = daftar?.find((pilihan) => pilihan.kode === kode);
+    if (wilayah && wilayah.tingkat === tingkat) ubahWilayah(wilayah);
+  }
 
   return (
     <section aria-label={judul} className="flex flex-col gap-3">
       <div className="flex flex-col gap-0.5">
-        <h3 className="text-subjudul text-tanah">{judul}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-subjudul text-tanah">{judul}</h3>
+          <span
+            className={`rounded-full px-2 py-0.5 text-keterangan font-semibold ${
+              wajib ? "bg-tanah-liat/10 text-tanah-liat" : "bg-tanah/5 text-tanah/60"
+            }`}
+          >
+            {wajib ? "Wajib" : "Opsional"}
+          </span>
+        </div>
         {keterangan && <p className="text-keterangan text-tanah/55">{keterangan}</p>}
       </div>
 
@@ -141,15 +247,93 @@ export default function FormAlamat({
         />
       </div>
 
-      <PilihWilayah
-        label="Desa / kecamatan"
-        id={`${idPrefix}-wilayah`}
-        nilai={jalurWilayah}
-        onPilih={(w) => {
-          onUbah(terapkanWilayah(nilai, w));
-          if (w.lat != null && w.lng != null) onWilayahBerkoordinat?.({ lat: w.lat, lng: w.lng });
-        }}
-      />
+      <div className="grid grid-cols-1 gap-3">
+        <Select
+          label="Provinsi"
+          id={`${idPrefix}-provinsi`}
+          value={provinsiKode ?? nilai.provinsi ?? ""}
+          onChange={(e) => saatPilih("PROVINSI", e.target.value, provinsi.data)}
+          disabled={provinsi.isLoading || provinsi.isError || provinsi.data?.length === 0}
+        >
+          <option value="" disabled>
+            {placeholderWilayah(true, provinsi.isLoading, provinsi.isError, provinsi.data?.length === 0, "Pilih provinsi", "")}
+          </option>
+          {buatPilihanWilayah(nilai.provinsi ?? null, provinsi.data ?? []).map((pilihan) => (
+            <option key={`${pilihan.sementara ? "sementara" : "wilayah"}-${pilihan.kode}`} value={pilihan.kode}>
+              {pilihan.nama}
+            </option>
+          ))}
+        </Select>
+        <Select
+          label="Kabupaten / Kota"
+          id={`${idPrefix}-kabupaten`}
+          value={kabupatenKode ?? nilai.kabupaten ?? ""}
+          onChange={(e) => saatPilih("KABUPATEN", e.target.value, kabupaten.data)}
+          disabled={!provinsiKode || kabupaten.isLoading || kabupaten.isError || kabupaten.data?.length === 0}
+        >
+          <option value="" disabled>
+            {placeholderWilayah(
+              Boolean(provinsiKode),
+              kabupaten.isLoading,
+              kabupaten.isError,
+              kabupaten.data?.length === 0,
+              "Pilih kabupaten / kota",
+              "Pilih provinsi dahulu",
+            )}
+          </option>
+          {buatPilihanWilayah(nilai.kabupaten ?? null, kabupaten.data ?? []).map((pilihan) => (
+            <option key={`${pilihan.sementara ? "sementara" : "wilayah"}-${pilihan.kode}`} value={pilihan.kode}>
+              {pilihan.nama}
+            </option>
+          ))}
+        </Select>
+        <Select
+          label="Kecamatan"
+          id={`${idPrefix}-kecamatan`}
+          value={kecamatanKode ?? nilai.kecamatan ?? ""}
+          onChange={(e) => saatPilih("KECAMATAN", e.target.value, kecamatan.data)}
+          disabled={!kabupatenKode || kecamatan.isLoading || kecamatan.isError || kecamatan.data?.length === 0}
+        >
+          <option value="" disabled>
+            {placeholderWilayah(
+              Boolean(kabupatenKode),
+              kecamatan.isLoading,
+              kecamatan.isError,
+              kecamatan.data?.length === 0,
+              "Pilih kecamatan",
+              "Pilih kabupaten / kota dahulu",
+            )}
+          </option>
+          {buatPilihanWilayah(nilai.kecamatan ?? null, kecamatan.data ?? []).map((pilihan) => (
+            <option key={`${pilihan.sementara ? "sementara" : "wilayah"}-${pilihan.kode}`} value={pilihan.kode}>
+              {pilihan.nama}
+            </option>
+          ))}
+        </Select>
+        <Select
+          label="Desa / Kelurahan"
+          id={`${idPrefix}-desa`}
+          value={desaKode ?? nilai.desa ?? ""}
+          onChange={(e) => saatPilih("DESA", e.target.value, desa.data)}
+          disabled={!kecamatanKode || desa.isLoading || desa.isError || desa.data?.length === 0}
+        >
+          <option value="" disabled>
+            {placeholderWilayah(
+              Boolean(kecamatanKode),
+              desa.isLoading,
+              desa.isError,
+              desa.data?.length === 0,
+              "Pilih desa / kelurahan",
+              "Pilih kecamatan dahulu",
+            )}
+          </option>
+          {buatPilihanWilayah(nilai.desa ?? null, desa.data ?? []).map((pilihan) => (
+            <option key={`${pilihan.sementara ? "sementara" : "wilayah"}-${pilihan.kode}`} value={pilihan.kode}>
+              {pilihan.nama}
+            </option>
+          ))}
+        </Select>
+      </div>
 
       <InputTeks
         label="Nama jalan & nomor"
@@ -188,7 +372,12 @@ export default function FormAlamat({
               id={`${idPrefix}-kodepos`}
               inputMode="numeric"
               value={nilai.kode_pos ?? ""}
-              onChange={(e) => ubah({ kode_pos: e.target.value || null })}
+              onChange={(e) => {
+                const statusKodePos = ubahKodePosManual(e.target.value || null);
+                kodePosOtomatis.current = statusKodePos.otomatis;
+                kodePosSebelumnya.current = statusKodePos.nilai;
+                ubah({ kode_pos: statusKodePos.nilai });
+              }}
               placeholder="44171"
               className="angka"
             />

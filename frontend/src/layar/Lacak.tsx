@@ -147,6 +147,7 @@ function IsiLacak({
                 tujuan={tujuanDenganKoordinat}
                 posisiTerakhir={posisiTerakhir}
                 jejak={jejak}
+                rutePolyline={pengiriman.data.rute_polyline}
               />
             </section>
           )}

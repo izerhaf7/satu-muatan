@@ -4,16 +4,18 @@ import { forwardRef, type InputHTMLAttributes } from "react";
 
 interface InputTeksProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
+  penanda?: "Wajib" | "Opsional";
   pesanKesalahan?: string;
 }
 
 const InputTeks = forwardRef<HTMLInputElement, InputTeksProps>(
-  ({ label, id, name, pesanKesalahan, className = "", ...props }, ref) => {
+  ({ label, penanda, id, name, pesanKesalahan, className = "", ...props }, ref) => {
     const inputId = id ?? name ?? label.toLowerCase().replace(/\s+/g, "-");
     return (
       <div className="flex flex-col gap-1.5">
         <label htmlFor={inputId} className="text-keterangan font-semibold text-tanah">
-          {label}
+          <span>{label}</span>
+          {penanda && <span className="ml-2 font-medium text-tanah/55">{penanda}</span>}
         </label>
         <input
           ref={ref}

@@ -14,8 +14,8 @@
  *  - **Volume minimal diketahui klien** dari `/api/aturan-kiriman`, jadi petani
  *    tahu batasnya sebelum menekan tombol, bukan lewat galat 422 sesudahnya. */
 
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
-import { PackagePlus, Send, TrendingDown } from "lucide-react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { AlertCircle, Map, PackagePlus, Send, TrendingDown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import FormAlamat, {
@@ -24,6 +24,7 @@ import FormAlamat, {
   terapkanGeokode,
   type NilaiAlamat,
 } from "@/komponen/FormAlamat";
+import CariAlamat from "@/komponen/CariAlamat";
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
 import InputTeks from "@/komponen/InputTeks";
 import KartuGalat from "@/komponen/KartuGalat";
@@ -38,6 +39,24 @@ import { useBuatKiriman, usePratinjauKiriman, type ParamsPratinjau } from "@/hoo
 import { formatRupiah } from "@/utils/format";
 
 import type { Titik } from "./kirim-panen/PetaPilihTitik";
+import {
+  bersihkanFieldProvider,
+  bolehTerapkanResponsGeokode,
+  buatKunciKoordinat,
+  catatFieldProvider,
+  pulihkanAlamatSaatBatal,
+  type JejakFieldProvider,
+} from "./kirim-panen/geokodeTitik";
+import {
+  adaTitikPending,
+  batalkanTitikPending,
+  buatStatusTitik,
+  konfirmasiTitikPending,
+  simpanTitikPending,
+  type StatusTitik,
+  type SumberTitik,
+} from "./kirim-panen/titikPending";
+import { daftarPenghambatKiriman } from "./kirim-panen/validasiKiriman";
 
 // Leaflet berat — jangan sampai ikut chunk masuk aplikasi.
 const PetaPilihTitik = lazy(() => import("./kirim-panen/PetaPilihTitik"));
@@ -60,47 +79,147 @@ export default function KirimPanen() {
   const [tanggal, setTanggal] = useState(tanggalBesok());
 
   const [titikAsal, setTitikAsal] = useState<Titik | null>(null);
+  const [statusTitikAsal, setStatusTitikAsal] = useState<StatusTitik>(() => buatStatusTitik(null));
   const [alamatAsal, setAlamatAsal] = useState<NilaiAlamat>(ALAMAT_KOSONG);
   const [titikTujuan, setTitikTujuan] = useState<Titik | null>(null);
+  const [statusTitikTujuan, setStatusTitikTujuan] = useState<StatusTitik>(() => buatStatusTitik(null));
   const [alamatTujuan, setAlamatTujuan] = useState<NilaiAlamat>(ALAMAT_KOSONG);
+  const [petaTujuanTerbuka, setPetaTujuanTerbuka] = useState(false);
+  const [peringatanCariTujuan, setPeringatanCariTujuan] = useState<string | null>(null);
+  const revisiTujuan = useRef(0);
+  const providerAsal = useRef<JejakFieldProvider>({});
+  const providerTujuan = useRef<JejakFieldProvider>({});
+  const snapshotAlamatAsal = useRef<NilaiAlamat | null>(null);
+  const snapshotAlamatTujuan = useRef<NilaiAlamat | null>(null);
+  const snapshotProviderTujuan = useRef<JejakFieldProvider | null>(null);
 
-  // Pin berpindah → alamat dibaca ulang. Hasilnya melengkapi isian yang masih
-  // kosong dan TIDAK menimpa apa yang sudah diketik pengguna.
+  function ajukanTitikAsal(titik: Titik, sumber: SumberTitik) {
+    setStatusTitikAsal((status) => simpanTitikPending(status, titik, sumber));
+  }
+
+  function ajukanTitikTujuan(titik: Titik, sumber: SumberTitik) {
+    revisiTujuan.current += 1;
+    setStatusTitikTujuan((status) => simpanTitikPending(status, titik, sumber));
+  }
+
+  function ubahAlamatTujuan(alamat: NilaiAlamat) {
+    revisiTujuan.current += 1;
+    setAlamatTujuan(alamat);
+  }
+
+  function ajukanAlamatTujuan(titik: Titik) {
+    snapshotAlamatTujuan.current ??= alamatTujuan;
+    snapshotProviderTujuan.current ??= { ...providerTujuan.current };
+    setPetaTujuanTerbuka(true);
+    ajukanTitikTujuan(titik, "ALAMAT");
+  }
+
+  function konfirmasiTitikAsal() {
+    const hasil = konfirmasiTitikPending(statusTitikAsal);
+    if (!hasil) return;
+    if (buatKunciKoordinat(titikAsal) !== buatKunciKoordinat(hasil.titik)) {
+      setAlamatAsal((alamat) => bersihkanFieldProvider(alamat, providerAsal.current));
+      providerAsal.current = {};
+    }
+    setStatusTitikAsal(hasil.status);
+    setTitikAsal(hasil.titik);
+    snapshotAlamatAsal.current = null;
+  }
+
+  function konfirmasiTitikTujuan() {
+    const hasil = konfirmasiTitikPending(statusTitikTujuan);
+    if (!hasil) return;
+    revisiTujuan.current += 1;
+    if (hasil.titik.sumber !== "ALAMAT" && buatKunciKoordinat(titikTujuan) !== buatKunciKoordinat(hasil.titik)) {
+      setAlamatTujuan((alamat) => bersihkanFieldProvider(alamat, providerTujuan.current));
+      providerTujuan.current = {};
+    }
+    setStatusTitikTujuan(hasil.status);
+    setTitikTujuan(hasil.titik);
+    snapshotAlamatTujuan.current = null;
+    snapshotProviderTujuan.current = null;
+  }
+
+  function ajukanWilayahAsal(titik: Titik) {
+    snapshotAlamatAsal.current ??= alamatAsal;
+    ajukanTitikAsal(titik, "WILAYAH");
+  }
+
+  function ajukanWilayahTujuan(titik: Titik) {
+    snapshotAlamatTujuan.current ??= alamatTujuan;
+    ajukanTitikTujuan(titik, "WILAYAH");
+  }
+
+  function batalkanTitikAsal() {
+    setStatusTitikAsal((status) => batalkanTitikPending(status));
+    setAlamatAsal((alamat) => pulihkanAlamatSaatBatal(alamat, snapshotAlamatAsal.current));
+    snapshotAlamatAsal.current = null;
+  }
+
+  function batalkanTitikTujuan() {
+    revisiTujuan.current += 1;
+    setStatusTitikTujuan((status) => batalkanTitikPending(status));
+    setAlamatTujuan((alamat) => pulihkanAlamatSaatBatal(alamat, snapshotAlamatTujuan.current));
+    if (snapshotProviderTujuan.current) providerTujuan.current = snapshotProviderTujuan.current;
+    snapshotAlamatTujuan.current = null;
+    snapshotProviderTujuan.current = null;
+  }
+
+  // Titik terkonfirmasi → alamat dibaca ulang. Hirarki wilayah mengikuti titik,
+  // sedangkan nama, telepon, jalan, RT/RW, kode pos, dan patokan tetap manual.
   const geokodeAsal = useGeokodeBalik(titikAsal);
   const geokodeTujuan = useGeokodeBalik(titikTujuan);
 
   useEffect(() => {
-    if (geokodeAsal.data) setAlamatAsal((a) => terapkanGeokode(a, geokodeAsal.data));
-  }, [geokodeAsal.data]);
+    if (!geokodeAsal.data || !bolehTerapkanResponsGeokode(geokodeAsal.data.kunci, titikAsal)) return;
+    setAlamatAsal((alamat) => {
+      providerAsal.current = catatFieldProvider(geokodeAsal.data.hasil, alamat);
+      return terapkanGeokode(alamat, geokodeAsal.data.hasil);
+    });
+  }, [geokodeAsal.data, titikAsal]);
 
   useEffect(() => {
-    if (geokodeTujuan.data) setAlamatTujuan((a) => terapkanGeokode(a, geokodeTujuan.data));
-  }, [geokodeTujuan.data]);
+    if (!geokodeTujuan.data || !bolehTerapkanResponsGeokode(geokodeTujuan.data.kunci, titikTujuan)) return;
+    setAlamatTujuan((alamat) => {
+      providerTujuan.current = {
+        ...providerTujuan.current,
+        ...catatFieldProvider(geokodeTujuan.data.hasil, alamat),
+      };
+      return terapkanGeokode(alamat, geokodeTujuan.data.hasil);
+    });
+  }, [geokodeTujuan.data, titikTujuan]);
 
   const volumeMinimal = aturan.data?.volume_minimal_kg ?? null;
   const volumeAngka = Number(volume);
   const volumeKurang =
     volumeMinimal !== null && volume.trim().length > 0 && volumeAngka > 0 && volumeAngka < volumeMinimal;
+  const titikMasihPending = adaTitikPending(statusTitikAsal, statusTitikTujuan);
 
   const paramsPratinjau: ParamsPratinjau | null = useMemo(() => {
-    if (!titikTujuan || !volumeAngka || volumeAngka <= 0 || !tanggal) return null;
+    if (titikMasihPending || !titikTujuan || !volumeAngka || volumeAngka <= 0 || !tanggal) return null;
     return { volumeKg: volumeAngka, lat: titikTujuan.lat, lng: titikTujuan.lng, tanggal };
-  }, [volumeAngka, tanggal, titikTujuan]);
+  }, [titikMasihPending, volumeAngka, tanggal, titikTujuan]);
 
   const pratinjau = usePratinjauKiriman(paramsPratinjau);
 
   const ringkasanTujuan = ringkasAlamat(alamatTujuan);
-  const bisaKirim =
-    Boolean(komoditasId) &&
-    volumeAngka > 0 &&
-    !volumeKurang &&
-    Boolean(tanggal) &&
-    titikTujuan !== null &&
-    ringkasanTujuan.length > 0 &&
-    !buatKiriman.isPending;
+  const penghambatKiriman = daftarPenghambatKiriman({
+    komoditasId,
+    volumeKg: volumeAngka,
+    volumeMinimalKg: volumeMinimal,
+    tanggal,
+    ringkasanTujuan,
+    adaTitikTujuan: titikTujuan !== null,
+    tujuanPending: statusTitikTujuan.pending !== null,
+    asalPending: statusTitikAsal.pending !== null,
+    alamatSedangDimuat: geokodeAsal.isLoading || geokodeTujuan.isLoading,
+    sedangMengirim: buatKiriman.isPending,
+  });
+  const bisaKirim = penghambatKiriman.length === 0;
 
   async function kirim() {
-    if (!bisaKirim || !titikTujuan) return;
+    if (penghambatKiriman.length > 0) return;
+    if (!titikTujuan) throw new Error("Titik tujuan harus tersedia setelah validasi kiriman.");
     try {
       const hasil = await buatKiriman.mutateAsync({
         komoditas_id: komoditasId,
@@ -145,7 +264,7 @@ export default function KirimPanen() {
 
       <section className="flex flex-col gap-3">
         <label htmlFor="komoditas" className="text-keterangan font-semibold text-tanah">
-          Komoditas
+          Komoditas <span className="ml-2 font-medium text-tanah/55">Wajib</span>
         </label>
         {komoditas.isLoading && <SkeletonKartu />}
         {komoditas.isError && <KartuGalat pesan="Gagal memuat komoditas." onCobaLagi={() => komoditas.refetch()} />}
@@ -173,6 +292,7 @@ export default function KirimPanen() {
         <div className="grid grid-cols-2 gap-3">
           <InputTeks
             label="Volume (kg)"
+            penanda="Wajib"
             id="volume"
             type="number"
             inputMode="numeric"
@@ -185,6 +305,7 @@ export default function KirimPanen() {
           />
           <InputTeks
             label="Tanggal siap"
+            penanda="Wajib"
             id="tanggal"
             type="date"
             value={tanggal}
@@ -207,17 +328,26 @@ export default function KirimPanen() {
       {/* ---- Penjemputan ---------------------------------------------- */}
       <div className="flex flex-col gap-3 rounded-xl border-2 border-kabut p-4">
         <Suspense fallback={<Skeleton className="h-[240px] w-full" />}>
-          <PetaPilihTitik titik={titikAsal} pusatAwal={pusatAwal} onPilih={setTitikAsal} tampilkanGps />
+          <PetaPilihTitik
+            titik={titikAsal}
+            pending={statusTitikAsal.pending}
+            pusatAwal={pusatAwal}
+            onPending={ajukanTitikAsal}
+            onConfirm={konfirmasiTitikAsal}
+            onCancel={batalkanTitikAsal}
+            tampilkanGps
+          />
         </Suspense>
         <FormAlamat
           judul="Dijemput dari"
+          wajib={false}
           idPrefix="asal"
           nilai={alamatAsal}
           onUbah={setAlamatAsal}
           labelNama="Nama pengirim"
           labelTelepon="Telepon pengirim"
-          onWilayahBerkoordinat={setTitikAsal}
-          keterangan={keteranganGeokode(geokodeAsal.isLoading, geokodeAsal.data?.sumber)}
+          onWilayahBerkoordinat={ajukanWilayahAsal}
+          keterangan={keteranganGeokode(geokodeAsal.isLoading, geokodeAsal.data?.hasil.sumber)}
         />
         {!titikAsal && (
           <p className="text-keterangan text-tanah/55">
@@ -228,18 +358,58 @@ export default function KirimPanen() {
 
       {/* ---- Tujuan ---------------------------------------------------- */}
       <div className="flex flex-col gap-3 rounded-xl border-2 border-kabut p-4">
-        <Suspense fallback={<Skeleton className="h-[240px] w-full" />}>
-          <PetaPilihTitik titik={titikTujuan} pusatAwal={pusatAwal} onPilih={setTitikTujuan} />
-        </Suspense>
+        <CariAlamat
+          id="cari-alamat-tujuan"
+          nilai={alamatTujuan}
+          onUbah={ubahAlamatTujuan}
+          onPilihTitik={ajukanAlamatTujuan}
+          onPeringatan={setPeringatanCariTujuan}
+          jejakProvider={providerTujuan.current}
+          onJejakProvider={(jejak) => {
+            providerTujuan.current = jejak;
+          }}
+          dapatkanRevisiTujuan={() => revisiTujuan.current}
+        />
+        {peringatanCariTujuan && (
+          <p role="alert" className="flex items-start gap-2 rounded-lg bg-tanah-liat/10 px-3 py-2 text-keterangan font-medium text-tanah-liat">
+            <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
+            {peringatanCariTujuan}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => setPetaTujuanTerbuka((terbuka) => !terbuka)}
+          aria-expanded={petaTujuanTerbuka}
+          aria-controls="peta-tujuan"
+          className="inline-flex min-h-sentuh items-center justify-center gap-2 rounded-lg border-2 border-kabut px-4 text-base font-semibold text-tanah/70 transition-colors duration-cepat hover:border-daun hover:text-daun"
+        >
+          <Map aria-hidden className="h-4 w-4" />
+          {petaTujuanTerbuka ? "Sembunyikan peta" : "Pilih lewat titik di peta"}
+        </button>
+        {petaTujuanTerbuka && (
+          <div id="peta-tujuan">
+            <Suspense fallback={<Skeleton className="h-[240px] w-full" />}>
+              <PetaPilihTitik
+                titik={titikTujuan}
+                pending={statusTitikTujuan.pending}
+                pusatAwal={pusatAwal}
+                onPending={ajukanTitikTujuan}
+                onConfirm={konfirmasiTitikTujuan}
+                onCancel={batalkanTitikTujuan}
+              />
+            </Suspense>
+          </div>
+        )}
         <FormAlamat
           judul="Diantar ke"
+          wajib
           idPrefix="tujuan"
           nilai={alamatTujuan}
-          onUbah={setAlamatTujuan}
+          onUbah={ubahAlamatTujuan}
           labelNama="Nama penerima"
           labelTelepon="Telepon penerima"
-          onWilayahBerkoordinat={setTitikTujuan}
-          keterangan={keteranganGeokode(geokodeTujuan.isLoading, geokodeTujuan.data?.sumber)}
+          onWilayahBerkoordinat={ajukanWilayahTujuan}
+          keterangan={keteranganGeokode(geokodeTujuan.isLoading, geokodeTujuan.data?.hasil.sumber)}
         />
         {!titikTujuan && (
           <p role="alert" className="text-keterangan font-medium text-tanah-liat">
@@ -281,6 +451,20 @@ export default function KirimPanen() {
         <p role="alert" className="text-keterangan text-tanah-liat">
           {pesanGalat}
         </p>
+      )}
+
+      {penghambatKiriman.length > 0 && (
+        <section role="status" aria-live="polite" className="kartu-datar flex flex-col gap-2 border-tanah-liat/40 p-4">
+          <div className="flex items-center gap-2 text-tanah-liat">
+            <AlertCircle aria-hidden className="h-5 w-5 shrink-0" />
+            <h2 className="text-base font-semibold">Belum bisa kirim karena:</h2>
+          </div>
+          <ul className="list-disc space-y-1 pl-5 text-keterangan text-tanah/80">
+            {penghambatKiriman.map((penghambat) => (
+              <li key={penghambat}>{penghambat}</li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <Tombol
