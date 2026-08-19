@@ -52,10 +52,14 @@ def test_penerima_melacak_lewat_resi_tanpa_ikatan_alamat(client, data_dasar, mas
     assert rr.status_code == 404
 
 
-def test_geser_posisi_menggerakkan_peta_sampai_tiba(client, data_dasar, masuk, kirim_panen):
+def test_geser_posisi_menggerakkan_peta_sampai_tiba(client, data_dasar, masuk, kirim_panen, db):
     """REGRESI: dulu `jejak` selalu [] sampai TIBA sehingga peta tidak pernah
-    bergerak. Sekarang tiap geser menambah titik jejak, dan langkah terakhir
-    menandai TIBA."""
+    bergerak. Sekarang tiap geser menambah titik jejak, dan begitu jarak tempuh
+    melewati panjang rute, muatan ditandai TIBA."""
+    from datetime import datetime, timedelta, timezone
+
+    from app.models import Pengiriman
+
     slot_id = _muatan_siap(client, data_dasar, masuk, kirim_panen)
     header_petugas = masuk("081200000001")
     r = client.post(f"/api/demo/muatan/{slot_id}/berangkatkan", headers=header_petugas)
@@ -65,29 +69,27 @@ def test_geser_posisi_menggerakkan_peta_sampai_tiba(client, data_dasar, masuk, k
     jejak_awal = client.get(f"/api/slot/{slot_id}/pengiriman", headers=header_petugas).json()["jejak"]
     assert len(jejak_awal) == 1, "keberangkatan wajib mencatat titik awal"
 
-    sebelumnya = len(jejak_awal)
-    status_akhir = None
-    for _ in range(20):
-        rg = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=header_petugas)
-        if rg.status_code == 409:  # sudah tiba
-            break
-        assert rg.status_code == 200, rg.text
-        jejak = rg.json()["jejak"]
-        assert len(jejak) > sebelumnya, "tiap geser wajib menambah titik posisi"
-        sebelumnya = len(jejak)
-        status_akhir = rg.json()["status_vendor"]
-        if status_akhir == "TIBA":
-            break
+    # T6: gerak kontinu berbasis waktu. Mundurkan waktu_berangkat jauh ke masa
+    # lalu supaya jarak tempuh melewati panjang rute → muatan tiba.
+    pengiriman = db.get(Pengiriman, pengiriman_id)
+    pengiriman.waktu_berangkat = datetime.now(timezone.utc) - timedelta(hours=2)
+    db.commit()
 
-    assert status_akhir == "TIBA"
-    akhir = client.get(f"/api/slot/{slot_id}/pengiriman", headers=header_petugas).json()
+    rg = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=header_petugas)
+    assert rg.status_code == 200, rg.text
+    akhir = rg.json()
+    assert akhir["status_vendor"] == "TIBA"
     assert akhir["timeline"]["tiba"] is not None
-    assert len(akhir["jejak"]) > 2, "peta harus punya jejak, bukan satu titik"
+    assert len(akhir["jejak"]) > 1, "peta harus punya jejak, bukan satu titik"
     # Posisi bergerak sungguhan: titik pertama ≠ titik terakhir.
     assert (akhir["jejak"][0]["lat"], akhir["jejak"][0]["lng"]) != (
         akhir["jejak"][-1]["lat"],
         akhir["jejak"][-1]["lng"],
     )
+
+    # Idempoten: sudah tiba → 409.
+    rg2 = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=header_petugas)
+    assert rg2.status_code == 409
 
 
 def test_geser_ditolak_sebelum_berangkat(client, data_dasar, masuk, kirim_panen, ambil_tugas):

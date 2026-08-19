@@ -30,8 +30,12 @@ class PengirimanOut(BaseModel):
     vendor_ref: str | None = None
     status_vendor: str | None = None
     timeline: TimelineOut
-    estimasi_tiba: datetime | None = None  # dari ambang_transit_menit
+    estimasi_tiba: datetime | None = None  # dari rute_durasi_provider_menit; jatuh ke ambang_transit_menit
     ambang_transit_menit: int
+    # T5: durasi/jarak rute provider (Google/haversine) — basis `estimasi_tiba`
+    # kalau tersedia; `ambang_transit_menit` tetap dipakai attribusi/mutu/dampak.
+    eta_provider_menit: int | None = None
+    jarak_provider_km: float | None = None
     jejak: list[PosisiOut]
     rute_polyline: str | None = None
     rute_versi: int | None = None
@@ -82,3 +86,15 @@ class PerjalananResiOut(BaseModel):
     telemetri: TelemetriOut
     titik_kumpul: TitikPetaOut
     tujuan: list[TitikPetaOut]
+
+
+class KoordinatTiba(BaseModel):
+    lat: float
+    lng: float
+
+
+class SampaiRequest(BaseModel):
+    """T8 — body opsional endpoint `sampai`: koordinat GPS petugas saat
+    menyatakan tiba. Tanpa koordinat, kedatangan diterima begitu saja."""
+
+    koordinat: KoordinatTiba | None = None

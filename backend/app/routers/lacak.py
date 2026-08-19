@@ -8,13 +8,16 @@ from sqlalchemy.orm import Session
 
 from app.auth import get_pengguna_aktif, wajib_peran
 from app.database import get_db
+from app.domain.armada import jarak_haversine_km
 from app.domain.paparan import SampelTelemetri, hitung_paparan
+from app.domain.rute_polyline import decode_polyline, panjang_polyline_km, posisi_pada_polyline
 from app.models import JejakPosisi, Komoditas, Lot, Partisipasi, Penerima, Pengiriman, Slot, TitikKumpul
-from app.models.enums import StatusPartisipasi, SumberPosisi
+from app.models.enums import StatusPartisipasi, StatusSlot, SumberPosisi
 from app.schemas.lacak import (
     PengirimanOut,
     PerjalananResiOut,
     PosisiOut,
+    SampaiRequest,
     TelemetriOut,
     TelemetriRingkasanOut,
     TelemetriSampelOut,
@@ -45,9 +48,14 @@ def _ke_pengiriman_out(pengiriman: Pengiriman, slot: Slot, db: Session) -> Pengi
     dimuat = max(waktu_muat) if waktu_muat else None
 
     ambang = _ambang_slot(db, slot)
-    estimasi_tiba = (
-        pengiriman.waktu_berangkat + timedelta(minutes=ambang) if pengiriman.waktu_berangkat is not None else None
-    )
+    # T5: kalau provider rute memberi durasi (Google/haversine), estimasi tiba
+    # memakai durasi itu; kalau tidak, jatuh ke ambang transit (jarak/kecepatan).
+    if pengiriman.rute_durasi_provider_menit is not None and pengiriman.waktu_berangkat is not None:
+        estimasi_tiba = pengiriman.waktu_berangkat + timedelta(minutes=pengiriman.rute_durasi_provider_menit)
+    else:
+        estimasi_tiba = (
+            pengiriman.waktu_berangkat + timedelta(minutes=ambang) if pengiriman.waktu_berangkat is not None else None
+        )
 
     jejak = (
         db.query(JejakPosisi)
@@ -70,6 +78,10 @@ def _ke_pengiriman_out(pengiriman: Pengiriman, slot: Slot, db: Session) -> Pengi
         ),
         estimasi_tiba=estimasi_tiba,
         ambang_transit_menit=ambang,
+        eta_provider_menit=pengiriman.rute_durasi_provider_menit,
+        jarak_provider_km=(
+            float(pengiriman.rute_jarak_provider_km) if pengiriman.rute_jarak_provider_km is not None else None
+        ),
         jejak=[PosisiOut(lat=j.lat, lng=j.lng, waktu=j.waktu, sumber=j.sumber) for j in jejak],
         rute_polyline=pengiriman.rute_polyline,
         rute_versi=pengiriman.rute_versi,
@@ -211,6 +223,11 @@ def majukan_pengiriman(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGA
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Muatan tidak ditemukan")
     pastikan_petugas_muatan(pengguna, slot)
 
+    # T7: muatan harus sudah berangkat (slot JALAN) sebelum boleh dimajukan —
+    # mencegah lacak/majukan sebelum muat selesai.
+    if slot.status != StatusSlot.JALAN:
+        raise HTTPException(status.HTTP_409_CONFLICT, "MUAT_BELUM_SELESAI")
+
     saat_ini = pengiriman.status_vendor or "DIPESAN"
     idx = _URUTAN_STATUS.index(saat_ini) if saat_ini in _URUTAN_STATUS else 0
     if idx < len(_URUTAN_STATUS) - 1:
@@ -256,31 +273,16 @@ def _rute_titik(db: Session, slot: Slot) -> list[tuple[float, float]]:
     return titik
 
 
-def _posisi_pada_fraksi(titik: list[tuple[float, float]], fraksi: float) -> tuple[float, float]:
-    """Interpolasi linear sepanjang rangkaian titik rute. fraksi 0..1."""
-    if not titik:
-        return (0.0, 0.0)
-    if len(titik) == 1 or fraksi <= 0:
-        return titik[0]
-    if fraksi >= 1:
-        return titik[-1]
-    total_segmen = len(titik) - 1
-    posisi = fraksi * total_segmen
-    idx = min(int(posisi), total_segmen - 1)
-    sisa = posisi - idx
-    lat0, lng0 = titik[idx]
-    lat1, lng1 = titik[idx + 1]
-    return (lat0 + (lat1 - lat0) * sisa, lng0 + (lng1 - lng0) * sisa)
-
-
 @router.post("/pengiriman/{pengiriman_id}/geser", response_model=PengirimanOut)
 def geser_posisi(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
-    """K13: majukan POSISI kendaraan satu langkah sepanjang rute, bukan status.
+    """K13: majukan POSISI kendaraan sepanjang rute, bukan status.
 
-    Tiap panggilan menulis satu titik `JejakPosisi` hasil interpolasi + satu
-    sampel telemetri, sehingga peta benar-benar bergerak saat didemokan.
-    Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
-    "jalan otomatis" di layar Lacak."""
+    T6: gerak KONTINU sepanjang polyline, dikompresi waktu. Posisi dihitung dari
+    jarak yang ditempuh = kecepatan × (waktu berjalan × percepatan simulasi),
+    lalu diinterpolasi di sepanjang polyline (klamp di kedua ujung). Tiap
+    panggilan menulis satu titik `JejakPosisi`; begitu jarak tempuh melewati
+    panjang polyline, muatan ditandai TIBA. Dipakai tombol "Majukan posisi" dan
+    mode "jalan otomatis" di layar Lacak."""
     pengiriman = db.get(Pengiriman, pengiriman_id)
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
@@ -290,18 +292,34 @@ def geser_posisi(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), 
     pastikan_petugas_muatan(pengguna, slot)
     if pengiriman.waktu_berangkat is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Muatan belum berangkat")
+    # T7: muatan harus sudah berangkat (slot JALAN) sebelum boleh digeser —
+    # mencegah lacak sebelum muat selesai.
+    if slot.status != StatusSlot.JALAN:
+        raise HTTPException(status.HTTP_409_CONFLICT, "MUAT_BELUM_SELESAI")
     if pengiriman.waktu_tiba is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Muatan sudah tiba")
 
-    langkah_total = baca_konfigurasi(db, "langkah_geser_demo")
-    sudah = db.query(JejakPosisi).filter_by(pengiriman_id=pengiriman.id).count()
-    # Titik jejak pertama (di titik kumpul) ditulis saat berangkat, jadi ia tidak
-    # dihitung sebagai langkah perjalanan.
-    langkah_ke = min(max(sudah, 1), langkah_total)
-    fraksi = langkah_ke / langkah_total
+    # Rute: decode polyline provider; kalau rusak/kosong, jatuh ke rantai garis
+    # lurus `_rute_titik` (titik kumpul → jemput → tujuan).
+    polyline: list[tuple[float, float]] = []
+    if pengiriman.rute_polyline:
+        try:
+            polyline = decode_polyline(pengiriman.rute_polyline)
+        except ValueError:
+            polyline = []
+    if len(polyline) < 2:
+        polyline = _rute_titik(db, slot)
+    if len(polyline) < 2:
+        # Tidak ada rute yang bisa dijadikan posisi — pertahankan titik awal.
+        lat, lng = (0.0, 0.0)
+    else:
+        panjang = panjang_polyline_km(polyline)
+        elapsed_menit = max((datetime.now(timezone.utc) - pengiriman.waktu_berangkat).total_seconds() / 60, 0.0)
+        percepatan = float(baca_konfigurasi(db, "simulasi_percepatan_x"))
+        kecepatan = float(baca_konfigurasi(db, "kecepatan_rata_kmh"))
+        jarak_tempuh_km = kecepatan * (elapsed_menit * percepatan) / 60
+        lat, lng = posisi_pada_polyline(polyline, jarak_tempuh_km)
 
-    titik = _rute_titik(db, slot)
-    lat, lng = _posisi_pada_fraksi(titik, fraksi)
     sekarang = datetime.now(timezone.utc)
     db.add(
         JejakPosisi(
@@ -313,11 +331,66 @@ def geser_posisi(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), 
         )
     )
 
-    if fraksi >= 1:
+    if len(polyline) < 2 or jarak_tempuh_km >= panjang:
         pengiriman.waktu_tiba = sekarang
         pengiriman.status_vendor = "TIBA"
     else:
         pengiriman.status_vendor = "JALAN"
+
+    db.commit()
+    db.refresh(pengiriman)
+    return _ke_pengiriman_out(pengiriman, slot, db)
+
+
+@router.post("/pengiriman/{pengiriman_id}/sampai", response_model=PengirimanOut)
+def sampai_pengiriman(
+    pengiriman_id: UUID,
+    body: SampaiRequest | None = None,
+    pengguna=Depends(wajib_peran("PETUGAS")),
+    db: Session = Depends(get_db),
+):
+    """T8: petugas menyatakan muatan tiba di tujuan akhir.
+
+    Body opsional: kalau `koordinat` GPS petugas diberikan, kedatangan hanya
+    diterima kalau koordinat itu berada dalam `radius_sampai_m` dari tujuan
+    akhir (titik drop terakhir). Tanpa koordinat, kedatangan diterima begitu
+    saja. Idempoten: muatan yang sudah tiba ditolak 409."""
+    pengiriman = db.get(Pengiriman, pengiriman_id)
+    if pengiriman is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
+    slot = db.get(Slot, pengiriman.slot_id)
+    if slot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Muatan tidak ditemukan")
+    pastikan_petugas_muatan(pengguna, slot)
+    if slot.status != StatusSlot.JALAN:
+        raise HTTPException(status.HTTP_409_CONFLICT, "MUAT_BELUM_SELESAI")
+    if pengiriman.waktu_tiba is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "SUDAH_TIBA")
+
+    # Tujuan akhir = titik drop terakhir dari rute rencana.
+    titik = _rute_titik(db, slot)
+    if not titik:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Muatan tidak punya rute tujuan")
+    tujuan = titik[-1]
+
+    if body is not None and body.koordinat is not None:
+        jarak_m = jarak_haversine_km(body.koordinat.lat, body.koordinat.lng, tujuan[0], tujuan[1]) * 1000
+        radius_sampai_m = float(baca_konfigurasi(db, "radius_sampai_m"))
+        if jarak_m > radius_sampai_m:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "BELUM_DI_TUJUAN")
+
+    sekarang = datetime.now(timezone.utc)
+    pengiriman.waktu_tiba = sekarang
+    pengiriman.status_vendor = "TIBA"
+    db.add(
+        JejakPosisi(
+            pengiriman_id=pengiriman.id,
+            lat=tujuan[0],
+            lng=tujuan[1],
+            waktu=sekarang,
+            sumber=SumberPosisi.SIMULASI,
+        )
+    )
 
     db.commit()
     db.refresh(pengiriman)
