@@ -12,8 +12,11 @@ from sqlalchemy.orm import Session
 
 from app.adapters.geo.base import RouteDisplayResult
 from app.adapters.routes.google import GoogleRoutesAdapter
+from app.adapters.routes.haversine import HaversineRoutesAdapter
 from app.config import get_settings
 from app.models import Pengiriman, Penerima, Slot, TitikKumpul
+from app.services.konfigurasi import baca_konfigurasi
+from app.services.rute_provider import FallbackRouteProvider
 
 
 def _waypoints(db: Session, slot: Slot) -> list[tuple[float, float]]:
@@ -59,6 +62,22 @@ def _commit_snapshot(db: Session) -> None:
     db.commit()
 
 
+def _buat_provider_rute(
+    db: Session, settings
+) -> HaversineRoutesAdapter | FallbackRouteProvider:
+    """Pilih penyedia rute sesuai kunci API & konfigurasi (best-effort).
+
+    Tanpa kunci Google → haversine saja (demo tetap jalan offline dengan
+    polyline + durasi nyata). Dengan kunci → `FallbackRouteProvider` yang
+    membaca `rute_provider` (AUTO → Google, jatuh ke haversine).
+    """
+    kecepatan = float(baca_konfigurasi(db, "kecepatan_rata_kmh"))
+    haversine = HaversineRoutesAdapter(kecepatan_kmh=kecepatan)
+    if not settings.google_maps_api_key:
+        return haversine
+    return FallbackRouteProvider(GoogleRoutesAdapter(settings.google_maps_api_key), haversine)
+
+
 def simpan_snapshot_rute(
     db: Session,
     pengiriman: Pengiriman,
@@ -76,7 +95,7 @@ def simpan_snapshot_rute(
     """
     settings = get_settings()
     aktif = settings.geo_provider_enabled if enabled is None else enabled
-    if not aktif or (not settings.google_maps_api_key and adapter is None):
+    if not aktif:
         return False
 
     try:
@@ -93,7 +112,12 @@ def simpan_snapshot_rute(
         if terkunci.rute_input_hash == input_hash:
             db.rollback()
             return False
-        hasil = _pastikan_hasil((adapter or GoogleRoutesAdapter(settings.google_maps_api_key)).route(titik[0], titik[1:-1], titik[-1]))
+        if adapter is None:
+            adapter = _buat_provider_rute(db, settings)
+        if isinstance(adapter, FallbackRouteProvider):
+            hasil = _pastikan_hasil(adapter.route(db, titik[0], titik[1:-1], titik[-1]))
+        else:
+            hasil = _pastikan_hasil(adapter.route(titik[0], titik[1:-1], titik[-1]))
         terkunci.rute_polyline = hasil.polyline
         terkunci.rute_versi = (terkunci.rute_versi or 0) + 1
         terkunci.rute_input_hash = input_hash
