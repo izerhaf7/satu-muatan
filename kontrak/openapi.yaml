@@ -30,6 +30,42 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/auth/daftar:
+    post:
+      tags:
+      - auth
+      summary: Daftar
+      description: 'Daftar sendiri — Petani atau Penerima (§9.1 tambahan). PETUGAS
+        sengaja
+
+        tidak bisa daftar lewat sini (lihat `PeranDaftar`, hanya 2 nilai).
+
+
+        Tanpa verifikasi OTP (keputusan produk) — nomor HP tidak dibuktikan
+
+        kepemilikannya, cukup untuk demo. Auto-login setelah daftar, sama seperti
+
+        `masuk()`.'
+      operationId: daftar_api_auth_daftar_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DaftarRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/auth/masuk-demo:
     post:
       tags:
@@ -1176,8 +1212,13 @@ paths:
       tags:
       - lacak
       summary: Majukan Pengiriman
-      description: Majukan state simulasi MockVendor satu langkah (K5) — deterministik,
+      description: 'Majukan state simulasi MockVendor satu langkah (K5) — deterministik,
         untuk demo.
+
+
+        Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
+
+        tidak boleh dimulai sebelum proses muat selesai.'
       operationId: majukan_pengiriman_api_pengiriman__pengiriman_id__majukan_post
       security:
       - HTTPBearer: []
@@ -1196,6 +1237,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PengirimanOut'
+        '409':
+          description: MUAT_BELUM_SELESAI — status slot belum JALAN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOut'
         '422':
           description: Validation Error
           content:
@@ -1217,7 +1264,12 @@ paths:
 
         Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
 
-        "jalan otomatis" di layar Lacak.'
+        "jalan otomatis" di layar Lacak.
+
+
+        Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
+
+        tidak boleh dimulai sebelum proses muat selesai.'
       operationId: geser_posisi_api_pengiriman__pengiriman_id__geser_post
       security:
       - HTTPBearer: []
@@ -1236,12 +1288,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PengirimanOut'
+        '409':
+          description: MUAT_BELUM_SELESAI — status slot belum JALAN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOut'
         '422':
           description: Validation Error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/pengiriman/{pengiriman_id}/sampai:
+    post:
+      tags:
+      - lacak
+      summary: Tandai Sampai
+      description: 'Tandai pengiriman tiba. Bila koordinat dikirim, server memvalidasi
+        titik berada dalam `radius_sampai_m` dari tujuan.
+
+
+        Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`, atau
+
+        `409 SUDAH_TIBA` bila pengiriman sudah tiba.'
+      operationId: sampai_pengiriman_api_pengiriman__pengiriman_id__sampai_post
+      security:
+      - HTTPBearer: []
+      parameters:
+      - name: pengiriman_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Pengiriman Id
+      requestBody:
+        content:
+          application/json:
+            schema:
+              properties:
+                koordinat:
+                  properties:
+                    lat:
+                      type: number
+                      title: Lat
+                    lng:
+                      type: number
+                      title: Lng
+                  type: object
+                  required:
+                  - lat
+                  - lng
+                  title: Koordinat
+              type: object
+              title: SampaiRequest
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PengirimanOut'
+        '409':
+          description: MUAT_BELUM_SELESAI — status slot belum JALAN; SUDAH_TIBA — pengiriman sudah tiba
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOut'
+        '422':
+          description: BELUM_DI_TUJUAN — koordinat di luar radius_sampai_m dari tujuan
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorOut'
   /api/slot/{slot_id}/berita-acara:
     get:
       tags:
@@ -1841,6 +1961,39 @@ components:
       - ambang_transit_menit
       title: BuktiLotOut
       description: Respons GET /api/lot/qr/{kode_qr} — layar Serah Terima (§9.7).
+    DaftarRequest:
+      properties:
+        nama:
+          type: string
+          minLength: 1
+          title: Nama
+          examples:
+          - Wati
+        no_hp:
+          type: string
+          title: No Hp
+          examples:
+          - 081234567099
+        pin:
+          type: string
+          maxLength: 6
+          minLength: 6
+          title: Pin
+          examples:
+          - '123456'
+        peran:
+          type: string
+          enum:
+          - PETANI
+          - PENERIMA
+          title: Peran
+      type: object
+      required:
+      - nama
+      - no_hp
+      - pin
+      - peran
+      title: DaftarRequest
     DampakBulananOut:
       properties:
         bulan:
@@ -2752,6 +2905,15 @@ components:
       - peran
       title: PenggunaOut
     PengirimanOut:
+      description: 'Snapshot pelacakan. `eta_provider_menit` dan `jarak_provider_km`
+        adalah hasil informasional penyedia rute; tidak menjadi dasar harga.
+
+
+        Konfigurasi terkait berada di tabel `konfigurasi`: `rute_provider` = `AUTO`
+
+        | `GOOGLE` | `HAVERSINE`, `simulasi_percepatan_x` = 60.0, dan `radius_sampai_m`
+
+        = 5.0. `kecepatan_rata_kmh` tetap konfigurasi yang sudah ada.'
       properties:
         id:
           type: string
@@ -2811,6 +2973,16 @@ components:
             format: date-time
           - type: 'null'
           title: Eta Dihitung Pada
+        eta_provider_menit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Eta Provider Menit
+        jarak_provider_km:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Jarak Provider Km
       type: object
       required:
       - id

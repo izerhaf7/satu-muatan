@@ -24,6 +24,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/daftar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Daftar
+         * @description Daftar sendiri — Petani atau Penerima (§9.1 tambahan). PETUGAS sengaja
+         *     tidak bisa daftar lewat sini (lihat `PeranDaftar`, hanya 2 nilai).
+         *
+         *     Tanpa verifikasi OTP (keputusan produk) — nomor HP tidak dibuktikan
+         *     kepemilikannya, cukup untuk demo. Auto-login setelah daftar, sama seperti
+         *     `masuk()`.
+         */
+        post: operations["daftar_api_auth_daftar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/masuk-demo": {
         parameters: {
             query?: never;
@@ -170,13 +195,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Daftar Wilayah Anak
-         * @description Daftar wilayah pada tingkat yang diminta. `induk_kode` dilarang untuk
-         *     `tingkat=PROVINSI`; wajib ada dan tidak boleh kosong untuk `KABUPATEN`,
-         *     `KECAMATAN`, dan `DESA`. Aturan lintas-parameter ini divalidasi saat runtime.
-         */
-        get: operations["daftar_wilayah_anak_api_wilayah_anak_get"];
+        /** Anak Wilayah */
+        get: operations["anak_wilayah_api_wilayah_anak_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -213,10 +233,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Saran Alamat */
-        post: operations["saran_alamat_api_alamat_saran_post"];
         get?: never;
         put?: never;
+        /**
+         * Saran Alamat
+         * @description Cari paling banyak lima alamat untuk dipilih. `place_id` adalah token opaque yang hanya dikirim kembali ke `/api/alamat/resolusi`; browser tidak menerima URL, kunci, session token, atau objek mentah penyedia. Saat penyedia tidak tersedia, server dapat mengembalikan saran lokal atau respons tindakan aman untuk isian/peta manual.
+         */
+        post: operations["saran_alamat_api_alamat_saran_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -230,10 +253,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Resolusi Alamat */
-        post: operations["resolusi_alamat_api_alamat_resolusi_post"];
         get?: never;
         put?: never;
+        /**
+         * Resolusi Alamat
+         * @description Resolusi token `place_id` pilihan pengguna menjadi alamat terstruktur. Token lokal juga opaque dan diselesaikan server-side. `lat` dan `lng` selalu hadir bersama atau keduanya tidak ada; server menegakkan invarian lintas-field. Pada `KOORDINAT_TIDAK_PRESISI`, tampilkan pesan lalu minta pengguna memilih titik peta atau melengkapi alamat. `alamat_lengkap` wajib bernilai untuk `OK` dan `KOORDINAT_TIDAK_PRESISI`, dan null hanya untuk `TIDAK_DITEMUKAN`.
+         */
+        post: operations["resolusi_alamat_api_alamat_resolusi_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -734,6 +760,9 @@ export interface paths {
         /**
          * Majukan Pengiriman
          * @description Majukan state simulasi MockVendor satu langkah (K5) — deterministik, untuk demo.
+         *
+         *     Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
+         *     tidak boleh dimulai sebelum proses muat selesai.
          */
         post: operations["majukan_pengiriman_api_pengiriman__pengiriman_id__majukan_post"];
         delete?: never;
@@ -759,8 +788,34 @@ export interface paths {
          *     sampel telemetri, sehingga peta benar-benar bergerak saat didemokan.
          *     Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
          *     "jalan otomatis" di layar Lacak.
+         *
+         *     Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
+         *     tidak boleh dimulai sebelum proses muat selesai.
          */
         post: operations["geser_posisi_api_pengiriman__pengiriman_id__geser_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pengiriman/{pengiriman_id}/sampai": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Tandai Sampai
+         * @description Tandai pengiriman tiba. Bila koordinat dikirim, server memvalidasi titik berada dalam `radius_sampai_m` dari tujuan.
+         *
+         *     Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`, atau
+         *     `409 SUDAH_TIBA` bila pengiriman sudah tiba.
+         */
+        post: operations["sampai_pengiriman_api_pengiriman__pengiriman_id__sampai_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -919,76 +974,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Healthz */
+        get: operations["healthz_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        /** AlamatResolusiRequest */
-        AlamatResolusiRequest: {
-            /** @description Token opaque dari `AlamatSaranOut`; berlaku untuk sumber GOOGLE maupun LOKAL. */
-            place_id: string;
-        };
-        /** @description Koordinat selalu berpasangan. Server juga menegakkan alamat_lengkap non-null berdasarkan status. */
-        AlamatResolusiOut: {
-            /** @description Wajib bernilai untuk status OK dan KOORDINAT_TIDAK_PRESISI; null hanya untuk TIDAK_DITEMUKAN. */
-            alamat_lengkap: string | null;
-            /** Jalan */
-            jalan?: string | null;
-            /** Kode Pos */
-            kode_pos?: string | null;
-            /** Desa */
-            desa?: string | null;
-            /** Kecamatan */
-            kecamatan?: string | null;
-            /** Kabupaten Kota */
-            kabupaten_kota?: string | null;
-            /** Provinsi */
-            provinsi?: string | null;
-            /** Lat */
-            lat?: number;
-            /** Lng */
-            lng?: number;
-            granularitas?: components["schemas"]["GranularitasAlamat"] | null;
-            sumber: components["schemas"]["SumberAlamat"];
-            status: components["schemas"]["StatusResolusiAlamat"];
-            /** Pesan */
-            pesan?: string | null;
-        };
-        /** @description Bias opsional berbentuk titik dan radius lengkap. Server menolak pasangan atau radius parsial. */
-        AlamatSaranBias: {
-            /** Lat */
-            lat: number;
-            /** Lng */
-            lng: number;
-            /** Radius Meter */
-            radius_meter: number;
-        };
-        /** AlamatSaranItemOut */
-        AlamatSaranItemOut: {
-            /** @description Token opaque aman; termasuk token lokal yang dapat diresolusikan tanpa penyedia eksternal. */
-            place_id: string;
-            /** Teks Utama */
-            teks_utama: string;
-            /** Teks Lengkap */
-            teks_lengkap: string;
-            /** Teks Sekunder */
-            teks_sekunder?: string | null;
-            sumber: components["schemas"]["SumberAlamat"];
-        };
-        /** @description Maksimal lima saran. Status fallback/tidak tersedia memberi UI tindakan aman tanpa mengungkap detail penyedia. */
-        AlamatSaranListOut: {
-            /** Saran */
-            saran: components["schemas"]["AlamatSaranItemOut"][];
-            status: components["schemas"]["StatusSaranAlamat"];
-            /** Pesan */
-            pesan?: string | null;
-        };
-        /** AlamatSaranRequest */
-        AlamatSaranRequest: {
-            /** Query */
-            query: string;
-            bias?: components["schemas"]["AlamatSaranBias"] | null;
-        };
         /**
          * AkunDemo
          * @description Akun demo (v2 §8). Tombol masuk cepat di layar Masuk untuk Petugas/Wati/
@@ -1031,6 +1037,90 @@ export interface components {
             kode_pos?: string | null;
             /** Patokan */
             patokan?: string | null;
+        };
+        /**
+         * AlamatResolusiOut
+         * @description Koordinat selalu berpasangan. Server juga menegakkan alamat_lengkap non-null berdasarkan status.
+         */
+        AlamatResolusiOut: {
+            /**
+             * Alamat Lengkap
+             * @description Wajib bernilai untuk status OK dan KOORDINAT_TIDAK_PRESISI; null hanya untuk TIDAK_DITEMUKAN.
+             */
+            alamat_lengkap: string | null;
+            /** Jalan */
+            jalan?: string | null;
+            /** Kode Pos */
+            kode_pos?: string | null;
+            /** Desa */
+            desa?: string | null;
+            /** Kecamatan */
+            kecamatan?: string | null;
+            /** Kabupaten Kota */
+            kabupaten_kota?: string | null;
+            /** Provinsi */
+            provinsi?: string | null;
+            /** Lat */
+            lat?: number;
+            /** Lng */
+            lng?: number;
+            granularitas?: components["schemas"]["GranularitasAlamat"] | null;
+            sumber: components["schemas"]["SumberAlamat"];
+            status: components["schemas"]["StatusResolusiAlamat"];
+            /** Pesan */
+            pesan?: string | null;
+        } & (unknown | unknown);
+        /** AlamatResolusiRequest */
+        AlamatResolusiRequest: {
+            /**
+             * Place Id
+             * @description Token opaque dari `AlamatSaranOut`; berlaku untuk sumber GOOGLE maupun LOKAL.
+             */
+            place_id: string;
+        };
+        /**
+         * AlamatSaranBias
+         * @description Bias opsional berbentuk titik dan radius lengkap. Server menolak pasangan atau radius parsial.
+         */
+        AlamatSaranBias: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Radius Meter */
+            radius_meter: number;
+        };
+        /** AlamatSaranItemOut */
+        AlamatSaranItemOut: {
+            /**
+             * Place Id
+             * @description Token opaque aman; termasuk token lokal yang dapat diresolusikan tanpa penyedia eksternal.
+             */
+            place_id: string;
+            /** Teks Utama */
+            teks_utama: string;
+            /** Teks Lengkap */
+            teks_lengkap: string;
+            /** Teks Sekunder */
+            teks_sekunder?: string | null;
+            sumber: components["schemas"]["SumberAlamat"];
+        };
+        /**
+         * AlamatSaranListOut
+         * @description Maksimal lima saran. Status fallback/tidak tersedia memberi UI tindakan aman tanpa mengungkap detail penyedia.
+         */
+        AlamatSaranListOut: {
+            /** Saran */
+            saran: components["schemas"]["AlamatSaranItemOut"][];
+            status: components["schemas"]["StatusSaranAlamat"];
+            /** Pesan */
+            pesan?: string | null;
+        };
+        /** AlamatSaranRequest */
+        AlamatSaranRequest: {
+            /** Query */
+            query: string;
+            bias?: components["schemas"]["AlamatSaranBias"] | null;
         };
         /**
          * Atribusi
@@ -1093,6 +1183,29 @@ export interface components {
             mutu?: components["schemas"]["IndeksMutuOut"] | null;
             serah_terima?: components["schemas"]["SerahTerimaOut"] | null;
         };
+        /** DaftarRequest */
+        DaftarRequest: {
+            /**
+             * Nama
+             * @example Wati
+             */
+            nama: string;
+            /**
+             * No Hp
+             * @example 81234567099
+             */
+            no_hp: string;
+            /**
+             * Pin
+             * @example 123456
+             */
+            pin: string;
+            /**
+             * Peran
+             * @enum {string}
+             */
+            peran: "PETANI" | "PENERIMA";
+        };
         /**
          * DampakBulananOut
          * @description Satu baris per bulan — juga sumber 'Ringkasan bulan ini' Beranda (§9.2, K6).
@@ -1121,11 +1234,6 @@ export interface components {
             transparansi_perjalanan: components["schemas"]["KartuDampakOut"];
             keamanan_pangan: components["schemas"]["KartuDampakOut"];
         };
-        /** ErrorOut */
-        ErrorOut: {
-            /** Detail */
-            detail: string;
-        };
         /** DemoBerangkatOut */
         DemoBerangkatOut: {
             /**
@@ -1146,6 +1254,11 @@ export interface components {
         DemoResetOut: {
             /** Pesan */
             pesan: string;
+        };
+        /** ErrorOut */
+        ErrorOut: {
+            /** Detail */
+            detail: string;
         };
         /** GabungPratinjauRequest */
         GabungPratinjauRequest: {
@@ -1179,10 +1292,6 @@ export interface components {
             /** Harga Atap Per Kg */
             harga_atap_per_kg: number;
         };
-        /**
-         * @enum {string}
-         */
-        GranularitasAlamat: "ALAMAT" | "JALAN" | "DESA" | "KECAMATAN" | "KABUPATEN_KOTA" | "PROVINSI";
         /** GeokodeOut */
         GeokodeOut: {
             /** Alamat */
@@ -1197,17 +1306,18 @@ export interface components {
             provinsi?: string | null;
             /** Kode Pos */
             kode_pos?: string | null;
-            /**
-             * Jarak titik input ke centroid wilayah lokal terpilih, dalam meter. Null bila hasil lokal atau metadatanya tidak tersedia.
-             */
-            jarak_meter?: number | null;
-            /**
-             * Tingkat keyakinan hasil reverse-geocode lokal dari 0 sampai 1. Null bila hasil lokal atau metadatanya tidak tersedia.
-             */
-            keyakinan?: number | null;
             /** Sumber */
             sumber: string;
+            /** Jarak Meter */
+            jarak_meter?: number | null;
+            /** Keyakinan */
+            keyakinan?: number | null;
         };
+        /**
+         * GranularitasAlamat
+         * @enum {string}
+         */
+        GranularitasAlamat: "ALAMAT" | "JALAN" | "DESA" | "KECAMATAN" | "KABUPATEN_KOTA" | "PROVINSI";
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1557,8 +1667,11 @@ export interface components {
             /** Kembalian Rp */
             kembalian_rp: number;
             status: components["schemas"]["StatusPartisipasi"];
-            /** Resi */
-            resi?: components["schemas"]["ResiLotRingkasOut"][];
+            /**
+             * Resi
+             * @default []
+             */
+            resi: components["schemas"]["ResiLotRingkasOut"][];
         };
         /** PenerimaOut */
         PenerimaOut: {
@@ -1594,7 +1707,14 @@ export interface components {
             /** Penerima Id */
             penerima_id?: string | null;
         };
-        /** PengirimanOut */
+        /**
+         * PengirimanOut
+         * @description Snapshot pelacakan. `eta_provider_menit` dan `jarak_provider_km` adalah hasil informasional penyedia rute; tidak menjadi dasar harga.
+         *
+         *     Konfigurasi terkait berada di tabel `konfigurasi`: `rute_provider` = `AUTO`
+         *     | `GOOGLE` | `HAVERSINE`, `simulasi_percepatan_x` = 60.0, dan `radius_sampai_m`
+         *     = 5.0. `kecepatan_rata_kmh` tetap konfigurasi yang sudah ada.
+         */
         PengirimanOut: {
             /**
              * Id
@@ -1615,6 +1735,10 @@ export interface components {
             timeline: components["schemas"]["TimelineOut"];
             /** Estimasi Tiba */
             estimasi_tiba?: string | null;
+            /** Ambang Transit Menit */
+            ambang_transit_menit: number;
+            /** Jejak */
+            jejak: components["schemas"]["PosisiOut"][];
             /** Rute Polyline */
             rute_polyline?: string | null;
             /** Rute Versi */
@@ -1623,10 +1747,10 @@ export interface components {
             eta_sumber?: string | null;
             /** Eta Dihitung Pada */
             eta_dihitung_pada?: string | null;
-            /** Ambang Transit Menit */
-            ambang_transit_menit: number;
-            /** Jejak */
-            jejak: components["schemas"]["PosisiOut"][];
+            /** Eta Provider Menit */
+            eta_provider_menit?: number | null;
+            /** Jarak Provider Km */
+            jarak_provider_km?: number | null;
         };
         /**
          * PeranPengguna
@@ -1674,6 +1798,19 @@ export interface components {
             kapasitas_total_kg: number;
         };
         /**
+         * ResiLotRingkasOut
+         * @description Resi kanonik satu lot, ditampilkan hanya kepada aktor yang berwenang.
+         */
+        ResiLotRingkasOut: {
+            /**
+             * Lot Id
+             * Format: uuid
+             */
+            lot_id: string;
+            /** Kode Qr */
+            kode_qr: string;
+        };
+        /**
          * RuteJemputOut
          * @description K14 — perhentian penjemputan, urut sesuai jalur petugas.
          *
@@ -1698,16 +1835,6 @@ export interface components {
             lat: number;
             /** Lng */
             lng: number;
-        };
-        /** ResiLotRingkasOut */
-        ResiLotRingkasOut: {
-            /**
-             * Lot Id
-             * Format: uuid
-             */
-            lot_id: string;
-            /** Kode Qr */
-            kode_qr: string;
         };
         /** RuteSegmenOut */
         RuteSegmenOut: {
@@ -1846,8 +1973,11 @@ export interface components {
              * @default 0
              */
             selisih_jaminan_atap: number;
-            /** Resi */
-            resi?: components["schemas"]["ResiLotRingkasOut"][];
+            /**
+             * Resi
+             * @default []
+             */
+            resi: components["schemas"]["ResiLotRingkasOut"][];
         };
         /**
          * SlotItemOut
@@ -1887,14 +2017,27 @@ export interface components {
             tier_ringkas?: string | null;
             /** Jumlah Petani */
             jumlah_petani: number;
-            /** Resi */
-            resi?: components["schemas"]["ResiLotRingkasOut"][];
+            /**
+             * Resi
+             * @default []
+             */
+            resi: components["schemas"]["ResiLotRingkasOut"][];
         };
         /**
          * StatusPartisipasi
          * @enum {string}
          */
         StatusPartisipasi: "TERDAFTAR" | "TERKUNCI" | "DIMUAT" | "SELESAI" | "DITOLAK" | "BATAL";
+        /**
+         * StatusResolusiAlamat
+         * @enum {string}
+         */
+        StatusResolusiAlamat: "OK" | "KOORDINAT_TIDAK_PRESISI" | "TIDAK_DITEMUKAN";
+        /**
+         * StatusSaranAlamat
+         * @enum {string}
+         */
+        StatusSaranAlamat: "OK" | "FALLBACK_LOKAL" | "PENYEDIA_TIDAK_TERSEDIA" | "TIDAK_DITEMUKAN";
         /**
          * StatusSlot
          * @enum {string}
@@ -1906,14 +2049,7 @@ export interface components {
          */
         StatusSumber: "TERVERIFIKASI" | "ASUMSI";
         /**
-         * @enum {string}
-         */
-        StatusResolusiAlamat: "OK" | "KOORDINAT_TIDAK_PRESISI" | "TIDAK_DITEMUKAN";
-        /**
-         * @enum {string}
-         */
-        StatusSaranAlamat: "OK" | "FALLBACK_LOKAL" | "PENYEDIA_TIDAK_TERSEDIA" | "TIDAK_DITEMUKAN";
-        /**
+         * SumberAlamat
          * @enum {string}
          */
         SumberAlamat: "GOOGLE" | "LOKAL";
@@ -2100,8 +2236,6 @@ export interface components {
         WilayahOut: {
             /** Kode */
             kode: string;
-            /** Induk Kode */
-            induk_kode?: string | null;
             /** Nama */
             nama: string;
             /** Tingkat */
@@ -2114,6 +2248,8 @@ export interface components {
             lat?: number | null;
             /** Lng */
             lng?: number | null;
+            /** Induk Kode */
+            induk_kode?: string | null;
         };
     };
     responses: never;
@@ -2139,6 +2275,39 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    daftar_api_auth_daftar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DaftarRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2323,15 +2492,11 @@ export interface operations {
             };
         };
     };
-    daftar_wilayah_anak_api_wilayah_anak_get: {
+    anak_wilayah_api_wilayah_anak_get: {
         parameters: {
             query: {
                 tingkat: "PROVINSI" | "KABUPATEN" | "KECAMATAN" | "DESA";
-                /**
-                 * @description Dilarang untuk `tingkat=PROVINSI`; wajib ada dan tidak boleh kosong
-                 *     untuk tingkat lain. Divalidasi saat runtime.
-                 */
-                induk_kode?: string;
+                induk_kode?: string | null;
             };
             header?: never;
             path?: never;
@@ -2434,6 +2599,7 @@ export interface operations {
             /** @description Batas permintaan alamat tercapai; coba lagi setelah header Retry-After */
             429: {
                 headers: {
+                    /** @description Detik sampai klien boleh mencoba lagi. */
                     "Retry-After"?: number;
                     [name: string]: unknown;
                 };
@@ -2486,6 +2652,7 @@ export interface operations {
             /** @description Batas permintaan alamat tercapai; coba lagi setelah header Retry-After */
             429: {
                 headers: {
+                    /** @description Detik sampai klien boleh mencoba lagi. */
                     "Retry-After"?: number;
                     [name: string]: unknown;
                 };
@@ -3222,6 +3389,15 @@ export interface operations {
                     "application/json": components["schemas"]["PengirimanOut"];
                 };
             };
+            /** @description MUAT_BELUM_SELESAI — status slot belum JALAN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3253,6 +3429,15 @@ export interface operations {
                     "application/json": components["schemas"]["PengirimanOut"];
                 };
             };
+            /** @description MUAT_BELUM_SELESAI — status slot belum JALAN */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3260,6 +3445,58 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sampai_pengiriman_api_pengiriman__pengiriman_id__sampai_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pengiriman_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** Koordinat */
+                    koordinat?: {
+                        /** Lat */
+                        lat: number;
+                        /** Lng */
+                        lng: number;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PengirimanOut"];
+                };
+            };
+            /** @description MUAT_BELUM_SELESAI — status slot belum JALAN; SUDAH_TIBA — pengiriman sudah tiba */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description BELUM_DI_TUJUAN — koordinat di luar radius_sampai_m dari tujuan */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };
@@ -3407,6 +3644,26 @@ export interface operations {
         };
     };
     healthz_healthz_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    healthz_health_get: {
         parameters: {
             query?: never;
             header?: never;
