@@ -5,16 +5,16 @@
  *  setiap kali pin berpindah, alamatnya dibaca lewat `/api/geokode/balik` —
  *  pengguna melihat nama daerah, bukan angka lintang-bujur telanjang.
  *
- *  Di-lazy-load oleh KirimPanen supaya Leaflet tidak ikut chunk masuk. */
+ *  Di-lazy-load oleh KirimPanen supaya Leaflet tidak ikut chunk masuk.
+ *
+ *  Peta memakai Google Maps (K14) lewat <BingkaiPeta> — instance + namespace
+ *  diambil dari `usePeta()`. Pin memakai AdvancedMarkerElement (butuh Map ID
+ *  vektor), draggable lewat `gmpDraggable`, dan klik peta menaruh pin pending. */
 
-import "leaflet/dist/leaflet.css";
-
-import { useEffect, useMemo, useRef } from "react";
-import { DivIcon, type LeafletEvent } from "leaflet";
+import { useEffect, useRef } from "react";
 import { AlertTriangle, Check, LocateFixed, X } from "lucide-react";
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
-import BingkaiPeta from "@/komponen/BingkaiPeta";
+import BingkaiPeta, { usePeta } from "@/komponen/BingkaiPeta";
 import Tombol from "@/komponen/Tombol";
 
 import {
@@ -35,36 +35,22 @@ export interface Titik {
 
 const AMBANG_AKURASI_GPS_RENDAH_METER = 100;
 
-const IKON_PIN = new DivIcon({
-  html: `<span style="display:flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:9999px;background:var(--daun);color:var(--kertas);border:3px solid var(--kertas);box-shadow:0 1px 3px rgba(0,0,0,.3);"></span>`,
-  className: "",
-  iconSize: [28, 28],
-  iconAnchor: [14, 14],
-});
+/** Bentuk event dragend AdvancedMarkerElement — punya `latLng` LatLng. */
+type PeristiwaGeser = { latLng?: { lat: () => number; lng: () => number } };
 
-const IKON_TERKONFIRMASI = new DivIcon({
-  html: `<span style="display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:9999px;background:var(--tanah);color:var(--kertas);border:3px solid var(--kertas);box-shadow:0 1px 3px rgba(0,0,0,.3);"></span>`,
-  className: "",
-  iconSize: [22, 22],
-  iconAnchor: [11, 11],
-});
-
-function PenangkapKlik({ onPending }: { onPending: (t: Titik) => void }) {
-  useMapEvents({
-    click(e) {
-      onPending({ lat: e.latlng.lat, lng: e.latlng.lng });
-    },
-  });
-  return null;
-}
-
-/** Pindahkan peta saat titik berubah dari luar (mis. autocomplete daerah). */
-function IkutiTitik({ titik }: { titik: Titik | null }) {
-  const peta = useMap();
-  useEffect(() => {
-    if (titik) peta.setView([titik.lat, titik.lng], Math.max(peta.getZoom(), 12));
-  }, [titik?.lat, titik?.lng]);
-  return null;
+/** Konten pin sebagai div HTML — warna & ukuran dari palet desain. */
+function buatKontenPin(ukuran: number, warna: string): HTMLElement {
+  const el = document.createElement("div");
+  el.style.display = "flex";
+  el.style.alignItems = "center";
+  el.style.justifyContent = "center";
+  el.style.width = `${ukuran}px`;
+  el.style.height = `${ukuran}px`;
+  el.style.borderRadius = "9999px";
+  el.style.background = warna;
+  el.style.border = "3px solid var(--kertas)";
+  el.style.boxShadow = "0 1px 3px rgba(0,0,0,.3)";
+  return el;
 }
 
 interface PetaPilihTitikProps {
@@ -87,25 +73,108 @@ export default function PetaPilihTitik({
   onCancel,
   tampilkanGps = false,
 }: PetaPilihTitikProps) {
+  const { peta, marker: markerNs } = usePeta();
   const generasiPilihan = useRef(0);
   const titikPending = pending?.titik ?? null;
   const titikFokus = titikPending ?? titik;
+
+  // onPending bisa berganti identitas — simpan di ref supaya listener marker
+  // (yang dibuat sekali) selalu memanggil versi terbaru.
+  const onPendingRef = useRef(onPending);
+  useEffect(() => {
+    onPendingRef.current = onPending;
+  }, [onPending]);
+
   useEffect(() => {
     if (pending) generasiPilihan.current += 1;
   }, [pending?.titik.lat, pending?.titik.lng, pending?.sumber]);
-  const pusat: [number, number] = titikFokus
-    ? [titikFokus.lat, titikFokus.lng]
-    : [pusatAwal.lat, pusatAwal.lng];
-  const eventHandlers = useMemo(
-    () => ({
-      dragend(e: LeafletEvent) {
-        const posisi = e.target.getLatLng();
+
+  // Posisi awal — sekali saat peta siap (StrictMode aman lewat guard ref).
+  const sudahPosisiAwal = useRef(false);
+  useEffect(() => {
+    if (!peta || sudahPosisiAwal.current) return;
+    sudahPosisiAwal.current = true;
+    const fokus = titikFokus ?? pusatAwal;
+    peta.setCenter({ lat: fokus.lat, lng: fokus.lng });
+    peta.setZoom(titik ? 13 : 10);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peta]);
+
+  // Ikuti perubahan titik dari luar (mis. autocomplete daerah).
+  useEffect(() => {
+    if (!peta || !titikFokus) return;
+    peta.panTo({ lat: titikFokus.lat, lng: titikFokus.lng });
+    peta.setZoom(Math.max(peta.getZoom() ?? 0, 12));
+  }, [peta, titikFokus?.lat, titikFokus?.lng]);
+
+  // Klik peta → ajukan titik pending.
+  useEffect(() => {
+    if (!peta) return;
+    const listener = peta.addListener("click", (e: google.maps.MapMouseEvent) => {
+      if (!e.latLng) return;
+      generasiPilihan.current += 1;
+      onPendingRef.current({ lat: e.latLng.lat(), lng: e.latLng.lng() }, "PETA");
+    });
+    return () => listener.remove();
+  }, [peta]);
+
+  // Pin terkonfirmasi + pin pending — draggable, dragend → GESER.
+  const markerTerkonfirmasi = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const markerPending = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+
+  useEffect(() => {
+    if (!peta || !markerNs) return;
+    const { AdvancedMarkerElement } = markerNs;
+
+    const pasangGeser = (marker: google.maps.marker.AdvancedMarkerElement) => {
+      marker.addListener("dragend", (e: PeristiwaGeser) => {
+        const pos = e.latLng;
+        if (!pos) return;
         generasiPilihan.current += 1;
-        onPending({ lat: posisi.lat, lng: posisi.lng }, "GESER");
-      },
-    }),
-    [onPending],
-  );
+        onPendingRef.current({ lat: pos.lat(), lng: pos.lng() }, "GESER");
+      });
+    };
+
+    if (titik) {
+      if (!markerTerkonfirmasi.current) {
+        markerTerkonfirmasi.current = new AdvancedMarkerElement({
+          map: peta,
+          gmpDraggable: true,
+          content: buatKontenPin(22, "var(--tanah)"),
+        });
+        pasangGeser(markerTerkonfirmasi.current);
+      }
+      markerTerkonfirmasi.current.position = { lat: titik.lat, lng: titik.lng };
+    } else if (markerTerkonfirmasi.current) {
+      markerTerkonfirmasi.current.map = null;
+      markerTerkonfirmasi.current = null;
+    }
+
+    if (titikPending) {
+      if (!markerPending.current) {
+        markerPending.current = new AdvancedMarkerElement({
+          map: peta,
+          gmpDraggable: true,
+          content: buatKontenPin(28, "var(--daun)"),
+        });
+        pasangGeser(markerPending.current);
+      }
+      markerPending.current.position = { lat: titikPending.lat, lng: titikPending.lng };
+    } else if (markerPending.current) {
+      markerPending.current.map = null;
+      markerPending.current = null;
+    }
+  }, [peta, markerNs, titik, titikPending]);
+
+  // Bersihkan marker saat unmount.
+  useEffect(() => {
+    return () => {
+      if (markerTerkonfirmasi.current) markerTerkonfirmasi.current.map = null;
+      if (markerPending.current) markerPending.current.map = null;
+      markerTerkonfirmasi.current = null;
+      markerPending.current = null;
+    };
+  }, []);
 
   function pakaiLokasiSaya() {
     if (!navigator.geolocation) return;
@@ -127,11 +196,6 @@ export default function PetaPilihTitik({
 
   const titikGps = pilihTitikGpsAktif(pending, titik);
   const akurasiGps = titikGps?.akurasi_meter;
-
-  function ajukanDariPeta(titikBaru: Titik) {
-    generasiPilihan.current += 1;
-    onPending(titikBaru, "PETA");
-  }
 
   function konfirmasi() {
     generasiPilihan.current += 1;
@@ -161,35 +225,10 @@ export default function PetaPilihTitik({
   return (
     <div className="flex flex-col gap-2">
       <BingkaiPeta tinggi={240}>
-        <MapContainer
-          center={pusat}
-          zoom={titik ? 13 : 10}
-          style={{ height: "100%", width: "100%" }}
-          scrollWheelZoom={false}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <PenangkapKlik onPending={ajukanDariPeta} />
-          <IkutiTitik titik={titikFokus} />
-          {titik && (
-            <Marker
-              position={[titik.lat, titik.lng]}
-              icon={pending ? IKON_TERKONFIRMASI : IKON_PIN}
-              draggable
-              eventHandlers={eventHandlers}
-            />
-          )}
-          {titikPending && (
-            <Marker
-              position={[titikPending.lat, titikPending.lng]}
-              icon={IKON_PIN}
-              draggable
-              eventHandlers={eventHandlers}
-            />
-          )}
-        </MapContainer>
+        {/* Peta dibuat oleh BingkaiPeta; interaksi (klik, pin) dipasang lewat
+            usePeta() di efek. Lapisan anak sengaja kosong supaya peta tetap
+            bisa digeser (overlay anak ber-pointer-events-none). */}
+        <></>
       </BingkaiPeta>
 
       {!pending && titik?.sumber && (
