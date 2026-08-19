@@ -263,3 +263,38 @@ log Cloud Run tervalidasi.
 5. Catat kedua URL (frontend + backend) di bagian
    [URL Produksi](#url-produksi) di atas.
 
+### 6. Google Maps (opsional)
+
+Peta sungguhan butuh **dua kunci terpisah** — kunci server tidak boleh masuk
+browser, dan kunci browser tidak dipakai server. Kalau tidak diisi, aplikasi
+**tetap berjalan normal**: rute jatuh ke perhitungan haversine (garis lurus)
+dan reverse geocoding ke wilayah terdekat dari tabel `wilayah` sendiri — demo
+tetap utuh tanpa internet.
+
+| Kunci | Variabel | Restriksi | Dipasang di |
+|---|---|---|---|
+| Server (Google Routes API) | `GOOGLE_MAPS_API_KEY` | **IP-restricted** (IP Render) | Render (env var, lihat langkah 2) |
+| Browser (Maps JavaScript API) | `VITE_GOOGLE_MAPS_KEY` | **Referrer-restricted** (`http://localhost:5173` + domain Vercel) | Vercel (env var, lihat langkah 3) |
+| Map ID tipe "Vector" | `VITE_GOOGLE_MAPS_ID` | — | Vercel (env var) |
+
+Langkah:
+
+1. Buka [Google Cloud Console](https://console.cloud.google.com) → buat proyek
+   → aktifkan API: **Routes API** (`routes.googleapis.com`) dan
+   **Maps JavaScript API**.
+2. **Kredentials → Create credentials → API key** → buat **dua** kunci:
+   - Kunci **server**: batasi **Application restrictions → IP addresses** ke
+     IP egress Render (lihat dashboard service Render). Nilainya diisi ke env
+     var `GOOGLE_MAPS_API_KEY` di Render (langkah 2.4, `sync: false`).
+   - Kunci **browser**: batasi **Website restrictions** ke
+     `http://localhost:5173/*` dan `https://<domain-vercel>/*`. Nilainya diisi
+     ke `VITE_GOOGLE_MAPS_KEY` di Vercel (langkah 3.5), bersama
+     `VITE_GOOGLE_MAPS_ID`.
+3. Buat **Map ID** tipe **Vector** (Google Maps Platform → Map Management),
+   tempel ke `VITE_GOOGLE_MAPS_ID` — dipakai `AdvancedMarkerElement`.
+
+**Aturan keras**: kunci server (`GOOGLE_MAPS_API_KEY`) tidak pernah ditaruh di
+kode frontend atau variabel `VITE_*` — siapa pun yang membukanya di DevTools
+browser bisa menguras kuota Google kamu. Kunci browser tidak pernah dikirim ke
+backend.
+

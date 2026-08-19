@@ -35,5 +35,11 @@ services:
       # "https://satu-muatan.vercel.app,http://localhost:5173" — JANGAN "*" (spec §3.3).
       - key: CORS_ORIGINS
         sync: false
+      # GOOGLE_MAPS_API_KEY: kunci server Google Routes API (opsional, lihat
+      # README "Google Maps (opsional)"). `sync: false` -> rahasia, ditempel
+      # manual lewat dashboard (IP-restricted). Kosong -> fallback haversine,
+      # demo tetap jalan offline. Kunci ini TIDAK boleh masuk browser/VITE_*.
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false
     # PORT disuntik otomatis oleh Render (bukan di sini) -- docker-entrypoint.sh
     # membaca $PORT saat start, dan default ke 8000 kalau dijalankan lokal tanpa Render.
