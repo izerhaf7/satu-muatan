@@ -295,7 +295,10 @@ def test_tutup_slot_tetap_berhasil_saat_snapshot_provider_gagal(client, data_das
     pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one()
     assert tersimpan_slot.harga_final_per_kg is not None
     assert pengiriman.vendor_ref is not None
-    assert pengiriman.rute_polyline is None
+    # Fallback provider (Google → haversine) tetap mengisi polyline informasional;
+    # kegagalan Google tidak boleh menggagalkan close, dan harga/vendor tak tersentuh.
+    assert pengiriman.rute_polyline is not None
+    assert pengiriman.rute_sumber == "HAVERSINE"
 
 
 def test_tutup_slot_tetap_persist_saat_commit_snapshot_kedua_gagal(client, data_dasar, masuk, db, monkeypatch):
