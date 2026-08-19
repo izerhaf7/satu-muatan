@@ -155,6 +155,15 @@ KONFIGURASI_SEED = [
     ("langkah_geser_demo", "10", TipeKonfigurasi.INT,
      "Jumlah langkah posisi dari titik kumpul sampai tujuan (mode demo)", "langkah",
      StatusSumber.ASUMSI, "Hanya memengaruhi kehalusan animasi peta saat demo, bukan perhitungan bisnis."),
+    ("rute_provider", "AUTO", TipeKonfigurasi.STRING,
+     "Penyedia rute untuk perhitungan jarak/waktu (GOOGLE | HAVERSINE | AUTO)", None,
+     StatusSumber.ASUMSI, "AUTO memilih penyedia terbaik yang tersedia; hanya memengaruhi perhitungan rute."),
+    ("simulasi_percepatan_x", "60.0", TipeKonfigurasi.FLOAT,
+     "Faktor percepatan waktu mode demo", "x",
+     StatusSumber.ASUMSI, "Kompresi waktu simulasi saat demo; tidak menyentuh perhitungan bisnis."),
+    ("radius_sampai_m", "5.0", TipeKonfigurasi.FLOAT,
+     "Radius deteksi 'sudah sampai' tujuan", "m",
+     StatusSumber.ASUMSI, "Jarak ke tujuan yang dianggap sudah tiba."),
 ]
 
 
