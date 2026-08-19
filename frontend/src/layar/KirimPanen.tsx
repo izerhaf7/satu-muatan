@@ -58,7 +58,7 @@ import {
 } from "./kirim-panen/titikPending";
 import { daftarPenghambatKiriman } from "./kirim-panen/validasiKiriman";
 
-// Leaflet berat — jangan sampai ikut chunk masuk aplikasi.
+// Peta berat — jangan sampai ikut chunk masuk aplikasi.
 const PetaPilihTitik = lazy(() => import("./kirim-panen/PetaPilihTitik"));
 
 function tanggalBesok(): string {

@@ -7,7 +7,7 @@
  *  requestAnimationFrame (bukan setState per frame — soal performa), dibaca dari
  *  window.scrollY setiap frame tanpa scroll listener terpisah. Dibersihkan penuh
  *  di cleanup useEffect (cancelAnimationFrame) supaya tidak bocor antar mount
- *  (proyek ini pernah kena bug StrictMode double-invoke di react-leaflet).
+ *  (proyek ini pernah kena bug StrictMode double-invoke di pustaka peta lama).
  *
  *  Di bawah prefers-reduced-motion, loop ini TIDAK PERNAH dipasang — state akhir
  *  (truk & semua kartu titik tampil, progress penuh) langsung digambar sekali. */

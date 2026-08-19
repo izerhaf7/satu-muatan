@@ -1,7 +1,7 @@
 /** Peta rute (react-router) — Fase 2.6:
  *  - `/` = Landing publik (authed → redirect /beranda)
  *  - Layar ber-autentikasi dibungkus AppShell (header akun + NavBawah)
- *  - Rute berat (peta Leaflet, grafik Recharts, berita acara) di-lazy-load
+ *  - Rute berat (peta Google Maps, grafik Recharts, berita acara) di-lazy-load
  *    supaya chunk masuk tidak menyeret dependensi yang belum dibutuhkan. */
 
 import { Suspense, lazy } from "react";
@@ -12,6 +12,7 @@ import AppShell from "./komponen/kerangka/AppShell";
 import RuteDenganPeran from "./komponen/kerangka/RuteDenganPeran";
 import { SkeletonKartu } from "./komponen/Skeleton";
 import Beranda from "./layar/Beranda";
+import Daftar from "./layar/Daftar";
 import DetailSlot from "./layar/DetailSlot";
 import KirimPanen from "./layar/KirimPanen";
 import LacakResi from "./layar/LacakResi";
@@ -56,6 +57,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={token ? <Navigate to="/beranda" replace /> : <Landing />} />
         <Route path="/masuk" element={token ? <Navigate to="/beranda" replace /> : <Masuk />} />
+        <Route path="/daftar" element={token ? <Navigate to="/beranda" replace /> : <Daftar />} />
 
         <Route element={<PerluMasuk />}>
           <Route element={<AppShell />}>
