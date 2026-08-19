@@ -87,9 +87,11 @@ export default function RingkasanPenutupan({ slot, peran, penggunaId }: Ringkasa
             <TombolTautan to={`/slot/${slot.id}/muat`} varian="sekunder" className="flex-1">
               Muat
             </TombolTautan>
-            <TombolTautan to={`/slot/${slot.id}/lacak`} varian="sekunder" className="flex-1">
-              Lacak
-            </TombolTautan>
+            {(slot.status === "JALAN" || slot.status === "SELESAI") && (
+              <TombolTautan to={`/slot/${slot.id}/lacak`} varian="sekunder" className="flex-1">
+                Lacak
+              </TombolTautan>
+            )}
             <TombolTautan to={`/slot/${slot.id}/berita-acara`} varian="sekunder" className="flex-1">
               Berita Acara
             </TombolTautan>

@@ -3,7 +3,7 @@
  *  Poll 3 detik selama belum TIBA. */
 
 import { useEffect, useState } from "react";
-import { PlayCircle, StepForward, Timer } from "lucide-react";
+import { Flag, PlayCircle, StepForward, Timer } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
@@ -13,8 +13,8 @@ import { Skeleton } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
 import {
   useGeserPosisi,
-  useMajukanPengiriman,
   usePengirimanSlot,
+  useSampai,
   useSlotUntukLacak,
   useTelemetriSlot,
 } from "@/hooks/useLacak";
@@ -32,6 +32,19 @@ function formatWaktu(waktu: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Jarak haversine (meter) antara dua koordinat — dipakai untuk menilai apakah
+ *  posisi simulasi sudah berada di dalam radius tujuan. */
+function jarakMeter(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLng = (b.lng - a.lng) * rad;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
 }
 
 export default function Lacak() {
@@ -64,8 +77,8 @@ function IsiLacak({
 
   const slot = useSlotUntukLacak(slotId);
   const pengiriman = usePengirimanSlot(slotId);
-  const majukan = useMajukanPengiriman(slotId);
   const geser = useGeserPosisi(slotId);
+  const sampai = useSampai(slotId);
   const [jalanOtomatis, setJalanOtomatis] = useState(false);
 
   const memuat = slot.isLoading || pengiriman.isLoading;
@@ -92,6 +105,18 @@ function IsiLacak({
   const telemetri = useTelemetriSlot(slotId, sudahTiba);
   const pengirimanId = pengiriman.data?.id;
   const sudahBerangkat = Boolean(pengiriman.data?.timeline.berangkat);
+
+  // K13: status slot menentukan kapan kendali simulasi muncul — berangkat hanya
+  // terjadi lewat "Selesai muat" (backend menolak geser/majukan sebelum JALAN).
+  const slotStatus = slot.data?.status;
+
+  // Tujuan akhir = perhentian terakhir rute pengiriman (tujuanDenganKoordinat
+  // sudah diurutkan sesuai urutan). Tombol "Sampai di tujuan" aktif hanya saat
+  // posisi simulasi berada dalam radius kecil dari tujuan akhir.
+  const tujuanAkhir = tujuanDenganKoordinat.at(-1);
+  const dalamRadiusTujuan =
+    Boolean(posisiTerakhir && tujuanAkhir) &&
+    jarakMeter(posisiTerakhir!, tujuanAkhir!) <= 5; // 5 m ≈ radius_sampai_m default backend.
 
   // Mode "jalan otomatis": posisi maju sendiri tiap beberapa detik supaya peta
   // terlihat hidup tanpa perlu diklik terus saat presentasi.
@@ -166,7 +191,9 @@ function IsiLacak({
               )}
             </div>
             <p className="text-keterangan text-tanah/60">
-              Ambang rute ini: <span className="angka">{formatAngka(pengiriman.data.ambang_transit_menit)}</span> menit
+              {pengiriman.data.eta_provider_menit != null
+                ? `Estimasi rute: ${formatAngka(pengiriman.data.eta_provider_menit)} menit (Google)`
+                : `Estimasi rute: ${formatAngka(pengiriman.data.ambang_transit_menit)} menit (ambang)`}
             </p>
           </section>
 
@@ -198,17 +225,22 @@ function IsiLacak({
             </section>
           )}
 
-          {pengguna?.peran === "PETUGAS" && !sudahTiba && (
+          {pengguna?.peran === "PETUGAS" && !sudahTiba && slotStatus !== "SELESAI" && (
             <div className="kartu-datar flex flex-col gap-2.5 p-4">
               <p className="text-keterangan font-bold uppercase tracking-wide text-tanah/50">Kendali demo</p>
-              {(majukan.isError || geser.isError) && (
-                <p role="alert" className="text-keterangan text-tanah-liat">
-                  Gagal memajukan simulasi. Coba lagi.
-                </p>
-              )}
 
-              {sudahBerangkat ? (
+              {slotStatus !== "JALAN" ? (
+                <p className="text-base text-tanah/70">
+                  Selesaikan muat dahulu untuk melacak perjalanan.
+                </p>
+              ) : (
                 <>
+                  {(geser.isError || sampai.isError) && (
+                    <p role="alert" className="text-keterangan text-tanah-liat">
+                      Gagal memajukan simulasi. Coba lagi.
+                    </p>
+                  )}
+
                   <Tombol
                     type="button"
                     varian="sekunder"
@@ -227,22 +259,19 @@ function IsiLacak({
                   >
                     {jalanOtomatis ? "Hentikan jalan otomatis" : "Jalan otomatis"}
                   </Tombol>
-                  <p className="text-keterangan text-tanah/50">
-                    Posisi bergerak sepanjang rute — manual atau otomatis tiap 2 detik.
-                  </p>
-                </>
-              ) : (
-                <>
                   <Tombol
                     type="button"
-                    varian="halus"
-                    sedangProses={majukan.isPending}
-                    onClick={() => pengirimanId && majukan.mutate(pengirimanId)}
+                    varian="aksi"
+                    ikon={Flag}
+                    sedangProses={sampai.isPending}
+                    disabled={!dalamRadiusTujuan}
+                    onClick={() => pengirimanId && sampai.mutate(pengirimanId)}
                   >
-                    Majukan status
+                    Sampai di tujuan
                   </Tombol>
                   <p className="text-keterangan text-tanah/50">
-                    Simulasi vendor demo — memajukan status pengiriman satu langkah tanpa menunggu waktu asli.
+                    Posisi bergerak sepanjang rute — manual atau otomatis tiap 2 detik. Tombol
+                    "Sampai di tujuan" aktif saat truk berada di tujuan akhir.
                   </p>
                 </>
               )}

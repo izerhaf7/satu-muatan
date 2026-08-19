@@ -65,3 +65,18 @@ export function useGeserPosisi(slotId: string | undefined) {
     },
   });
 }
+
+/** K13: tandai pengiriman sudah sampai di tujuan akhir. Server memvalidasi radius
+ *  `radius_sampai_m` (default 5 m) terhadap koordinat tujuan; untuk demo kita
+ *  kirim tanpa body — tombol hanya aktif saat posisi simulasi sudah di tujuan. */
+export function useSampai(slotId: string | undefined) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (pengirimanId: string) =>
+      api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/sampai`, { method: "POST" }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "pengiriman"] });
+      void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "telemetri"] });
+    },
+  });
+}
