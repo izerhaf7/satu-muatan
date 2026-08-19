@@ -1,4 +1,4 @@
-/** Peta rute Lacak (§9.6) — Google Maps (K14), pengganti Leaflet.
+/** Peta rute Lacak (§9.6) — Google Maps (K14).
  *
  *  Konsumsi instance peta + namespace lewat `usePeta()` dari BingkaiPeta.
  *  Marker titik kumpul + tujuan penerima, garis rute rencana (putus-putus),
@@ -75,7 +75,7 @@ export default function PetaLacak({
   const markerPosisiRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const frameRef = useRef<number | null>(null);
 
-  // Data turunan — sama dengan versi Leaflet.
+  // Data turunan.
   const ruteDecoded = decodePolyline(rutePolyline);
   const ruteRencana: Koordinat[] = ruteDecoded
     ? ruteDecoded
@@ -182,7 +182,7 @@ export default function PetaLacak({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [siap, peta, marker, idPeta, rutePolyline, posisiTerakhir, jejak, gudang, tujuan]);
 
-  // Animasi posisi terakhir — mirror MarkerPosisi Leaflet: interpolasi 2800ms.
+  // Animasi posisi terakhir — mirror MarkerPosisi: interpolasi 2800ms.
   useEffect(() => {
     const markerPosisi = markerPosisiRef.current;
     if (!markerPosisi || !posisiTampil) return;

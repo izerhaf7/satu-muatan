@@ -1,4 +1,4 @@
-/** Bingkai peta Google Maps — pengganti Leaflet (K14).
+/** Bingkai peta Google Maps (K14).
  *
  *  MEMBUAT MAP ID (WAJIB untuk AdvancedMarkerElement):
  *  Google Maps Platform → Maps JavaScript API → Map IDs → Create Map ID
@@ -137,7 +137,7 @@ export default function BingkaiPeta({ children, tinggi = 280, className = "" }: 
         petaRef.current = new siap.Map(wadahRef.current, {
           mapId: siap.idPeta,
           // "cooperative": scroll halaman tetap jalan, zoom butuh Ctrl/gesture
-          // dua jari — pengganti scrollWheelZoom=false Leaflet yang aman di
+          // dua jari — pengganti scrollWheelZoom=false yang aman di
           // desktop maupun mobile.
           gestureHandling: "cooperative",
           // Viewport awal wilayah demo; anak langsung menimpanya lewat

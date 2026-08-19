@@ -5,7 +5,7 @@
  *  setiap kali pin berpindah, alamatnya dibaca lewat `/api/geokode/balik` —
  *  pengguna melihat nama daerah, bukan angka lintang-bujur telanjang.
  *
- *  Di-lazy-load oleh KirimPanen supaya Leaflet tidak ikut chunk masuk.
+ *  Di-lazy-load oleh KirimPanen supaya pustaka peta tidak ikut chunk awal.
  *
  *  Peta memakai Google Maps (K14) lewat <BingkaiPeta> — instance + namespace
  *  diambil dari `usePeta()`. Pin memakai AdvancedMarkerElement (butuh Map ID
