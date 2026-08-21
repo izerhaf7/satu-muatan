@@ -1,9 +1,10 @@
 /** Client API bertipe — satu-satunya jalur frontend ke backend.
- *  Tipe digenerate dari kontrak/openapi.yaml (kontrak beku). */
+ *  Tipe digenerate dari kontrak/openapi.yaml (kontrak beku).
+ *  File kontrak di-copy ke frontend/src/kontrak/ untuk Vercel build. */
 
-import type { paths } from "../../kontrak/types.ts";
+import type { paths } from "../kontrak/types.ts";
 
-export type { components, paths } from "../../kontrak/types.ts";
+export type { components, paths } from "../kontrak/types.ts";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "";
 

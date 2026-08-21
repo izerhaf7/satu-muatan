@@ -17,9 +17,8 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@kontrak/*": ["../kontrak/*"]
+      "@/*": ["src/*"]
     }
   },
-  "include": ["src", "../kontrak/types.ts"]
+  "include": ["src"]
 }
