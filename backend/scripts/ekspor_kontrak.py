@@ -39,7 +39,7 @@ def ekspor_skema_sql() -> None:
     ]
     for tabel in Base.metadata.sorted_tables:
         ddl = str(CreateTable(tabel).compile(dialect=postgresql.dialect()))
-        baris.append(ddl.strip() + ";")
+        baris.append("\n".join(baris_ddl.rstrip() for baris_ddl in ddl.strip().splitlines()) + ";")
         baris.append("")
     tujuan = KONTRAK / "skema.sql"
     tujuan.write_text("\n".join(baris), encoding="utf-8")

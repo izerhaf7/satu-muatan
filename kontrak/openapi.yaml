@@ -611,6 +611,43 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
+  /api/slot/{slot_id}/sensor-node:
+    put:
+      tags:
+      - slot
+      summary: Tetapkan Sensor Node
+      description: 'Kontrak penetapan node sensor oleh petugas pemegang muatan.
+
+
+        Path tidak memuat URL atau credential Firebase. Backend membaca sensor server-side.'
+      operationId: tetapkan_sensor_node_api_slot__slot_id__sensor_node_put
+      parameters:
+      - name: slot_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Slot Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SensorNodeRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SensorNodeOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/slot:
     get:
       tags:
@@ -999,15 +1036,21 @@ paths:
       tags:
       - lot
       summary: Lot Masuk
-      description: '''Pilih dari daftar'' (§9.7) — kenyamanan demo di samping pencarian
-        resi.
+      description: '''Pilih dari daftar'' (§9.7) — kenyamanan untuk akun penerima
+        yang masih
+
+        terikat satu alamat tetap (data seed), dibatasi ke alamat itu.
 
 
-        K13: akun penerima yang masih terikat satu alamat tetap (data seed) dibatasi
+        Akun TANPA ikatan (penerima_id kosong — kini juga dicapai oleh pendaftaran
 
-        ke alamat itu; akun tanpa ikatan melihat semua lot yang sedang jalan, karena
+        mandiri, bukan cuma data seed lama) TIDAK melihat daftar apa pun di sini.
 
-        tujuan kini bebas dan kepemilikan ditentukan oleh nomor resi.'
+        Kepemilikan sungguhan ditentukan oleh nomor resi (lihat `bukti_lot`) —
+
+        "lihat semua lot yang sedang jalan" bukan jalur akses yang aman untuk akun
+
+        yang tidak punya hubungan apa pun dengan kirimannya.'
       operationId: lot_masuk_api_lot_masuk_get
       responses:
         '200':
@@ -1075,7 +1118,14 @@ paths:
 
         penurunan mutu yang DIUKUR SISTEM melewati ambang. Aturan itu ditegakkan di
 
-        sini, bukan cuma disembunyikan tombolnya — klien tidak boleh dipercaya.'
+        sini, bukan cuma disembunyikan tombolnya — klien tidak boleh dipercaya.
+
+
+        Kontrak IoT: sesudah status pengiriman BONGKAR_MUAT, serah-terima penerima
+
+        dengan atribusi menjadi penyelesaian final pengiriman. Driver tidak menutup
+
+        pengiriman sendiri.'
       operationId: serah_terima_api_lot__lot_id__serah_terima_post
       security:
       - HTTPBearer: []
@@ -1100,6 +1150,80 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/SerahTerimaOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/pengiriman/{pengiriman_id}/status:
+    post:
+      tags:
+      - lacak
+      summary: Ubah Status Pengiriman
+      description: 'Kontrak status driver: MUAT -> ANTAR -> BONGKAR_MUAT.
+
+
+        `SELESAI` bukan transisi driver. Penerima menyelesaikan pengiriman melalui
+
+        serah-terima setelah BONGKAR_MUAT dan atribusi tersedia.'
+      operationId: ubah_status_pengiriman_api_pengiriman__pengiriman_id__status_post
+      parameters:
+      - name: pengiriman_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Pengiriman Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusPengirimanRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PengirimanOut'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /api/pengiriman/{pengiriman_id}/posisi:
+    post:
+      tags:
+      - lacak
+      summary: Catat Posisi Pengiriman
+      description: Kontrak GPS driver ke PostgreSQL. Hanya petugas pemegang muatan
+        dapat mengirim posisi.
+      operationId: catat_posisi_pengiriman_api_pengiriman__pengiriman_id__posisi_post
+      parameters:
+      - name: pengiriman_id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Pengiriman Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PosisiPengirimanRequest'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PengirimanOut'
         '422':
           description: Validation Error
           content:
@@ -1212,13 +1336,8 @@ paths:
       tags:
       - lacak
       summary: Majukan Pengiriman
-      description: 'Majukan state simulasi MockVendor satu langkah (K5) — deterministik,
+      description: Majukan state simulasi MockVendor satu langkah (K5) — deterministik,
         untuk demo.
-
-
-        Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
-
-        tidak boleh dimulai sebelum proses muat selesai.'
       operationId: majukan_pengiriman_api_pengiriman__pengiriman_id__majukan_post
       security:
       - HTTPBearer: []
@@ -1237,12 +1356,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PengirimanOut'
-        '409':
-          description: MUAT_BELUM_SELESAI — status slot belum JALAN
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorOut'
         '422':
           description: Validation Error
           content:
@@ -1254,22 +1367,20 @@ paths:
       tags:
       - lacak
       summary: Geser Posisi
-      description: 'K13: majukan POSISI kendaraan satu langkah sepanjang rute, bukan
-        status.
+      description: 'K13: majukan POSISI kendaraan sepanjang rute, bukan status.
 
 
-        Tiap panggilan menulis satu titik `JejakPosisi` hasil interpolasi + satu
+        T6: gerak KONTINU sepanjang polyline, dikompresi waktu. Posisi dihitung dari
 
-        sampel telemetri, sehingga peta benar-benar bergerak saat didemokan.
+        jarak yang ditempuh = kecepatan × (waktu berjalan × percepatan simulasi),
 
-        Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
+        lalu diinterpolasi di sepanjang polyline (klamp di kedua ujung). Tiap
 
-        "jalan otomatis" di layar Lacak.
+        panggilan menulis satu titik `JejakPosisi`; begitu jarak tempuh melewati
 
+        panjang polyline, muatan ditandai TIBA. Dipakai tombol "Majukan posisi" dan
 
-        Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
-
-        tidak boleh dimulai sebelum proses muat selesai.'
+        mode "jalan otomatis" di layar Lacak.'
       operationId: geser_posisi_api_pengiriman__pengiriman_id__geser_post
       security:
       - HTTPBearer: []
@@ -1288,12 +1399,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PengirimanOut'
-        '409':
-          description: MUAT_BELUM_SELESAI — status slot belum JALAN
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorOut'
         '422':
           description: Validation Error
           content:
@@ -1304,14 +1409,17 @@ paths:
     post:
       tags:
       - lacak
-      summary: Tandai Sampai
-      description: 'Tandai pengiriman tiba. Bila koordinat dikirim, server memvalidasi
-        titik berada dalam `radius_sampai_m` dari tujuan.
+      summary: Sampai Pengiriman
+      description: 'T8: petugas menyatakan muatan tiba di tujuan akhir.
 
 
-        Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`, atau
+        Body opsional: kalau `koordinat` GPS petugas diberikan, kedatangan hanya
 
-        `409 SUDAH_TIBA` bila pengiriman sudah tiba.'
+        diterima kalau koordinat itu berada dalam `radius_sampai_m` dari tujuan
+
+        akhir (titik drop terakhir). Tanpa koordinat, kedatangan diterima begitu
+
+        saja. Idempoten: muatan yang sudah tiba ditolak 409.'
       operationId: sampai_pengiriman_api_pengiriman__pengiriman_id__sampai_post
       security:
       - HTTPBearer: []
@@ -1327,22 +1435,10 @@ paths:
         content:
           application/json:
             schema:
-              properties:
-                koordinat:
-                  properties:
-                    lat:
-                      type: number
-                      title: Lat
-                    lng:
-                      type: number
-                      title: Lng
-                  type: object
-                  required:
-                  - lat
-                  - lng
-                  title: Koordinat
-              type: object
-              title: SampaiRequest
+              anyOf:
+              - $ref: '#/components/schemas/SampaiRequest'
+              - type: 'null'
+              title: Body
       responses:
         '200':
           description: Successful Response
@@ -1350,18 +1446,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/PengirimanOut'
-        '409':
-          description: MUAT_BELUM_SELESAI — status slot belum JALAN; SUDAH_TIBA — pengiriman sudah tiba
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorOut'
         '422':
-          description: BELUM_DI_TUJUAN — koordinat di luar radius_sampai_m dari tujuan
+          description: Validation Error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorOut'
+                $ref: '#/components/schemas/HTTPValidationError'
   /api/slot/{slot_id}/berita-acara:
     get:
       tags:
@@ -2529,6 +2619,36 @@ components:
       required:
       - nilai
       title: KonfigurasiPatch
+    KoordinatPengiriman:
+      properties:
+        lat:
+          type: number
+          maximum: 90.0
+          minimum: -90.0
+          title: Lat
+        lng:
+          type: number
+          maximum: 180.0
+          minimum: -180.0
+          title: Lng
+      type: object
+      required:
+      - lat
+      - lng
+      title: KoordinatPengiriman
+    KoordinatTiba:
+      properties:
+        lat:
+          type: number
+          title: Lat
+        lng:
+          type: number
+          title: Lng
+      type: object
+      required:
+      - lat
+      - lng
+      title: KoordinatTiba
     LotBeritaOut:
       properties:
         lot:
@@ -2905,15 +3025,6 @@ components:
       - peran
       title: PenggunaOut
     PengirimanOut:
-      description: 'Snapshot pelacakan. `eta_provider_menit` dan `jarak_provider_km`
-        adalah hasil informasional penyedia rute; tidak menjadi dasar harga.
-
-
-        Konfigurasi terkait berada di tabel `konfigurasi`: `rute_provider` = `AUTO`
-
-        | `GOOGLE` | `HAVERSINE`, `simulasi_percepatan_x` = 60.0, dan `radius_sampai_m`
-
-        = 5.0. `kecepatan_rata_kmh` tetap konfigurasi yang sudah ada.'
       properties:
         id:
           type: string
@@ -2936,6 +3047,10 @@ components:
           - type: string
           - type: 'null'
           title: Status Vendor
+        status_pengiriman:
+          anyOf:
+          - $ref: '#/components/schemas/StatusPengiriman'
+          - type: 'null'
         timeline:
           $ref: '#/components/schemas/TimelineOut'
         estimasi_tiba:
@@ -2947,6 +3062,16 @@ components:
         ambang_transit_menit:
           type: integer
           title: Ambang Transit Menit
+        eta_provider_menit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Eta Provider Menit
+        jarak_provider_km:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Jarak Provider Km
         jejak:
           items:
             $ref: '#/components/schemas/PosisiOut'
@@ -2973,16 +3098,6 @@ components:
             format: date-time
           - type: 'null'
           title: Eta Dihitung Pada
-        eta_provider_menit:
-          anyOf:
-          - type: integer
-          - type: 'null'
-          title: Eta Provider Menit
-        jarak_provider_km:
-          anyOf:
-          - type: number
-          - type: 'null'
-          title: Jarak Provider Km
       type: object
       required:
       - id
@@ -3045,11 +3160,45 @@ components:
           title: Waktu
         sumber:
           $ref: '#/components/schemas/SumberPosisi'
+        akurasi_m:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Akurasi M
       type: object
       required:
       - waktu
       - sumber
       title: PosisiOut
+    PosisiPengirimanRequest:
+      properties:
+        lat:
+          type: number
+          maximum: 90.0
+          minimum: -90.0
+          title: Lat
+        lng:
+          type: number
+          maximum: 180.0
+          minimum: -180.0
+          title: Lng
+        akurasi_m:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: 'null'
+          title: Akurasi M
+        waktu:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Waktu
+      type: object
+      required:
+      - lat
+      - lng
+      title: PosisiPengirimanRequest
     RencanaArmadaOut:
       properties:
         tier:
@@ -3156,6 +3305,43 @@ components:
       - lat
       - lng
       title: RuteSegmenOut
+    SampaiRequest:
+      properties:
+        koordinat:
+          anyOf:
+          - $ref: '#/components/schemas/KoordinatTiba'
+          - type: 'null'
+      type: object
+      title: SampaiRequest
+      description: 'T8 — body opsional endpoint `sampai`: koordinat GPS petugas saat
+
+        menyatakan tiba. Tanpa koordinat, kedatangan diterima begitu saja.'
+    SensorNodeOut:
+      properties:
+        slot_id:
+          type: string
+          format: uuid
+          title: Slot Id
+        node_path:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Node Path
+      type: object
+      required:
+      - slot_id
+      title: SensorNodeOut
+    SensorNodeRequest:
+      properties:
+        node_path:
+          type: string
+          minLength: 1
+          title: Node Path
+      type: object
+      required:
+      - node_path
+      title: SensorNodeRequest
+      description: Path node sensor RTDB. Credential tetap hanya di server.
     SerahTerimaCreate:
       properties:
         keputusan:
@@ -3431,6 +3617,36 @@ components:
       - DITOLAK
       - BATAL
       title: StatusPartisipasi
+    StatusPengiriman:
+      type: string
+      enum:
+      - MUAT
+      - ANTAR
+      - BONGKAR_MUAT
+      - SELESAI
+      title: StatusPengiriman
+      description: State machine pengiriman driver dan penerima.
+    StatusPengirimanRequest:
+      properties:
+        status:
+          type: string
+          enum:
+          - MUAT
+          - ANTAR
+          - BONGKAR_MUAT
+          title: Status
+        koordinat:
+          anyOf:
+          - $ref: '#/components/schemas/KoordinatPengiriman'
+          - type: 'null'
+      type: object
+      required:
+      - status
+      title: StatusPengirimanRequest
+      description: 'Driver mengirim MUAT, ANTAR, atau BONGKAR_MUAT.
+
+
+        SELESAI ditetapkan hanya setelah serah-terima penerima beratribusi.'
     StatusResolusiAlamat:
       type: string
       enum:
@@ -3557,6 +3773,17 @@ components:
           title: Lng
         sumber:
           $ref: '#/components/schemas/SumberTelemetri'
+        sensor_uptime_ms:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Sensor Uptime Ms
+        received_at:
+          anyOf:
+          - type: string
+            format: date-time
+          - type: 'null'
+          title: Received At
       type: object
       required:
       - waktu
