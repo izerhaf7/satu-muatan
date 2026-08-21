@@ -152,3 +152,14 @@ class LuapanKapasitasOut(BaseModel):
     jumlah_atap_terdampak: int
     slot_alternatif_id: UUID | None = None
     pesan: str
+
+
+class SensorNodeRequest(BaseModel):
+    """Path node sensor RTDB. Credential tetap hanya di server."""
+
+    node_path: str = Field(min_length=1)
+
+
+class SensorNodeOut(BaseModel):
+    slot_id: UUID
+    node_path: str | None = None

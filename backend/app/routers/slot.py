@@ -39,8 +39,10 @@ from app.schemas.slot import (
     ResiLotRingkasOut,
     RuteJemputOut,
     RuteSegmenOut,
+    SensorNodeOut,
     SlotDetailOut,
     SlotItemOut,
+    SensorNodeRequest,
     TierRingkasOut,
 )
 from app.services import mesin
@@ -51,6 +53,31 @@ from app.services.rute_snapshot import simpan_snapshot_rute
 from app.services.vendor import dapatkan_adapter_vendor
 
 router = APIRouter(prefix="/slot", tags=["slot"])
+
+
+@router.put("/{slot_id}/sensor-node", response_model=SensorNodeOut)
+def tetapkan_sensor_node(
+    slot_id: UUID,
+    body: SensorNodeRequest,
+    pengguna=Depends(wajib_peran("PETUGAS")),
+    db: Session = Depends(get_db),
+):
+    """Kontrak penetapan node sensor oleh petugas pemegang muatan.
+
+    Path tidak memuat URL atau credential Firebase. Backend membaca sensor server-side.
+    """
+    slot = db.get(Slot, slot_id)
+    if slot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Slot tidak ditemukan")
+    pastikan_petugas_muatan(pengguna, slot)
+    node_path = body.node_path.strip()
+    if not node_path.startswith("/"):
+        node_path = f"/{node_path}"
+    if "?" in node_path or "#" in node_path:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Path node sensor tidak valid")
+    slot.sensor_node_path = node_path
+    db.commit()
+    return SensorNodeOut(slot_id=slot.id, node_path=slot.sensor_node_path)
 
 
 # ---------------------------------------------------------------------------
