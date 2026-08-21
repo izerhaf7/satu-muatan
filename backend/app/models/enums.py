@@ -46,6 +46,15 @@ class StatusSlot(str, enum.Enum):
     BATAL = "BATAL"
 
 
+class StatusPengiriman(str, enum.Enum):
+    """State machine pengiriman driver dan penerima."""
+
+    MUAT = "MUAT"
+    ANTAR = "ANTAR"
+    BONGKAR_MUAT = "BONGKAR_MUAT"
+    SELESAI = "SELESAI"
+
+
 class StatusPartisipasi(str, enum.Enum):
     TERDAFTAR = "TERDAFTAR"
     TERKUNCI = "TERKUNCI"

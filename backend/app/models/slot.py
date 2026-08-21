@@ -49,6 +49,7 @@ class Slot(Base):
     harga_final_per_kg: Mapped[int | None] = mapped_column(Integer)
     selisih_jaminan_atap: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     volume_terkunci_kg: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    sensor_node_path: Mapped[str | None] = mapped_column(Text)
     dibuat_pada: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     tujuan: Mapped[list["SlotTujuan"]] = relationship(back_populates="slot", order_by="SlotTujuan.urutan")

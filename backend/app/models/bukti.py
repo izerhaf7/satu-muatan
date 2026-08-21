@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
-from app.models.enums import Atribusi, KeputusanSerahTerima, SumberPosisi, SumberTelemetri
+from app.models.enums import Atribusi, KeputusanSerahTerima, StatusPengiriman, SumberPosisi, SumberTelemetri
 
 
 class Lot(Base):
@@ -66,6 +66,7 @@ class Pengiriman(Base):
     vendor_ref: Mapped[str | None] = mapped_column(Text)
     # K5: state machine simulasi MockVendor tersimpan di sini
     status_vendor: Mapped[str | None] = mapped_column(Text)
+    status_pengiriman: Mapped[StatusPengiriman | None] = mapped_column(Enum(StatusPengiriman, name="status_pengiriman"))
     waktu_berangkat: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     waktu_tiba: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     kuotasi_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
@@ -88,6 +89,7 @@ class JejakPosisi(Base):
     pengiriman_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("pengiriman.id"), nullable=False)
     lat: Mapped[float | None] = mapped_column()
     lng: Mapped[float | None] = mapped_column()
+    akurasi_m: Mapped[float | None] = mapped_column()
     waktu: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     sumber: Mapped[SumberPosisi] = mapped_column(Enum(SumberPosisi, name="sumber_posisi"), nullable=False)
 
@@ -108,3 +110,5 @@ class Telemetri(Base):
     lat: Mapped[float | None] = mapped_column()
     lng: Mapped[float | None] = mapped_column()
     sumber: Mapped[SumberTelemetri] = mapped_column(Enum(SumberTelemetri, name="sumber_telemetri"), nullable=False)
+    sensor_uptime_ms: Mapped[int | None] = mapped_column()
+    received_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
