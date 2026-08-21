@@ -69,27 +69,17 @@ def test_geser_posisi_menggerakkan_peta_sampai_tiba(client, data_dasar, masuk, k
     jejak_awal = client.get(f"/api/slot/{slot_id}/pengiriman", headers=header_petugas).json()["jejak"]
     assert len(jejak_awal) == 1, "keberangkatan wajib mencatat titik awal"
 
-    # T6: gerak kontinu berbasis waktu. Mundurkan waktu_berangkat jauh ke masa
-    # lalu supaya jarak tempuh melewati panjang rute → muatan tiba.
+    # Fitur gerak simulasi dinonaktifkan; lokasi kini berasal dari GPS driver.
     pengiriman = db.get(Pengiriman, pengiriman_id)
     pengiriman.waktu_berangkat = datetime.now(timezone.utc) - timedelta(hours=2)
     db.commit()
 
     rg = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=header_petugas)
-    assert rg.status_code == 200, rg.text
-    akhir = rg.json()
-    assert akhir["status_vendor"] == "TIBA"
-    assert akhir["timeline"]["tiba"] is not None
-    assert len(akhir["jejak"]) > 1, "peta harus punya jejak, bukan satu titik"
-    # Posisi bergerak sungguhan: titik pertama ≠ titik terakhir.
-    assert (akhir["jejak"][0]["lat"], akhir["jejak"][0]["lng"]) != (
-        akhir["jejak"][-1]["lat"],
-        akhir["jejak"][-1]["lng"],
-    )
+    assert rg.status_code == 410
 
-    # Idempoten: sudah tiba → 409.
+    # Endpoint lama tetap disabled.
     rg2 = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=header_petugas)
-    assert rg2.status_code == 409
+    assert rg2.status_code == 410
 
 
 def test_geser_ditolak_sebelum_berangkat(client, data_dasar, masuk, kirim_panen, ambil_tugas):
@@ -102,4 +92,4 @@ def test_geser_ditolak_sebelum_berangkat(client, data_dasar, masuk, kirim_panen,
     pengiriman = client.get(f"/api/slot/{slot_id}/pengiriman", headers=header_petugas).json()
 
     r = client.post(f"/api/pengiriman/{pengiriman['id']}/geser", headers=header_petugas)
-    assert r.status_code == 409
+    assert r.status_code == 410

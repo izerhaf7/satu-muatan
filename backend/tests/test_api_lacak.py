@@ -6,8 +6,8 @@ from decimal import Decimal
 
 import pytest
 
-from app.models import Pengiriman, Slot, SlotTujuan
-from app.models.enums import StatusSlot
+from app.models import JejakPosisi, Pengiriman, Slot, SlotTujuan
+from app.models.enums import StatusPengiriman, StatusSlot, SumberPosisi
 
 BESOK = date.today() + timedelta(days=1)
 LAT_CIBIRU, LNG_CIBIRU = -6.9269, 107.7189
@@ -89,6 +89,74 @@ def test_estimasi_tiba_jatuh_ke_ambang_saat_durasi_null(client, data_dasar, masu
 
 
 # ---------------------------------------------------------------------------
+# IoT — status driver, GPS, dan node sensor
+
+
+def test_status_driver_harus_berurutan_dan_penerima_menyelesaikan_akhirnya(client, data_dasar, masuk, kirim_panen):
+    slot_id, pengiriman_id = _berangkatkan(client, data_dasar, masuk, kirim_panen)
+    header_petugas = masuk("081200000001")
+
+    loncat = client.post(
+        f"/api/pengiriman/{pengiriman_id}/status",
+        headers=header_petugas,
+        json={"status": "ANTAR"},
+    )
+    assert loncat.status_code == 409
+
+    for status_pengiriman in ("MUAT", "ANTAR", "BONGKAR_MUAT"):
+        response = client.post(
+            f"/api/pengiriman/{pengiriman_id}/status",
+            headers=header_petugas,
+            json={"status": status_pengiriman},
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["status_pengiriman"] == status_pengiriman
+
+    assert response.json()["timeline"]["tiba"] is not None
+
+
+def test_gps_driver_disimpan_ke_jejak_posisi(client, data_dasar, masuk, kirim_panen, db):
+    _, pengiriman_id = _berangkatkan(client, data_dasar, masuk, kirim_panen)
+    header_petugas = masuk("081200000001")
+    for status_pengiriman in ("MUAT", "ANTAR"):
+        response = client.post(
+            f"/api/pengiriman/{pengiriman_id}/status",
+            headers=header_petugas,
+            json={"status": status_pengiriman},
+        )
+        assert response.status_code == 200, response.text
+
+    response = client.post(
+        f"/api/pengiriman/{pengiriman_id}/posisi",
+        headers=header_petugas,
+        json={"lat": -6.9269, "lng": 107.7189, "akurasi_m": 8.5},
+    )
+    assert response.status_code == 200, response.text
+    jejak = db.query(JejakPosisi).filter_by(pengiriman_id=pengiriman_id).order_by(JejakPosisi.waktu.desc()).first()
+    assert jejak is not None
+    assert jejak.sumber == SumberPosisi.HP_PENGAWAL
+    assert jejak.akurasi_m == 8.5
+
+
+def test_node_sensor_hanya_dapat_ditetapkan_petugas_pemegang_muatan(client, data_dasar, masuk, kirim_panen):
+    slot_id, _ = _berangkatkan(client, data_dasar, masuk, kirim_panen)
+    tidak_berhak = client.put(
+        f"/api/slot/{slot_id}/sensor-node",
+        headers=masuk("081200000012"),
+        json={"node_path": "/sensor"},
+    )
+    assert tidak_berhak.status_code == 403
+
+    response = client.put(
+        f"/api/slot/{slot_id}/sensor-node",
+        headers=masuk("081200000001"),
+        json={"node_path": "sensor/dht22"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["node_path"] == "/sensor/dht22"
+
+
+# ---------------------------------------------------------------------------
 # T7 — gate geser/majukan pada slot JALAN
 
 
@@ -101,8 +169,7 @@ def test_geser_ditolak_saat_slot_belum_jalan(client, data_dasar, masuk, kirim_pa
     pengiriman.waktu_berangkat = datetime.now(timezone.utc)
     db.commit()
     r = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=masuk("081200000001"))
-    assert r.status_code == 409
-    assert r.json()["detail"] == "MUAT_BELUM_SELESAI"
+    assert r.status_code == 410
 
 
 def test_majukan_ditolak_saat_slot_belum_jalan(client, data_dasar, masuk, kirim_panen, ambil_tugas, db):
@@ -112,26 +179,21 @@ def test_majukan_ditolak_saat_slot_belum_jalan(client, data_dasar, masuk, kirim_
     pengiriman.waktu_berangkat = datetime.now(timezone.utc)
     db.commit()
     r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=masuk("081200000001"))
-    assert r.status_code == 409
-    assert r.json()["detail"] == "MUAT_BELUM_SELESAI"
+    assert r.status_code == 410
 
 
 def test_geser_berhasil_saat_slot_jalan(client, data_dasar, masuk, kirim_panen):
     """`geser` → 200 kalau slot JALAN, dan posisi maju sepanjang polyline."""
     slot_id, pengiriman_id = _berangkatkan(client, data_dasar, masuk, kirim_panen)
     r = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=masuk("081200000001"))
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["status_vendor"] in ("JALAN", "TIBA")
-    assert len(body["jejak"]) >= 2, "geser wajib menambah titik posisi"
+    assert r.status_code == 410
 
 
 def test_majukan_berhasil_saat_slot_jalan(client, data_dasar, masuk, kirim_panen):
     """`majukan` → 200 kalau slot JALAN."""
     slot_id, pengiriman_id = _berangkatkan(client, data_dasar, masuk, kirim_panen)
     r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=masuk("081200000001"))
-    assert r.status_code == 200, r.text
-    assert r.json()["status_vendor"] in ("JALAN", "TIBA")
+    assert r.status_code == 410
 
 
 # ---------------------------------------------------------------------------
@@ -147,17 +209,7 @@ def test_geser_overshoot_klamp_ke_tujuan_dan_tiba(client, data_dasar, masuk, kir
     db.commit()
 
     r = client.post(f"/api/pengiriman/{pengiriman_id}/geser", headers=masuk("081200000001"))
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["status_vendor"] == "TIBA"
-    assert body["timeline"]["tiba"] is not None
-    # Posisi terakhir = tujuan akhir (titik drop terakhir dari rute rencana).
-    tujuan = body["jejak"][-1]
-    slot = db.get(Slot, slot_id)
-    tujuan_akhir = max(slot.tujuan, key=lambda t: t.urutan)
-    from app.models import Penerima
-    penerima = db.get(Penerima, tujuan_akhir.penerima_id)
-    assert (tujuan["lat"], tujuan["lng"]) == pytest.approx((penerima.lat, penerima.lng), abs=1e-3)
+    assert r.status_code == 410
 
 
 # ---------------------------------------------------------------------------
@@ -183,8 +235,7 @@ def test_sampai_ditolak_saat_koordinat_di_luar_radius(client, data_dasar, masuk,
         headers=masuk("081200000001"),
         json={"koordinat": {"lat": -6.2, "lng": 106.8}},
     )
-    assert r.status_code == 422
-    assert r.json()["detail"] == "BELUM_DI_TUJUAN"
+    assert r.status_code == 410
 
 
 def test_sampai_berhasil_di_dalam_radius(client, data_dasar, masuk, kirim_panen, db):
@@ -196,33 +247,25 @@ def test_sampai_berhasil_di_dalam_radius(client, data_dasar, masuk, kirim_panen,
         headers=masuk("081200000001"),
         json={"koordinat": {"lat": lat, "lng": lng}},
     )
-    assert r.status_code == 200, r.text
-    body = r.json()
-    assert body["status_vendor"] == "TIBA"
-    assert body["timeline"]["tiba"] is not None
+    assert r.status_code == 410
 
 
 def test_sampai_berhasil_tanpa_body(client, data_dasar, masuk, kirim_panen):
     """`sampai` tanpa body → diterima begitu saja."""
     slot_id, pengiriman_id = _berangkatkan(client, data_dasar, masuk, kirim_panen)
     r = client.post(f"/api/pengiriman/{pengiriman_id}/sampai", headers=masuk("081200000001"))
-    assert r.status_code == 200, r.text
-    assert r.json()["status_vendor"] == "TIBA"
+    assert r.status_code == 410
 
 
 def test_sampai_idempoten_sudah_tiba(client, data_dasar, masuk, kirim_panen):
     """`sampai` kedua → 409 SUDAH_TIBA."""
     slot_id, pengiriman_id = _berangkatkan(client, data_dasar, masuk, kirim_panen)
     r1 = client.post(f"/api/pengiriman/{pengiriman_id}/sampai", headers=masuk("081200000001"))
-    assert r1.status_code == 200, r1.text
-    r2 = client.post(f"/api/pengiriman/{pengiriman_id}/sampai", headers=masuk("081200000001"))
-    assert r2.status_code == 409
-    assert r2.json()["detail"] == "SUDAH_TIBA"
+    assert r1.status_code == 410
 
 
 def test_sampai_ditolak_saat_slot_belum_jalan(client, data_dasar, masuk, kirim_panen, ambil_tugas):
     """`sampai` → 409 MUAT_BELUM_SELESAI kalau slot belum JALAN."""
     slot_id, pengiriman_id = _slot_terkunci(client, data_dasar, masuk, kirim_panen, ambil_tugas)
     r = client.post(f"/api/pengiriman/{pengiriman_id}/sampai", headers=masuk("081200000001"))
-    assert r.status_code == 409
-    assert r.json()["detail"] == "MUAT_BELUM_SELESAI"
+    assert r.status_code == 410

@@ -101,19 +101,21 @@ def test_alur_penuh_gabung_sampai_serah_terima(client, data_dasar, masuk, db):
     assert pengiriman["ambang_transit_menit"] > 0
     pengiriman_id = pengiriman["id"]
 
-    # 5) Majukan -> TIBA (sim K5), jejak posisi tercatat.
-    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_titik_kumpul)
-    assert r.status_code == 200, r.text
-    maju = r.json()
+    # 5) Driver menetapkan MUAT -> ANTAR -> BONGKAR_MUAT.
+    maju = None
+    for status_pengiriman in ("MUAT", "ANTAR", "BONGKAR_MUAT"):
+        r = client.post(
+            f"/api/pengiriman/{pengiriman_id}/status",
+            headers=header_titik_kumpul,
+            json={"status": status_pengiriman},
+        )
+        assert r.status_code == 200, r.text
+        maju = r.json()
+    assert maju is not None
+    assert maju["status_pengiriman"] == "BONGKAR_MUAT"
     assert maju["status_vendor"] == "TIBA"
     assert maju["timeline"]["tiba"]
     assert len(maju["jejak"]) >= 1
-    assert maju["jejak"][-1]["sumber"] == "SIMULASI"
-
-    # Memanggil lagi setelah TIBA harus idempoten (tidak error).
-    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_titik_kumpul)
-    assert r.status_code == 200
-    assert r.json()["status_vendor"] == "TIBA"
 
     # 6) Penerima: lihat lot masuk, ambil bukti dari QR.
     r = client.get("/api/lot/masuk", headers=header_penerima)
