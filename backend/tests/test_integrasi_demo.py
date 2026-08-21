@@ -270,11 +270,16 @@ def test_skenario_demo_11_2_end_to_end(client, data_dasar, masuk, db):
     pengiriman_id = pengiriman["id"]
 
     # -----------------------------------------------------------------
-    # Langkah 9: Lacak -- maju ke TIBA (K5: state simulasi eksplisit).
+    # Langkah 9: Driver menetapkan status perjalanan secara eksplisit.
     # -----------------------------------------------------------------
-    r = client.post(f"/api/pengiriman/{pengiriman_id}/majukan", headers=header_titik_kumpul)
-    assert r.status_code == 200, r.text
-    assert r.json()["status_vendor"] == "TIBA"
+    for status_pengiriman in ("MUAT", "ANTAR", "BONGKAR_MUAT"):
+        r = client.post(
+            f"/api/pengiriman/{pengiriman_id}/status",
+            headers=header_titik_kumpul,
+            json={"status": status_pengiriman},
+        )
+        assert r.status_code == 200, r.text
+    assert r.json()["status_pengiriman"] == "BONGKAR_MUAT"
 
     # -----------------------------------------------------------------
     # Langkah 10: Serah terima -- semua lot TERIMA (K14: tidak ada lagi POTONG).

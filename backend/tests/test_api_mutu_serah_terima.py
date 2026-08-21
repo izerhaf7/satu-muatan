@@ -29,8 +29,17 @@ def _muatan_jalan(client, data_dasar, masuk, kirim_panen) -> list[str]:
     assert r2.status_code == 201, r2.text
 
     slot_id = r1.json()["slot_id"]
-    r = client.post(f"/api/demo/muatan/{slot_id}/berangkatkan", headers=masuk("081200000001"))
+    header_petugas = masuk("081200000001")
+    r = client.post(f"/api/demo/muatan/{slot_id}/berangkatkan", headers=header_petugas)
     assert r.status_code == 200, r.text
+    pengiriman_id = r.json()["pengiriman_id"]
+    for status in ("MUAT", "ANTAR", "BONGKAR_MUAT"):
+        status_response = client.post(
+            f"/api/pengiriman/{pengiriman_id}/status",
+            headers=header_petugas,
+            json={"status": status},
+        )
+        assert status_response.status_code == 200, status_response.text
     return r.json()["resi"]
 
 
