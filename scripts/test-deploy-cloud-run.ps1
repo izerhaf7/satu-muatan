@@ -58,13 +58,32 @@ try {
     Assert-True ($calls[1] -match "^run`njobs`nexecute`nsatu-muatan-migrate" -and $calls[1] -match "--wait") "Second call must wait for migration execution."
     Assert-True ($calls[2] -match "^run`ndeploy`nsatu-muatan-api" -and $calls[2] -match "--no-traffic") "Third call must deploy service without traffic."
     Assert-True ((Get-Content -LiteralPath $scriptPath -Raw) -match '"\^\^\^\^@\^\^\^\^RUN_MIGRATIONS=false') "PowerShell source must escape custom delimiter carets."
-    Assert-True ($calls[2] -match "--update-env-vars`n\^@\^RUN_MIGRATIONS=false@VENDOR_ADAPTER=MOCK@DEMO_MODE=true@CORS_ORIGINS=https://satu-muatan.vercel.app,https://preview.example.test") "Service must update one custom-delimited CORS value and disable runtime migrations."
+    Assert-True ($calls[2] -match "--update-env-vars`n\^@\^RUN_MIGRATIONS=false@VENDOR_ADAPTER=MOCK@DEMO_MODE=true@CORS_ORIGINS=https://satu-muatan.vercel.app,https://preview.example.test@FIREBASE_TIMEOUT_DETIK=5") "Service must update one custom-delimited CORS value and disable runtime migrations."
     Assert-True ($calls[2] -match "--update-secrets`nDATABASE_URL=$databaseSecret`:latest,JWT_SECRET=$jwtSecret`:latest") "Service must update required secret bindings."
     Assert-True ($calls[2] -notmatch "--set-env-vars|--set-secrets") "Service must not replace existing runtime configuration."
     Assert-True ($calls[2] -notmatch [regex]::Escape($unrelatedExistingBinding)) "Service arguments must not include or replace unrelated existing secret bindings."
     Assert-True ($calls[0] -match "DATABASE_URL=$databaseSecret`:latest,JWT_SECRET=$jwtSecret`:latest") "Migration job must receive secret names."
     Assert-True ($calls[2] -match "DATABASE_URL=$databaseSecret`:latest,JWT_SECRET=$jwtSecret`:latest") "Service must receive secret names."
     Assert-True (($output -join "`n") -notmatch "postgresql://|test-secret-value") "Deploy output must not print secret values."
+
+    Remove-Item -LiteralPath $logPath -ErrorAction SilentlyContinue
+    $firebaseOutput = Invoke-Deploy @(
+        "-ProjectId", "alexas-503209",
+        "-Image", "asia-southeast2-docker.pkg.dev/alexas-503209/satu-muatan/api:commit-sha",
+        "-ServiceName", "satu-muatan-api",
+        "-MigrationJobName", "satu-muatan-migrate",
+        "-DatabaseUrlSecret", $databaseSecret,
+        "-JwtSecret", $jwtSecret,
+        "-CorsOrigins", "https://satu-muatan.vercel.app",
+        "-FirebaseRtdbUrl", "https://satu-muatan-default-rtdb.asia-southeast1.firebasedatabase.app",
+        "-FirebaseDatabaseSecret", "firebase-database-secret",
+        "-Region", "asia-southeast2"
+    )
+    Assert-True ($LASTEXITCODE -eq 0) "Firebase-enabled deploy must succeed with the gcloud stub."
+    $firebaseCalls = (Get-Content -LiteralPath $logPath -Raw) -split [regex]::Escape("--CALL--") | Where-Object { $_.Trim() } | ForEach-Object { ($_ -replace "`r`n", "`n").Trim() }
+    Assert-True ($firebaseCalls[0] -match "FIREBASE_DATABASE_SECRET=firebase-database-secret`:latest") "Migration job must receive the Firebase secret binding."
+    Assert-True ($firebaseCalls[2] -match "FIREBASE_DATABASE_SECRET=firebase-database-secret`:latest") "Service must receive the Firebase secret binding."
+    Assert-True ($firebaseCalls[2] -match "FIREBASE_RTDB_URL=https://satu-muatan-default-rtdb\.asia-southeast1\.firebasedatabase\.app") "Service must receive the Firebase RTDB URL."
 
     $validArguments = @(
         "-ProjectId", "alexas-503209",

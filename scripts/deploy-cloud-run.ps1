@@ -21,6 +21,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$CorsOrigins,
 
+    [string]$FirebaseRtdbUrl = "",
+
+    [string]$FirebaseDatabaseSecret = "",
+
     [string]$Region = "asia-southeast2"
 )
 
@@ -63,10 +67,19 @@ Assert-SafeIdentifier "MigrationJobName" $MigrationJobName
 Assert-SafeIdentifier "DatabaseUrlSecret" $DatabaseUrlSecret
 Assert-SafeIdentifier "JwtSecret" $JwtSecret
 Assert-SafeIdentifier "Region" $Region
+if (-not [string]::IsNullOrWhiteSpace($FirebaseDatabaseSecret)) {
+    Assert-SafeIdentifier "FirebaseDatabaseSecret" $FirebaseDatabaseSecret
+}
 $CorsOrigins = Assert-CorsOrigins $CorsOrigins
 
 $secretBindings = "DATABASE_URL=$DatabaseUrlSecret`:latest,JWT_SECRET=$JwtSecret`:latest"
-$runtimeEnvironment = "^^^^@^^^^RUN_MIGRATIONS=false@VENDOR_ADAPTER=MOCK@DEMO_MODE=true@CORS_ORIGINS=$CorsOrigins"
+if (-not [string]::IsNullOrWhiteSpace($FirebaseDatabaseSecret)) {
+    $secretBindings += ",FIREBASE_DATABASE_SECRET=$FirebaseDatabaseSecret`:latest"
+}
+$runtimeEnvironment = "^^^^@^^^^RUN_MIGRATIONS=false@VENDOR_ADAPTER=MOCK@DEMO_MODE=true@CORS_ORIGINS=$CorsOrigins@FIREBASE_TIMEOUT_DETIK=5"
+if (-not [string]::IsNullOrWhiteSpace($FirebaseRtdbUrl)) {
+    $runtimeEnvironment += "@FIREBASE_RTDB_URL=$FirebaseRtdbUrl"
+}
 $migrationFlagsPath = Join-Path $PSScriptRoot "cloud-run-migration-flags.yaml"
 
 Write-Host "Deploying serialized migration job $MigrationJobName. Secret values stay in Secret Manager."

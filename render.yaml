@@ -41,5 +41,13 @@ services:
       # demo tetap jalan offline. Kunci ini TIDAK boleh masuk browser/VITE_*.
       - key: GOOGLE_MAPS_API_KEY
         sync: false
+      # Firebase RTDB: backend membaca server-side; frontend tidak pernah menerima
+      # credential. URL bukan credential, secret tetap diisi lewat dashboard.
+      - key: FIREBASE_RTDB_URL
+        value: https://satu-muatan-default-rtdb.asia-southeast1.firebasedatabase.app
+      - key: FIREBASE_DATABASE_SECRET
+        sync: false
+      - key: FIREBASE_TIMEOUT_DETIK
+        value: "5"
     # PORT disuntik otomatis oleh Render (bukan di sini) -- docker-entrypoint.sh
     # membaca $PORT saat start, dan default ke 8000 kalau dijalankan lokal tanpa Render.
