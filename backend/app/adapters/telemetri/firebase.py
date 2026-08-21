@@ -36,15 +36,14 @@ def baca_telemetri_firebase(
     konfigurasi = settings or get_settings()
     if not konfigurasi.firebase_rtdb_url:
         raise FirebaseTelemetryError("FIREBASE_RTDB_URL belum dikonfigurasi")
-    if not konfigurasi.firebase_database_secret:
-        raise FirebaseTelemetryError("FIREBASE_DATABASE_SECRET belum dikonfigurasi")
     if not node_path.strip():
         raise FirebaseTelemetryError("Path node sensor tidak boleh kosong")
 
     try:
+        params = {"auth": konfigurasi.firebase_database_secret} if konfigurasi.firebase_database_secret else None
         response = httpx.get(
             _url_node(konfigurasi.firebase_rtdb_url, node_path),
-            params={"auth": konfigurasi.firebase_database_secret},
+            params=params,
             timeout=konfigurasi.firebase_timeout_detik,
         )
         response.raise_for_status()

@@ -49,3 +49,25 @@ def test_baca_telemetri_firebase_menolak_payload_tidak_valid(monkeypatch):
 
     with pytest.raises(FirebaseTelemetryError, match="format sensor"):
         baca_telemetri_firebase("sensor", _settings())
+
+
+def test_baca_telemetri_firebase_mendukung_node_public(monkeypatch):
+    request = httpx.Request("GET", "https://example.firebaseio.com/sensor.json")
+    response = httpx.Response(
+        200,
+        json={"temperature": 31.1, "humidity": 50.3, "timestamp": 5073598},
+        request=request,
+    )
+    settings = Settings(firebase_rtdb_url="https://example.firebaseio.com")
+
+    def fake_get(url, *, params, timeout):
+        assert url == "https://example.firebaseio.com/sensor.json"
+        assert params is None
+        return response
+
+    monkeypatch.setattr("app.adapters.telemetri.firebase.httpx.get", fake_get)
+    hasil = baca_telemetri_firebase("/sensor", settings)
+
+    assert hasil.suhu_c == 31.1
+    assert hasil.kelembapan_persen == 50.3
+    assert hasil.sensor_uptime_ms == 5073598
