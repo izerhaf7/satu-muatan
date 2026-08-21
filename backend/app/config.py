@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     alamat_rate_limit_per_jendela: int = 30
     alamat_rate_limit_jendela_detik: int = 60
     alamat_rate_limit_max_pengguna: int = 2_000
+    firebase_rtdb_url: str = ""
+    firebase_database_secret: str = ""
+    firebase_timeout_detik: float = 5.0
 
     @property
     def daftar_cors_origins(self) -> list[str]:

@@ -113,7 +113,14 @@ KONFIGURASI_SEED = [
     ("amplitudo_suhu_c", "8", TipeKonfigurasi.FLOAT, "Amplitudo suhu kurva harian telemetri", "°C",
      StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
     ("interval_telemetri_menit", "10", TipeKonfigurasi.INT, "Interval sampel telemetri simulasi", "menit",
-     StatusSumber.ASUMSI, None),
+      StatusSumber.ASUMSI, None),
+    # IoT — path node dan interval pembacaan bukan rahasia; kredensial tetap di env.
+    ("sensor_node_default_path", "/sensor", TipeKonfigurasi.STRING,
+     "Path node sensor Firebase default", None, StatusSumber.ASUMSI,
+     "Path demo; dapat diganti melalui assignment node."),
+    ("sensor_read_interval_detik", "10", TipeKonfigurasi.INT,
+     "Interval pembacaan sensor Firebase", "detik", StatusSumber.ASUMSI,
+     "Interval operasional demo; dapat disesuaikan."),
     # v2 §6.4 — atribusi 3-input (C3)
     ("ambang_grade_asal", "3", TipeKonfigurasi.INT, "Grade minimum agar barang boleh dimuat", None,
      StatusSumber.ASUMSI, "Perkiraan tim; belum diverifikasi."),
