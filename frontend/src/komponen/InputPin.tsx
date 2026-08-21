@@ -1,6 +1,6 @@
 /** Input PIN 6 digit — dipakai layar Masuk (§9.1). Angka besar berjarak, tabular-nums. */
 
-import { forwardRef, type InputHTMLAttributes } from "react";
+import { forwardRef, type ChangeEvent, type InputHTMLAttributes } from "react";
 
 interface InputPinProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "type" | "maxLength" | "inputMode"> {
   label?: string;
@@ -8,8 +8,14 @@ interface InputPinProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "typ
 }
 
 const InputPin = forwardRef<HTMLInputElement, InputPinProps>(
-  ({ label = "PIN (6 digit)", id, pesanKesalahan, className = "", ...props }, ref) => {
+  ({ label = "PIN (6 digit)", id, pesanKesalahan, className = "", onChange, ...props }, ref) => {
     const inputId = id ?? "pin";
+    // `pattern`/`inputMode` cuma penanda keyboard virtual — keyboard fisik tetap
+    // bisa mengetik huruf, jadi difilter di sini juga, bukan cuma di atribut.
+    function handleChange(e: ChangeEvent<HTMLInputElement>) {
+      e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6);
+      onChange?.(e);
+    }
     return (
       <div className="flex flex-col gap-1.5">
         <label htmlFor={inputId} className="text-keterangan font-semibold text-tanah">
@@ -26,6 +32,7 @@ const InputPin = forwardRef<HTMLInputElement, InputPinProps>(
           autoComplete="one-time-code"
           className={`angka min-h-sentuh rounded-lg border-2 border-kabut bg-kertas px-4 text-xl tracking-[0.5em] text-tanah transition-colors duration-cepat hover:border-tanah/30 focus:border-daun focus:outline-none focus:ring-2 focus:ring-daun/25 disabled:cursor-not-allowed disabled:border-kabut disabled:bg-kabut/30 disabled:text-tanah/40 ${className}`}
           aria-invalid={pesanKesalahan ? true : undefined}
+          onChange={handleChange}
           {...props}
         />
         {pesanKesalahan && (

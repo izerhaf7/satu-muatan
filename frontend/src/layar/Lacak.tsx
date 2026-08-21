@@ -20,6 +20,10 @@ import {
 } from "@/hooks/useLacak";
 import { useAuthStore } from "@/stores/authStore";
 import { formatAngka } from "@/utils/format";
+import type { components } from "@/api/client";
+
+type RuteSegmenOut = components["schemas"]["RuteSegmenOut"];
+type PosisiOut = components["schemas"]["PosisiOut"];
 
 import PetaLacak from "./lacak/PetaLacak";
 import GrafikSuhu from "./lacak/GrafikSuhu";
@@ -88,7 +92,7 @@ function IsiLacak({
   // K13: koordinat tujuan ikut di payload muatan — tujuan kini bebas ditulis
   // petani, jadi peta tidak boleh lagi bergantung pada katalog penerima.
   const tujuanDenganKoordinat =
-    slot.data?.tujuan.map((t) => ({
+    slot.data?.tujuan.map((t: RuteSegmenOut) => ({
       lat: t.lat,
       lng: t.lng,
       label: `${t.urutan}. ${t.nama_penerima}`,
@@ -96,8 +100,8 @@ function IsiLacak({
 
   const jejak =
     pengiriman.data?.jejak
-      .filter((j) => j.lat !== null && j.lat !== undefined && j.lng !== null && j.lng !== undefined)
-      .map((j) => ({ lat: j.lat as number, lng: j.lng as number })) ?? [];
+      .filter((j: PosisiOut) => j.lat !== null && j.lat !== undefined && j.lng !== null && j.lng !== undefined)
+      .map((j: PosisiOut) => ({ lat: j.lat as number, lng: j.lng as number })) ?? [];
   const jejakTerakhir = jejak.at(-1);
   const posisiTerakhir = jejakTerakhir ? { ...jejakTerakhir, label: "Posisi terakhir" } : null;
 

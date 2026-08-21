@@ -292,7 +292,7 @@ export default function CariAlamat({
         <div className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border-2 border-kabut bg-kertas shadow-angkat">
           {daftar.length > 0 && (
             <ul id={listboxId} role="listbox" aria-label="Saran alamat" className="divide-y divide-kabut">
-              {daftar.map((item, index) => (
+              {daftar.map((item: AlamatSaranItem, index: number) => (
                 <li
                   key={`${item.sumber}-${item.place_id}`}
                   role="presentation"

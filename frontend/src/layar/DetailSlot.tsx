@@ -14,6 +14,9 @@ import RingkasanResi from "@/komponen/RingkasanResi";
 import { SkeletonAngka, SkeletonKartu } from "@/komponen/Skeleton";
 import { useDetailSlot } from "@/hooks/useDetailSlot";
 import { useAuthStore } from "@/stores/authStore";
+import type { components } from "@/api/client";
+
+type PartisipasiOut = components["schemas"]["PartisipasiOut"];
 
 import DaftarPeserta from "./detail-slot/DaftarPeserta";
 import HargaBerjalanHero from "./detail-slot/HargaBerjalanHero";
@@ -77,8 +80,8 @@ export default function DetailSlot() {
                     atapPerKg={detail.data.atap_saya_per_kg!}
                     hematPerKg={detail.data.hemat_saya_per_kg ?? null}
                     volumeSayaKg={detail.data.partisipasi
-                      .filter((p) => p.petani_id === pengguna!.id)
-                      .reduce((total, p) => total + p.volume_kg, 0)}
+                      .filter((p: PartisipasiOut) => p.petani_id === pengguna!.id)
+                      .reduce((total: number, p: PartisipasiOut) => total + p.volume_kg, 0)}
                   />
                 )}
               </div>

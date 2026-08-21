@@ -118,7 +118,7 @@ export default function KirimPanen() {
     const hasil = konfirmasiTitikPending(statusTitikAsal);
     if (!hasil) return;
     if (buatKunciKoordinat(titikAsal) !== buatKunciKoordinat(hasil.titik)) {
-      setAlamatAsal((alamat) => bersihkanFieldProvider(alamat, providerAsal.current));
+      setAlamatAsal((alamat: NilaiAlamat) => bersihkanFieldProvider(alamat, providerAsal.current));
       providerAsal.current = {};
     }
     setStatusTitikAsal(hasil.status);
@@ -131,7 +131,7 @@ export default function KirimPanen() {
     if (!hasil) return;
     revisiTujuan.current += 1;
     if (hasil.titik.sumber !== "ALAMAT" && buatKunciKoordinat(titikTujuan) !== buatKunciKoordinat(hasil.titik)) {
-      setAlamatTujuan((alamat) => bersihkanFieldProvider(alamat, providerTujuan.current));
+      setAlamatTujuan((alamat: NilaiAlamat) => bersihkanFieldProvider(alamat, providerTujuan.current));
       providerTujuan.current = {};
     }
     setStatusTitikTujuan(hasil.status);
@@ -152,14 +152,14 @@ export default function KirimPanen() {
 
   function batalkanTitikAsal() {
     setStatusTitikAsal((status) => batalkanTitikPending(status));
-    setAlamatAsal((alamat) => pulihkanAlamatSaatBatal(alamat, snapshotAlamatAsal.current));
+    setAlamatAsal((alamat: NilaiAlamat) => pulihkanAlamatSaatBatal(alamat, snapshotAlamatAsal.current));
     snapshotAlamatAsal.current = null;
   }
 
   function batalkanTitikTujuan() {
     revisiTujuan.current += 1;
     setStatusTitikTujuan((status) => batalkanTitikPending(status));
-    setAlamatTujuan((alamat) => pulihkanAlamatSaatBatal(alamat, snapshotAlamatTujuan.current));
+    setAlamatTujuan((alamat: NilaiAlamat) => pulihkanAlamatSaatBatal(alamat, snapshotAlamatTujuan.current));
     if (snapshotProviderTujuan.current) providerTujuan.current = snapshotProviderTujuan.current;
     snapshotAlamatTujuan.current = null;
     snapshotProviderTujuan.current = null;
@@ -172,7 +172,7 @@ export default function KirimPanen() {
 
   useEffect(() => {
     if (!geokodeAsal.data || !bolehTerapkanResponsGeokode(geokodeAsal.data.kunci, titikAsal)) return;
-    setAlamatAsal((alamat) => {
+    setAlamatAsal((alamat: NilaiAlamat) => {
       providerAsal.current = catatFieldProvider(geokodeAsal.data.hasil, alamat);
       return terapkanGeokode(alamat, geokodeAsal.data.hasil);
     });
@@ -180,7 +180,7 @@ export default function KirimPanen() {
 
   useEffect(() => {
     if (!geokodeTujuan.data || !bolehTerapkanResponsGeokode(geokodeTujuan.data.kunci, titikTujuan)) return;
-    setAlamatTujuan((alamat) => {
+    setAlamatTujuan((alamat: NilaiAlamat) => {
       providerTujuan.current = {
         ...providerTujuan.current,
         ...catatFieldProvider(geokodeTujuan.data.hasil, alamat),

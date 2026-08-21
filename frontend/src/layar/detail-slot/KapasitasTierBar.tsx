@@ -12,6 +12,7 @@ import type { components } from "@/api/client";
 import { formatAngka } from "@/utils/format";
 
 type RencanaArmadaOut = components["schemas"]["RencanaArmadaOut"];
+type TierRingkasOut = components["schemas"]["TierRingkasOut"];
 
 interface KapasitasTierBarProps {
   volumeKg: number;
@@ -22,7 +23,7 @@ interface KapasitasTierBarProps {
 const DURASI_SOROT_MS = 6000;
 
 export default function KapasitasTierBar({ volumeKg, rencana, jumlahPeserta }: KapasitasTierBarProps) {
-  const tandaTier = rencana ? rencana.tier.map((t) => t.kode).join("+") : null;
+  const tandaTier = rencana ? rencana.tier.map((t: TierRingkasOut) => t.kode).join("+") : null;
   const tandaSebelumnya = useRef<string | null>(null);
   const sudahMulai = useRef(false);
   const [naikKelas, setNaikKelas] = useState(false);
@@ -57,7 +58,7 @@ export default function KapasitasTierBar({ volumeKg, rencana, jumlahPeserta }: K
 
       {rencana && rencana.tier.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {rencana.tier.map((tier) => (
+          {rencana.tier.map((tier: TierRingkasOut) => (
             <span
               key={tier.kode}
               className="inline-flex items-center gap-1.5 rounded-full bg-tanah/5 px-2.5 py-1 text-keterangan font-semibold text-tanah/70"
@@ -71,7 +72,7 @@ export default function KapasitasTierBar({ volumeKg, rencana, jumlahPeserta }: K
 
       {naikKelas && (
         <p className="text-keterangan font-semibold text-tanah-liat" role="status">
-          Kendaraan naik kelas ke {rencana?.tier.map((t) => t.nama).join(" + ")}
+          Kendaraan naik kelas ke {rencana?.tier.map((t: TierRingkasOut) => t.nama).join(" + ")}
         </p>
       )}
     </section>

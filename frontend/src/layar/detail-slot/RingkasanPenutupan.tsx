@@ -14,6 +14,7 @@ import { formatAngka, formatRupiah } from "@/utils/format";
 
 type SlotDetailOut = components["schemas"]["SlotDetailOut"];
 type PeranPengguna = components["schemas"]["PeranPengguna"];
+type PartisipasiOut = components["schemas"]["PartisipasiOut"];
 
 interface RingkasanPenutupanProps {
   slot: SlotDetailOut;
@@ -59,7 +60,7 @@ export default function RingkasanPenutupan({ slot, peran, penggunaId }: Ringkasa
               </tr>
             </Thead>
             <tbody>
-              {slot.partisipasi.map((p) => {
+              {slot.partisipasi.map((p: PartisipasiOut) => {
                 const hargaFinal = p.harga_final_per_kg ?? 0;
                 const tagihan = p.volume_kg * hargaFinal;
                 return (
@@ -101,7 +102,7 @@ export default function RingkasanPenutupan({ slot, peran, penggunaId }: Ringkasa
 
       {peran === "PETANI" &&
         (() => {
-          const sendiri = slot.partisipasi.find((p) => p.petani_id === penggunaId);
+          const sendiri = slot.partisipasi.find((p: PartisipasiOut) => p.petani_id === penggunaId);
           if (!sendiri) return null;
           return (
             <>

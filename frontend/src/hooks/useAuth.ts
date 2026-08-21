@@ -7,6 +7,7 @@ import { useAuthStore } from "@/stores/authStore";
 
 type MasukRequest = components["schemas"]["MasukRequest"];
 type MasukDemoRequest = components["schemas"]["MasukDemoRequest"];
+type DaftarRequest = components["schemas"]["DaftarRequest"];
 type TokenResponse = components["schemas"]["TokenResponse"];
 type PenggunaOut = components["schemas"]["PenggunaOut"];
 
@@ -15,6 +16,20 @@ export function useMasuk() {
   return useMutation({
     mutationFn: (body: MasukRequest) =>
       api<TokenResponse>("/api/auth/masuk", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: (data) => setSesi(data.token, data.pengguna),
+  });
+}
+
+/** Daftar sendiri — Petani atau Penerima (tanpa verifikasi OTP). Auto-login
+ *  setelah sukses, sama seperti `useMasuk`. */
+export function useDaftar() {
+  const setSesi = useAuthStore((s) => s.setSesi);
+  return useMutation({
+    mutationFn: (body: DaftarRequest) =>
+      api<TokenResponse>("/api/auth/daftar", {
         method: "POST",
         body: JSON.stringify(body),
       }),

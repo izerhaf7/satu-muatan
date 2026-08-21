@@ -41,7 +41,7 @@ export default function TimelineLacak({ timeline, className = "" }: TimelineLaca
         const Ikon = tahap.ikon;
 
         return (
-          <li key={tahap.kunci} className="flex gap-3">
+          <li key={tahap.label} className="flex gap-3">
             <div className="flex flex-col items-center">
               <span
                 className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-cepat ${

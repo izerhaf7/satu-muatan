@@ -10,6 +10,7 @@ import { ChefHat, type LucideIcon, Sprout, Warehouse } from "lucide-react";
 import type { components } from "@/api/client";
 import InputPin from "@/komponen/InputPin";
 import InputTeks from "@/komponen/InputTeks";
+import KerangkaAuth from "@/komponen/KerangkaAuth";
 import Tombol from "@/komponen/Tombol";
 import { useMasuk, useMasukDemo } from "@/hooks/useAuth";
 
@@ -42,35 +43,47 @@ export default function Masuk() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 px-5 py-10">
-      <div className="flex flex-col items-center gap-2 text-center">
-        <img src="/ikon-192.png" alt="" className="h-14 w-14 rounded-2xl" />
-        <p className="text-subjudul font-extrabold text-tanah">Satu Muatan</p>
-        <p className="text-keterangan text-tanah/60">Masuk untuk lanjut mengelola pengiriman</p>
+    <KerangkaAuth keterangan="Masuk untuk lanjut mengelola pengiriman">
+      <div className="overflow-hidden rounded-xl shadow-lembut">
+        <div aria-hidden className="h-1 bg-daun" />
+        <form onSubmit={kirim} className="kartu-tonjol flex flex-col gap-4 rounded-t-none border-t-0 p-6">
+          <InputTeks
+            label="Nomor HP"
+            name="no_hp"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            placeholder="0812xxxxxxxx"
+            value={noHp}
+            onChange={(e) => setNoHp(e.target.value.replace(/\D/g, "").slice(0, 14))}
+            required
+          />
+          <InputPin value={pin} onChange={(e) => setPin(e.target.value)} required />
+          {masuk.isError && (
+            <p role="alert" className="text-sm text-tanah-liat">
+              Nomor HP atau PIN salah. Coba lagi.
+            </p>
+          )}
+          <Tombol type="submit" varian="aksi" sedangProses={masuk.isPending}>
+            Masuk
+          </Tombol>
+        </form>
       </div>
 
-      <form onSubmit={kirim} className="kartu-tonjol flex flex-col gap-4 p-6">
-        <InputTeks
-          label="Nomor HP"
-          name="no_hp"
-          type="tel"
-          inputMode="numeric"
-          autoComplete="tel"
-          placeholder="0812xxxxxxxx"
-          value={noHp}
-          onChange={(e) => setNoHp(e.target.value)}
-          required
-        />
-        <InputPin value={pin} onChange={(e) => setPin(e.target.value)} required />
-        {masuk.isError && (
-          <p role="alert" className="text-sm text-tanah-liat">
-            Nomor HP atau PIN salah. Coba lagi.
-          </p>
-        )}
-        <Tombol type="submit" varian="aksi" sedangProses={masuk.isPending}>
-          Masuk
-        </Tombol>
-      </form>
+      <div className="mx-auto flex flex-col items-center gap-2">
+        <Link
+          to="/daftar"
+          className="text-keterangan font-medium text-daun transition-colors duration-cepat hover:text-tanah"
+        >
+          Belum punya akun? Daftar
+        </Link>
+        <Link
+          to="/"
+          className="text-keterangan font-medium text-tanah/50 transition-colors duration-cepat hover:text-tanah"
+        >
+          ← Kembali ke beranda situs
+        </Link>
+      </div>
 
       <div className="flex flex-col gap-3">
         <p className="text-center text-base font-medium text-tanah">Masuk cepat (demo)</p>
@@ -81,7 +94,7 @@ export default function Masuk() {
               type="button"
               disabled={masukDemo.isPending}
               onClick={() => kirimDemo(a.akun)}
-              className="kartu-datar flex flex-col items-center gap-2 p-4 text-center transition-colors duration-cepat hover:border-daun disabled:cursor-not-allowed disabled:opacity-50"
+              className="kartu-datar flex min-h-sentuh cursor-pointer flex-col items-center gap-2 p-4 text-center transition-colors duration-cepat hover:border-daun disabled:cursor-not-allowed disabled:opacity-50"
             >
               <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-daun/10 text-daun">
                 <a.ikon aria-hidden className="h-5 w-5" strokeWidth={2} />
@@ -97,13 +110,6 @@ export default function Masuk() {
           </p>
         )}
       </div>
-
-      <Link
-        to="/"
-        className="mx-auto text-keterangan font-medium text-tanah/50 transition-colors duration-cepat hover:text-tanah"
-      >
-        ← Kembali ke beranda situs
-      </Link>
-    </main>
+    </KerangkaAuth>
   );
 }

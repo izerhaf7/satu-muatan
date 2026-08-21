@@ -18,6 +18,7 @@ import {
 import type { components } from "@/api/client";
 
 type TelemetriOut = components["schemas"]["TelemetriOut"];
+type TelemetriSampelOut = components["schemas"]["TelemetriSampelOut"];
 
 // Palet 5 warna (spec §10 / tailwind.config.js) — jangan tambah warna lain.
 const WARNA_DAUN = "#16A34A";
@@ -59,7 +60,7 @@ interface GrafikSuhuProps {
 }
 
 export default function GrafikSuhu({ telemetri }: GrafikSuhuProps) {
-  const data: TitikSuhu[] = telemetri.sampel.map((s) => ({
+  const data: TitikSuhu[] = telemetri.sampel.map((s: TelemetriSampelOut) => ({
     waktu: s.waktu,
     jam: formatJamLokal(s.waktu),
     suhu_c: s.suhu_c,

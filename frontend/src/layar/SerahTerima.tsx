@@ -14,6 +14,7 @@ import Tombol from "@/komponen/Tombol";
 import { LABEL_GRADE } from "@/komponen/PilihGrade";
 import type { components } from "@/api/client";
 import { useCariLotQr, useKirimSerahTerima, useLotMasuk } from "@/hooks/useSerahTerima";
+import { useAuthStore } from "@/stores/authStore";
 import { formatAngka } from "@/utils/format";
 
 import KartuBukti from "./serah-terima/KartuBukti";
@@ -27,6 +28,7 @@ export default function SerahTerima() {
   const lotMasuk = useLotMasuk();
   const cariQr = useCariLotQr();
   const kirim = useKirimSerahTerima();
+  const punyaAlamatTetap = useAuthStore((s) => s.pengguna?.penerima_id != null);
 
   function cariBerdasarkanKode(e: FormEvent) {
     e.preventDefault();
@@ -101,9 +103,12 @@ export default function SerahTerima() {
         <p className="text-base font-semibold text-tanah">Lot masuk</p>
         {lotMasuk.isLoading && <SkeletonKartu jumlah={3} />}
         {lotMasuk.isError && <KartuGalat pesan="Gagal memuat daftar lot." onCobaLagi={() => lotMasuk.refetch()} />}
-        {lotMasuk.data?.length === 0 && (
-          <KeadaanKosong pesan="Belum ada lot yang sampai untuk diserahterimakan. Lot akan muncul di sini begitu kiriman tiba." />
-        )}
+        {lotMasuk.data?.length === 0 &&
+          (punyaAlamatTetap ? (
+            <KeadaanKosong pesan="Belum ada lot yang sampai untuk diserahterimakan. Lot akan muncul di sini begitu kiriman tiba." />
+          ) : (
+            <KeadaanKosong pesan="Akun ini belum terikat satu alamat tetap, jadi daftar di sini kosong. Cari lot lewat kode QR-nya di atas — kode itu sendiri yang jadi bukti kamu berhak menerimanya." />
+          ))}
         {lotMasuk.data?.map((bukti) => (
           <button
             key={bukti.lot.id}

@@ -82,7 +82,7 @@ export function terapkanGeokode(a: NilaiAlamat, g: GeokodeOut): NilaiAlamat {
 /** Wilayah yang dipilih mengisi komponen dari jalurnya, dari yang paling
  *  spesifik ke yang paling umum. */
 export function terapkanWilayah(a: NilaiAlamat, w: WilayahOut): NilaiAlamat {
-  const bagian = w.jalur.split(",").map((b) => b.trim());
+  const bagian = w.jalur.split(",").map((b: string) => b.trim());
   const dasar: NilaiAlamat = { ...a, kode_pos: a.kode_pos || w.kode_pos || null };
 
   if (w.tingkat === "DESA") {

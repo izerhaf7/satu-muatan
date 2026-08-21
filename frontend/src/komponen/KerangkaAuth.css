@@ -1,0 +1,11 @@
+.auth-panel .lp-svg-badan,
+.auth-panel .lp-svg-bak,
+.auth-panel .lp-svg-bay,
+.auth-panel .lp-svg-bay-label,
+.auth-panel .lp-svg-roda,
+.auth-panel .lp-svg-asap circle,
+.auth-panel .lp-svg-badge {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}

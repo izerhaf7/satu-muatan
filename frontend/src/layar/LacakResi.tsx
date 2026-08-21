@@ -28,6 +28,8 @@ import TimelineLacak from "./lacak/TimelineLacak";
 import KartuIndeksMutu from "./serah-terima/KartuIndeksMutu";
 
 type BuktiLotOut = components["schemas"]["BuktiLotOut"];
+type PosisiOut = components["schemas"]["PosisiOut"];
+type TitikPetaOut = components["schemas"]["TitikPetaOut"];
 
 export default function LacakResi() {
   const navigate = useNavigate();
@@ -86,8 +88,8 @@ function HasilLacak({ bukti, onSerahTerima }: { bukti: BuktiLotOut; onSerahTerim
 
   const jejak =
     perjalanan.data?.pengiriman.jejak
-      .filter((j) => j.lat != null && j.lng != null)
-      .map((j) => ({ lat: j.lat as number, lng: j.lng as number })) ?? [];
+      .filter((j: PosisiOut) => j.lat != null && j.lng != null)
+      .map((j: PosisiOut) => ({ lat: j.lat as number, lng: j.lng as number })) ?? [];
   const posisiTerakhir = jejak.at(-1);
 
   return (
@@ -136,7 +138,7 @@ function HasilLacak({ bukti, onSerahTerima }: { bukti: BuktiLotOut; onSerahTerim
                   lng: perjalanan.data.titik_kumpul.lng,
                   label: perjalanan.data.titik_kumpul.nama,
                 }}
-                tujuan={perjalanan.data.tujuan.map((t, i) => ({
+                tujuan={perjalanan.data.tujuan.map((t: TitikPetaOut, i: number) => ({
                   lat: t.lat,
                   lng: t.lng,
                   label: `${i + 1}. ${t.nama}`,

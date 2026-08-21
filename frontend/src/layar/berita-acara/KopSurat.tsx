@@ -5,6 +5,7 @@ import type { components } from "@/api/client";
 import { formatAngka, formatTanggal } from "@/utils/format";
 
 type BeritaAcaraOut = components["schemas"]["BeritaAcaraOut"];
+type RuteSegmenOut = components["schemas"]["RuteSegmenOut"];
 
 interface KopSuratProps {
   data: BeritaAcaraOut;
@@ -42,7 +43,7 @@ export default function KopSurat({ data }: KopSuratProps) {
         <dt className="text-keterangan font-medium text-tanah/60">Tujuan</dt>
         <dd>
           <ol className="flex flex-col gap-0.5">
-            {data.tujuan.map((t) => (
+            {data.tujuan.map((t: RuteSegmenOut) => (
               <li key={t.penerima_id}>
                 {t.urutan}. {t.nama_penerima}{" "}
                 <span className="angka text-tanah/60">({formatAngka(t.jarak_segmen_km)} km)</span>
