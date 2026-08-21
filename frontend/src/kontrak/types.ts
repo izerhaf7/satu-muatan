@@ -378,6 +378,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/slot/{slot_id}/sensor-node": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Tetapkan Sensor Node
+         * @description Kontrak penetapan node sensor oleh petugas pemegang muatan.
+         *
+         *     Path tidak memuat URL atau credential Firebase. Backend membaca sensor server-side.
+         */
+        put: operations["tetapkan_sensor_node_api_slot__slot_id__sensor_node_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/slot": {
         parameters: {
             query?: never;
@@ -617,11 +639,14 @@ export interface paths {
         };
         /**
          * Lot Masuk
-         * @description 'Pilih dari daftar' (§9.7) — kenyamanan demo di samping pencarian resi.
+         * @description 'Pilih dari daftar' (§9.7) — kenyamanan untuk akun penerima yang masih
+         *     terikat satu alamat tetap (data seed), dibatasi ke alamat itu.
          *
-         *     K13: akun penerima yang masih terikat satu alamat tetap (data seed) dibatasi
-         *     ke alamat itu; akun tanpa ikatan melihat semua lot yang sedang jalan, karena
-         *     tujuan kini bebas dan kepemilikan ditentukan oleh nomor resi.
+         *     Akun TANPA ikatan (penerima_id kosong — kini juga dicapai oleh pendaftaran
+         *     mandiri, bukan cuma data seed lama) TIDAK melihat daftar apa pun di sini.
+         *     Kepemilikan sungguhan ditentukan oleh nomor resi (lihat `bukti_lot`) —
+         *     "lihat semua lot yang sedang jalan" bukan jalur akses yang aman untuk akun
+         *     yang tidak punya hubungan apa pun dengan kirimannya.
          */
         get: operations["lot_masuk_api_lot_masuk_get"];
         put?: never;
@@ -674,8 +699,55 @@ export interface paths {
          *     K14: tidak ada lagi "terima dengan potongan", dan TOLAK hanya sah kalau
          *     penurunan mutu yang DIUKUR SISTEM melewati ambang. Aturan itu ditegakkan di
          *     sini, bukan cuma disembunyikan tombolnya — klien tidak boleh dipercaya.
+         *
+         *     Kontrak IoT: sesudah status pengiriman BONGKAR_MUAT, serah-terima penerima
+         *     dengan atribusi menjadi penyelesaian final pengiriman. Driver tidak menutup
+         *     pengiriman sendiri.
          */
         post: operations["serah_terima_api_lot__lot_id__serah_terima_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pengiriman/{pengiriman_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ubah Status Pengiriman
+         * @description Kontrak status driver: MUAT -> ANTAR -> BONGKAR_MUAT.
+         *
+         *     `SELESAI` bukan transisi driver. Penerima menyelesaikan pengiriman melalui
+         *     serah-terima setelah BONGKAR_MUAT dan atribusi tersedia.
+         */
+        post: operations["ubah_status_pengiriman_api_pengiriman__pengiriman_id__status_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pengiriman/{pengiriman_id}/posisi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Catat Posisi Pengiriman
+         * @description Kontrak GPS driver ke PostgreSQL. Hanya petugas pemegang muatan dapat mengirim posisi.
+         */
+        post: operations["catat_posisi_pengiriman_api_pengiriman__pengiriman_id__posisi_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -760,9 +832,6 @@ export interface paths {
         /**
          * Majukan Pengiriman
          * @description Majukan state simulasi MockVendor satu langkah (K5) — deterministik, untuk demo.
-         *
-         *     Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
-         *     tidak boleh dimulai sebelum proses muat selesai.
          */
         post: operations["majukan_pengiriman_api_pengiriman__pengiriman_id__majukan_post"];
         delete?: never;
@@ -782,15 +851,14 @@ export interface paths {
         put?: never;
         /**
          * Geser Posisi
-         * @description K13: majukan POSISI kendaraan satu langkah sepanjang rute, bukan status.
+         * @description K13: majukan POSISI kendaraan sepanjang rute, bukan status.
          *
-         *     Tiap panggilan menulis satu titik `JejakPosisi` hasil interpolasi + satu
-         *     sampel telemetri, sehingga peta benar-benar bergerak saat didemokan.
-         *     Langkah terakhir menandai TIBA. Dipakai tombol "Majukan posisi" dan mode
-         *     "jalan otomatis" di layar Lacak.
-         *
-         *     Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`; pelacakan
-         *     tidak boleh dimulai sebelum proses muat selesai.
+         *     T6: gerak KONTINU sepanjang polyline, dikompresi waktu. Posisi dihitung dari
+         *     jarak yang ditempuh = kecepatan × (waktu berjalan × percepatan simulasi),
+         *     lalu diinterpolasi di sepanjang polyline (klamp di kedua ujung). Tiap
+         *     panggilan menulis satu titik `JejakPosisi`; begitu jarak tempuh melewati
+         *     panjang polyline, muatan ditandai TIBA. Dipakai tombol "Majukan posisi" dan
+         *     mode "jalan otomatis" di layar Lacak.
          */
         post: operations["geser_posisi_api_pengiriman__pengiriman_id__geser_post"];
         delete?: never;
@@ -809,11 +877,13 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Tandai Sampai
-         * @description Tandai pengiriman tiba. Bila koordinat dikirim, server memvalidasi titik berada dalam `radius_sampai_m` dari tujuan.
+         * Sampai Pengiriman
+         * @description T8: petugas menyatakan muatan tiba di tujuan akhir.
          *
-         *     Mengembalikan `409 MUAT_BELUM_SELESAI` bila status slot belum `JALAN`, atau
-         *     `409 SUDAH_TIBA` bila pengiriman sudah tiba.
+         *     Body opsional: kalau `koordinat` GPS petugas diberikan, kedatangan hanya
+         *     diterima kalau koordinat itu berada dalam `radius_sampai_m` dari tujuan
+         *     akhir (titik drop terakhir). Tanpa koordinat, kedatangan diterima begitu
+         *     saja. Idempoten: muatan yang sudah tiba ditolak 409.
          */
         post: operations["sampai_pengiriman_api_pengiriman__pengiriman_id__sampai_post"];
         delete?: never;
@@ -1484,6 +1554,20 @@ export interface components {
             /** Nilai */
             nilai: string;
         };
+        /** KoordinatPengiriman */
+        KoordinatPengiriman: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
+        /** KoordinatTiba */
+        KoordinatTiba: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+        };
         /** LotBeritaOut */
         LotBeritaOut: {
             lot: components["schemas"]["LotOut"];
@@ -1707,14 +1791,7 @@ export interface components {
             /** Penerima Id */
             penerima_id?: string | null;
         };
-        /**
-         * PengirimanOut
-         * @description Snapshot pelacakan. `eta_provider_menit` dan `jarak_provider_km` adalah hasil informasional penyedia rute; tidak menjadi dasar harga.
-         *
-         *     Konfigurasi terkait berada di tabel `konfigurasi`: `rute_provider` = `AUTO`
-         *     | `GOOGLE` | `HAVERSINE`, `simulasi_percepatan_x` = 60.0, dan `radius_sampai_m`
-         *     = 5.0. `kecepatan_rata_kmh` tetap konfigurasi yang sudah ada.
-         */
+        /** PengirimanOut */
         PengirimanOut: {
             /**
              * Id
@@ -1732,11 +1809,16 @@ export interface components {
             vendor_ref?: string | null;
             /** Status Vendor */
             status_vendor?: string | null;
+            status_pengiriman?: components["schemas"]["StatusPengiriman"] | null;
             timeline: components["schemas"]["TimelineOut"];
             /** Estimasi Tiba */
             estimasi_tiba?: string | null;
             /** Ambang Transit Menit */
             ambang_transit_menit: number;
+            /** Eta Provider Menit */
+            eta_provider_menit?: number | null;
+            /** Jarak Provider Km */
+            jarak_provider_km?: number | null;
             /** Jejak */
             jejak: components["schemas"]["PosisiOut"][];
             /** Rute Polyline */
@@ -1747,10 +1829,6 @@ export interface components {
             eta_sumber?: string | null;
             /** Eta Dihitung Pada */
             eta_dihitung_pada?: string | null;
-            /** Eta Provider Menit */
-            eta_provider_menit?: number | null;
-            /** Jarak Provider Km */
-            jarak_provider_km?: number | null;
         };
         /**
          * PeranPengguna
@@ -1784,6 +1862,19 @@ export interface components {
              */
             waktu: string;
             sumber: components["schemas"]["SumberPosisi"];
+            /** Akurasi M */
+            akurasi_m?: number | null;
+        };
+        /** PosisiPengirimanRequest */
+        PosisiPengirimanRequest: {
+            /** Lat */
+            lat: number;
+            /** Lng */
+            lng: number;
+            /** Akurasi M */
+            akurasi_m?: number | null;
+            /** Waktu */
+            waktu?: string | null;
         };
         /**
          * RencanaArmadaOut
@@ -1853,6 +1944,32 @@ export interface components {
             lat: number;
             /** Lng */
             lng: number;
+        };
+        /**
+         * SampaiRequest
+         * @description T8 — body opsional endpoint `sampai`: koordinat GPS petugas saat
+         *     menyatakan tiba. Tanpa koordinat, kedatangan diterima begitu saja.
+         */
+        SampaiRequest: {
+            koordinat?: components["schemas"]["KoordinatTiba"] | null;
+        };
+        /** SensorNodeOut */
+        SensorNodeOut: {
+            /**
+             * Slot Id
+             * Format: uuid
+             */
+            slot_id: string;
+            /** Node Path */
+            node_path?: string | null;
+        };
+        /**
+         * SensorNodeRequest
+         * @description Path node sensor RTDB. Credential tetap hanya di server.
+         */
+        SensorNodeRequest: {
+            /** Node Path */
+            node_path: string;
         };
         /**
          * SerahTerimaCreate
@@ -2029,6 +2146,26 @@ export interface components {
          */
         StatusPartisipasi: "TERDAFTAR" | "TERKUNCI" | "DIMUAT" | "SELESAI" | "DITOLAK" | "BATAL";
         /**
+         * StatusPengiriman
+         * @description State machine pengiriman driver dan penerima.
+         * @enum {string}
+         */
+        StatusPengiriman: "MUAT" | "ANTAR" | "BONGKAR_MUAT" | "SELESAI";
+        /**
+         * StatusPengirimanRequest
+         * @description Driver mengirim MUAT, ANTAR, atau BONGKAR_MUAT.
+         *
+         *     SELESAI ditetapkan hanya setelah serah-terima penerima beratribusi.
+         */
+        StatusPengirimanRequest: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "MUAT" | "ANTAR" | "BONGKAR_MUAT";
+            koordinat?: components["schemas"]["KoordinatPengiriman"] | null;
+        };
+        /**
          * StatusResolusiAlamat
          * @enum {string}
          */
@@ -2105,6 +2242,10 @@ export interface components {
             /** Lng */
             lng?: number | null;
             sumber: components["schemas"]["SumberTelemetri"];
+            /** Sensor Uptime Ms */
+            sensor_uptime_ms?: number | null;
+            /** Received At */
+            received_at?: string | null;
         };
         /** TierKendaraanOut */
         TierKendaraanOut: {
@@ -2839,6 +2980,41 @@ export interface operations {
             };
         };
     };
+    tetapkan_sensor_node_api_slot__slot_id__sensor_node_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                slot_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SensorNodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SensorNodeOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     daftar_slot_api_slot_get: {
         parameters: {
             query?: {
@@ -3276,6 +3452,76 @@ export interface operations {
             };
         };
     };
+    ubah_status_pengiriman_api_pengiriman__pengiriman_id__status_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pengiriman_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StatusPengirimanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PengirimanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    catat_posisi_pengiriman_api_pengiriman__pengiriman_id__posisi_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pengiriman_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PosisiPengirimanRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PengirimanOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     pengiriman_slot_api_slot__slot_id__pengiriman_get: {
         parameters: {
             query?: never;
@@ -3389,15 +3635,6 @@ export interface operations {
                     "application/json": components["schemas"]["PengirimanOut"];
                 };
             };
-            /** @description MUAT_BELUM_SELESAI — status slot belum JALAN */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3429,15 +3666,6 @@ export interface operations {
                     "application/json": components["schemas"]["PengirimanOut"];
                 };
             };
-            /** @description MUAT_BELUM_SELESAI — status slot belum JALAN */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -3460,15 +3688,7 @@ export interface operations {
         };
         requestBody?: {
             content: {
-                "application/json": {
-                    /** Koordinat */
-                    koordinat?: {
-                        /** Lat */
-                        lat: number;
-                        /** Lng */
-                        lng: number;
-                    };
-                };
+                "application/json": components["schemas"]["SampaiRequest"] | null;
             };
         };
         responses: {
@@ -3481,22 +3701,13 @@ export interface operations {
                     "application/json": components["schemas"]["PengirimanOut"];
                 };
             };
-            /** @description MUAT_BELUM_SELESAI — status slot belum JALAN; SUDAH_TIBA — pengiriman sudah tiba */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description BELUM_DI_TUJUAN — koordinat di luar radius_sampai_m dari tujuan */
+            /** @description Validation Error */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ErrorOut"];
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

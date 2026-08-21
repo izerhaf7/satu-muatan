@@ -101,8 +101,11 @@ export default function GrafikSuhu({ telemetri }: GrafikSuhuProps) {
           />
         </LineChart>
       </ResponsiveContainer>
-      {/* Label WAJIB (spec v2 §5.4) — jangan dihilangkan. */}
-      <p className="mt-2 text-center text-keterangan text-kabut">Data simulasi — sensor fisik menyusul.</p>
+      <p className="mt-2 text-center text-keterangan text-kabut">
+        {telemetri.sampel.some((s) => s.sumber === "SENSOR")
+          ? "Data sensor fisik — diterima server."
+          : "Data simulasi — sensor fisik menyusul."}
+      </p>
     </div>
   );
 }

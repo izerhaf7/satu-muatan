@@ -1,4 +1,4 @@
-/** Hook layar Lacak (§9.6) — timeline pengiriman, peta, majukan simulasi (K5). */
+/** Hook layar Lacak (§9.6) — timeline, GPS driver, status, dan telemetri. */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -7,6 +7,8 @@ import { api, type components } from "@/api/client";
 type SlotDetailOut = components["schemas"]["SlotDetailOut"];
 type PengirimanOut = components["schemas"]["PengirimanOut"];
 type TelemetriOut = components["schemas"]["TelemetriOut"];
+type StatusPengirimanRequest = components["schemas"]["StatusPengirimanRequest"];
+type SensorNodeOut = components["schemas"]["SensorNodeOut"];
 
 const INTERVAL_POLL_MS = 3000; // spec §3.1: polling 3 detik, bukan WebSocket.
 
@@ -40,11 +42,14 @@ export function useTelemetriSlot(slotId: string | undefined, sudahTiba: boolean)
   });
 }
 
-export function useMajukanPengiriman(slotId: string | undefined) {
+export function useUbahStatusPengiriman(slotId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (pengirimanId: string) =>
-      api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/majukan`, { method: "POST" }),
+    mutationFn: ({ pengirimanId, status, koordinat }: { pengirimanId: string; status: StatusPengirimanRequest["status"]; koordinat?: { lat: number; lng: number } }) =>
+      api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/status`, {
+        method: "POST",
+        body: JSON.stringify({ status, koordinat }),
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "pengiriman"] });
       void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "telemetri"] });
@@ -52,13 +57,14 @@ export function useMajukanPengiriman(slotId: string | undefined) {
   });
 }
 
-/** K13: majukan POSISI kendaraan satu langkah sepanjang rute (bukan status).
- *  Inilah yang membuat peta benar-benar bergerak saat didemokan. */
-export function useGeserPosisi(slotId: string | undefined) {
+export function useCatatPosisi(slotId: string | undefined) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (pengirimanId: string) =>
-      api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/geser`, { method: "POST" }),
+    mutationFn: ({ pengirimanId, lat, lng, akurasi_m, waktu }: { pengirimanId: string; lat: number; lng: number; akurasi_m?: number; waktu?: string }) =>
+      api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/posisi`, {
+        method: "POST",
+        body: JSON.stringify({ lat, lng, akurasi_m, waktu }),
+      }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "pengiriman"] });
       void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "telemetri"] });
@@ -66,17 +72,16 @@ export function useGeserPosisi(slotId: string | undefined) {
   });
 }
 
-/** K13: tandai pengiriman sudah sampai di tujuan akhir. Server memvalidasi radius
- *  `radius_sampai_m` (default 5 m) terhadap koordinat tujuan; untuk demo kita
- *  kirim tanpa body — tombol hanya aktif saat posisi simulasi sudah di tujuan. */
-export function useSampai(slotId: string | undefined) {
+export function useTetapkanSensorNode() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (pengirimanId: string) =>
-      api<PengirimanOut>(`/api/pengiriman/${pengirimanId}/sampai`, { method: "POST" }),
+    mutationFn: ({ slotId, node_path }: { slotId: string; node_path: string }) =>
+      api<SensorNodeOut>(`/api/slot/${slotId}/sensor-node`, {
+        method: "PUT",
+        body: JSON.stringify({ node_path }),
+      }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "pengiriman"] });
-      void queryClient.invalidateQueries({ queryKey: ["slot", slotId, "telemetri"] });
+      void queryClient.invalidateQueries({ queryKey: ["slot"] });
     },
   });
 }

@@ -1,9 +1,7 @@
-/** Layar Lacak (§9.6, semua peran) — timeline status, peta rute, estimasi tiba,
- *  grafik telemetri, dan kendali simulasi posisi khusus Petugas (K5/K13).
- *  Poll 3 detik selama belum TIBA. */
+/** Layar Lacak (§9.6, semua peran) — timeline, peta, GPS, dan telemetri. */
 
 import { useEffect, useState } from "react";
-import { Flag, PlayCircle, StepForward, Timer } from "lucide-react";
+import { Navigation, Radio, Timer } from "lucide-react";
 import { useParams } from "react-router-dom";
 
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
@@ -12,11 +10,12 @@ import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { Skeleton } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
 import {
-  useGeserPosisi,
+  useCatatPosisi,
   usePengirimanSlot,
-  useSampai,
   useSlotUntukLacak,
+  useTetapkanSensorNode,
   useTelemetriSlot,
+  useUbahStatusPengiriman,
 } from "@/hooks/useLacak";
 import { useAuthStore } from "@/stores/authStore";
 import { formatAngka } from "@/utils/format";
@@ -36,19 +35,6 @@ function formatWaktu(waktu: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-/** Jarak haversine (meter) antara dua koordinat — dipakai untuk menilai apakah
- *  posisi simulasi sudah berada di dalam radius tujuan. */
-function jarakMeter(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
-  const R = 6371000;
-  const rad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * rad;
-  const dLng = (b.lng - a.lng) * rad;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
 }
 
 export default function Lacak() {
@@ -81,9 +67,10 @@ function IsiLacak({
 
   const slot = useSlotUntukLacak(slotId);
   const pengiriman = usePengirimanSlot(slotId);
-  const geser = useGeserPosisi(slotId);
-  const sampai = useSampai(slotId);
-  const [jalanOtomatis, setJalanOtomatis] = useState(false);
+  const ubahStatus = useUbahStatusPengiriman(slotId);
+  const catatPosisi = useCatatPosisi(slotId);
+  const tetapkanSensor = useTetapkanSensorNode();
+  const [sensorPath, setSensorPath] = useState("/sensor");
 
   const memuat = slot.isLoading || pengiriman.isLoading;
 
@@ -108,33 +95,35 @@ function IsiLacak({
   const sudahTiba = Boolean(pengiriman.data?.timeline.tiba);
   const telemetri = useTelemetriSlot(slotId, sudahTiba);
   const pengirimanId = pengiriman.data?.id;
-  const sudahBerangkat = Boolean(pengiriman.data?.timeline.berangkat);
-
-  // K13: status slot menentukan kapan kendali simulasi muncul — berangkat hanya
-  // terjadi lewat "Selesai muat" (backend menolak geser/majukan sebelum JALAN).
-  const slotStatus = slot.data?.status;
-
-  // Tujuan akhir = perhentian terakhir rute pengiriman (tujuanDenganKoordinat
-  // sudah diurutkan sesuai urutan). Tombol "Sampai di tujuan" aktif hanya saat
-  // posisi simulasi berada dalam radius kecil dari tujuan akhir.
-  const tujuanAkhir = tujuanDenganKoordinat.at(-1);
-  const dalamRadiusTujuan =
-    Boolean(posisiTerakhir && tujuanAkhir) &&
-    jarakMeter(posisiTerakhir!, tujuanAkhir!) <= 5; // 5 m ≈ radius_sampai_m default backend.
-
-  // Mode "jalan otomatis": posisi maju sendiri tiap beberapa detik supaya peta
-  // terlihat hidup tanpa perlu diklik terus saat presentasi.
-  useEffect(() => {
-    if (!jalanOtomatis || sudahTiba || !pengirimanId || !sudahBerangkat) return;
-    const timer = window.setInterval(() => {
-      if (!geser.isPending) geser.mutate(pengirimanId);
-    }, 2000);
-    return () => window.clearInterval(timer);
-  }, [jalanOtomatis, sudahTiba, pengirimanId, sudahBerangkat, geser]);
+  const statusPengiriman = pengiriman.data?.status_pengiriman;
+  const statusBerikutnya = statusPengiriman === undefined || statusPengiriman === null
+    ? "MUAT"
+    : statusPengiriman === "MUAT"
+      ? "ANTAR"
+      : statusPengiriman === "ANTAR"
+        ? "BONGKAR_MUAT"
+        : null;
 
   useEffect(() => {
-    if (sudahTiba) setJalanOtomatis(false);
-  }, [sudahTiba]);
+    if (pengguna?.peran !== "PETUGAS" || !pengirimanId || !["ANTAR", "BONGKAR_MUAT"].includes(statusPengiriman ?? "")) return;
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (posisi) => {
+        if (!catatPosisi.isPending) {
+          catatPosisi.mutate({
+            pengirimanId,
+            lat: posisi.coords.latitude,
+            lng: posisi.coords.longitude,
+            akurasi_m: posisi.coords.accuracy,
+            waktu: new Date(posisi.timestamp).toISOString(),
+          });
+        }
+      },
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [pengguna?.peran, pengirimanId, statusPengiriman, catatPosisi]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -229,56 +218,40 @@ function IsiLacak({
             </section>
           )}
 
-          {pengguna?.peran === "PETUGAS" && !sudahTiba && slotStatus !== "SELESAI" && (
+          {pengguna?.peran === "PETUGAS" && !sudahTiba && (
             <div className="kartu-datar flex flex-col gap-2.5 p-4">
-              <p className="text-keterangan font-bold uppercase tracking-wide text-tanah/50">Kendali demo</p>
-
-              {slotStatus !== "JALAN" ? (
-                <p className="text-base text-tanah/70">
-                  Selesaikan muat dahulu untuk melacak perjalanan.
-                </p>
-              ) : (
-                <>
-                  {(geser.isError || sampai.isError) && (
-                    <p role="alert" className="text-keterangan text-tanah-liat">
-                      Gagal memajukan simulasi. Coba lagi.
-                    </p>
-                  )}
-
-                  <Tombol
-                    type="button"
-                    varian="sekunder"
-                    ikon={StepForward}
-                    sedangProses={geser.isPending && !jalanOtomatis}
-                    disabled={jalanOtomatis}
-                    onClick={() => pengirimanId && geser.mutate(pengirimanId)}
-                  >
-                    Majukan posisi
-                  </Tombol>
-                  <Tombol
-                    type="button"
-                    varian={jalanOtomatis ? "aksi" : "halus"}
-                    ikon={PlayCircle}
-                    onClick={() => setJalanOtomatis((v) => !v)}
-                  >
-                    {jalanOtomatis ? "Hentikan jalan otomatis" : "Jalan otomatis"}
-                  </Tombol>
-                  <Tombol
-                    type="button"
-                    varian="aksi"
-                    ikon={Flag}
-                    sedangProses={sampai.isPending}
-                    disabled={!dalamRadiusTujuan}
-                    onClick={() => pengirimanId && sampai.mutate(pengirimanId)}
-                  >
-                    Sampai di tujuan
-                  </Tombol>
-                  <p className="text-keterangan text-tanah/50">
-                    Posisi bergerak sepanjang rute — manual atau otomatis tiap 2 detik. Tombol
-                    "Sampai di tujuan" aktif saat truk berada di tujuan akhir.
-                  </p>
-                </>
+              <p className="text-keterangan font-bold uppercase tracking-wide text-tanah/50">Kendali petugas</p>
+              {statusBerikutnya && (
+                <Tombol
+                  type="button"
+                  varian="aksi"
+                  ikon={statusBerikutnya === "ANTAR" ? Navigation : Radio}
+                  sedangProses={ubahStatus.isPending}
+                  onClick={() => pengirimanId && ubahStatus.mutate({ pengirimanId, status: statusBerikutnya })}
+                >
+                  Tandai {statusBerikutnya.replace("_", " ")}
+                </Tombol>
               )}
+              {statusPengiriman === "ANTAR" && (
+                <p className="text-keterangan text-tanah/60">GPS HP aktif. Biarkan halaman ini terbuka selama perjalanan.</p>
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={sensorPath}
+                  onChange={(event) => setSensorPath(event.target.value)}
+                  placeholder="/sensor"
+                  aria-label="Path node sensor"
+                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-tanah/20 bg-kertas px-3 text-base"
+                />
+                <Tombol
+                  type="button"
+                  varian="sekunder"
+                  sedangProses={tetapkanSensor.isPending}
+                  onClick={() => tetapkanSensor.mutate({ slotId, node_path: sensorPath })}
+                >
+                  Sensor
+                </Tombol>
+              </div>
             </div>
           )}
         </div>
