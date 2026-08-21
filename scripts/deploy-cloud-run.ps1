@@ -76,7 +76,7 @@ $secretBindings = "DATABASE_URL=$DatabaseUrlSecret`:latest,JWT_SECRET=$JwtSecret
 if (-not [string]::IsNullOrWhiteSpace($FirebaseDatabaseSecret)) {
     $secretBindings += ",FIREBASE_DATABASE_SECRET=$FirebaseDatabaseSecret`:latest"
 }
-$runtimeEnvironment = "^^^^@^^^^RUN_MIGRATIONS=false@VENDOR_ADAPTER=MOCK@DEMO_MODE=true@CORS_ORIGINS=$CorsOrigins@FIREBASE_TIMEOUT_DETIK=5"
+$runtimeEnvironment = "^@^RUN_MIGRATIONS=false@VENDOR_ADAPTER=MOCK@DEMO_MODE=true@CORS_ORIGINS=$CorsOrigins@FIREBASE_TIMEOUT_DETIK=5"
 if (-not [string]::IsNullOrWhiteSpace($FirebaseRtdbUrl)) {
     $runtimeEnvironment += "@FIREBASE_RTDB_URL=$FirebaseRtdbUrl"
 }
