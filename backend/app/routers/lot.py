@@ -24,6 +24,7 @@ from app.models.enums import (
     Atribusi,
     KeputusanSerahTerima,
     StatusPartisipasi,
+    StatusPengiriman,
     StatusSlot,
     SumberPosisi,
 )
@@ -301,10 +302,12 @@ def selesai_muat(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Se
     # menolak. Petugas sedang berdiri di truk; dia butuh tahu harus ke mana.
     tanpa_foto = [lot for lot in lots if not lot.foto_muat]
     if tanpa_foto:
-        nama = ", ".join(
-            (db.get(Pengguna, db.get(Partisipasi, lot.partisipasi_id).petani_id).nama or "?")
-            for lot in tanpa_foto
-        )
+        nama_lot: list[str] = []
+        for lot in tanpa_foto:
+            partisipasi = db.get(Partisipasi, lot.partisipasi_id)
+            petani = db.get(Pengguna, partisipasi.petani_id) if partisipasi is not None else None
+            nama_lot.append(petani.nama if petani is not None else "?")
+        nama = ", ".join(nama_lot)
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"Foto muat belum ada untuk lot: {nama}. Semua lot wajib difoto sebelum berangkat.",
@@ -347,19 +350,23 @@ def selesai_muat(slot_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Se
 
 @router.get("/lot/masuk", response_model=list[BuktiLotOut])
 def lot_masuk(pengguna=Depends(wajib_peran("PENERIMA")), db: Session = Depends(get_db)):
-    """'Pilih dari daftar' (§9.7) — kenyamanan demo di samping pencarian resi.
+    """'Pilih dari daftar' (§9.7) — kenyamanan untuk akun penerima yang masih
+    terikat satu alamat tetap (data seed), dibatasi ke alamat itu.
 
-    K13: akun penerima yang masih terikat satu alamat tetap (data seed) dibatasi
-    ke alamat itu; akun tanpa ikatan melihat semua lot yang sedang jalan, karena
-    tujuan kini bebas dan kepemilikan ditentukan oleh nomor resi."""
+    Akun TANPA ikatan (penerima_id kosong — kini juga dicapai oleh pendaftaran
+    mandiri, bukan cuma data seed lama) TIDAK melihat daftar apa pun di sini.
+    Kepemilikan sungguhan ditentukan oleh nomor resi (lihat `bukti_lot`) —
+    "lihat semua lot yang sedang jalan" bukan jalur akses yang aman untuk akun
+    yang tidak punya hubungan apa pun dengan kirimannya."""
+    if pengguna.penerima_id is None:
+        return []
     q = (
         db.query(Lot)
         .join(Partisipasi, Partisipasi.id == Lot.partisipasi_id)
         .join(Slot, Slot.id == Partisipasi.slot_id)
         .filter(Slot.status.in_([StatusSlot.JALAN, StatusSlot.SELESAI]))
+        .filter(Lot.penerima_id == pengguna.penerima_id)
     )
-    if pengguna.penerima_id is not None:
-        q = q.filter(Lot.penerima_id == pengguna.penerima_id)
     lots = q.all()
     hasil = []
     for lot in lots:
@@ -392,7 +399,11 @@ def serah_terima(
     K13: berhak menerima = memegang nomor resinya (lihat `bukti_lot`).
     K14: tidak ada lagi "terima dengan potongan", dan TOLAK hanya sah kalau
     penurunan mutu yang DIUKUR SISTEM melewati ambang. Aturan itu ditegakkan di
-    sini, bukan cuma disembunyikan tombolnya — klien tidak boleh dipercaya."""
+    sini, bukan cuma disembunyikan tombolnya — klien tidak boleh dipercaya.
+
+    Kontrak IoT: sesudah status pengiriman BONGKAR_MUAT, serah-terima penerima
+    dengan atribusi menjadi penyelesaian final pengiriman. Driver tidak menutup
+    pengiriman sendiri."""
     lot = _lot_atau_404(db, lot_id)
     if db.query(SerahTerima).filter_by(lot_id=lot.id).one_or_none() is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, "Lot ini sudah diserahterimakan")
@@ -402,6 +413,8 @@ def serah_terima(
     pengiriman = db.query(Pengiriman).filter_by(slot_id=slot.id).one_or_none() if slot else None
     if slot is None or pengiriman is None or pengiriman.waktu_berangkat is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Pengiriman belum berangkat")
+    if pengiriman.status_pengiriman != StatusPengiriman.BONGKAR_MUAT:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Penerima baru dapat menyelesaikan setelah BONGKAR_MUAT")
 
     sekarang = datetime.now(timezone.utc)
     durasi_transit_menit = max(0, int((sekarang - pengiriman.waktu_berangkat).total_seconds() // 60))
@@ -471,6 +484,7 @@ def serah_terima(
     sudah_serah.add(lot.id)
     if semua_lot and all(lot.id in sudah_serah for lot in semua_lot):
         slot.status = StatusSlot.SELESAI
+        pengiriman.status_pengiriman = StatusPengiriman.SELESAI
 
     db.commit()
     db.refresh(st)

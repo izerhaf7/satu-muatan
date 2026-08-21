@@ -12,12 +12,14 @@ from app.domain.armada import jarak_haversine_km
 from app.domain.paparan import SampelTelemetri, hitung_paparan
 from app.domain.rute_polyline import decode_polyline, panjang_polyline_km, posisi_pada_polyline
 from app.models import JejakPosisi, Komoditas, Lot, Partisipasi, Penerima, Pengiriman, Slot, TitikKumpul
-from app.models.enums import StatusPartisipasi, StatusSlot, SumberPosisi
+from app.models.enums import StatusPartisipasi, StatusPengiriman, StatusSlot, SumberPosisi
 from app.schemas.lacak import (
     PengirimanOut,
+    PosisiPengirimanRequest,
     PerjalananResiOut,
     PosisiOut,
     SampaiRequest,
+    StatusPengirimanRequest,
     TelemetriOut,
     TelemetriRingkasanOut,
     TelemetriSampelOut,
@@ -31,8 +33,100 @@ from app.services.telemetri import pastikan_telemetri
 
 router = APIRouter(tags=["lacak"])
 
-# K5: state machine simulasi MockVendor — urutan tetap, dimajukan eksplisit lewat /majukan.
-_URUTAN_STATUS = ["DIPESAN", "MENUJU_MUAT", "JALAN", "TIBA"]
+@router.post("/pengiriman/{pengiriman_id}/status", response_model=PengirimanOut)
+def ubah_status_pengiriman(
+    pengiriman_id: UUID,
+    body: StatusPengirimanRequest,
+    pengguna=Depends(wajib_peran("PETUGAS")),
+    db: Session = Depends(get_db),
+):
+    """Kontrak status driver: MUAT -> ANTAR -> BONGKAR_MUAT.
+
+    `SELESAI` bukan transisi driver. Penerima menyelesaikan pengiriman melalui
+    serah-terima setelah BONGKAR_MUAT dan atribusi tersedia.
+    """
+    pengiriman = db.get(Pengiriman, pengiriman_id)
+    if pengiriman is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
+    slot = db.get(Slot, pengiriman.slot_id)
+    if slot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Muatan tidak ditemukan")
+    pastikan_petugas_muatan(pengguna, slot)
+
+    tujuan = body.status
+    saat_ini = pengiriman.status_pengiriman
+    urutan = {
+        StatusPengiriman.MUAT: 0,
+        StatusPengiriman.ANTAR: 1,
+        StatusPengiriman.BONGKAR_MUAT: 2,
+    }
+    if saat_ini == StatusPengiriman.SELESAI:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Pengiriman sudah selesai")
+    if saat_ini is not None and urutan[StatusPengiriman(tujuan)] != urutan[saat_ini] + 1:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Urutan status pengiriman tidak valid")
+    if saat_ini is None and tujuan != StatusPengiriman.MUAT.value:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Status pertama harus MUAT")
+    if tujuan == StatusPengiriman.MUAT.value and slot.status not in (StatusSlot.DIMUAT, StatusSlot.JALAN):
+        raise HTTPException(status.HTTP_409_CONFLICT, "MUAT_BELUM_SELESAI")
+
+    sekarang = datetime.now(timezone.utc)
+    pengiriman.status_pengiriman = StatusPengiriman(tujuan)
+    if tujuan == StatusPengiriman.ANTAR.value and pengiriman.waktu_berangkat is None:
+        pengiriman.waktu_berangkat = sekarang
+        slot.status = StatusSlot.JALAN
+    if tujuan == StatusPengiriman.BONGKAR_MUAT.value:
+        if pengiriman.waktu_berangkat is None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "ANTAR_BELUM_DIMULAI")
+        pengiriman.waktu_tiba = pengiriman.waktu_tiba or sekarang
+        pengiriman.status_vendor = "TIBA"
+    if body.koordinat is not None:
+        db.add(
+            JejakPosisi(
+                pengiriman_id=pengiriman.id,
+                lat=body.koordinat.lat,
+                lng=body.koordinat.lng,
+                waktu=sekarang,
+                sumber=SumberPosisi.HP_PENGAWAL,
+            )
+        )
+    db.commit()
+    db.refresh(pengiriman)
+    return _ke_pengiriman_out(pengiriman, slot, db)
+
+
+@router.post("/pengiriman/{pengiriman_id}/posisi", response_model=PengirimanOut)
+def catat_posisi_pengiriman(
+    pengiriman_id: UUID,
+    body: PosisiPengirimanRequest,
+    pengguna=Depends(wajib_peran("PETUGAS")),
+    db: Session = Depends(get_db),
+):
+    """Kontrak GPS driver ke PostgreSQL. Hanya petugas pemegang muatan dapat mengirim posisi."""
+    pengiriman = db.get(Pengiriman, pengiriman_id)
+    if pengiriman is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
+    slot = db.get(Slot, pengiriman.slot_id)
+    if slot is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Muatan tidak ditemukan")
+    pastikan_petugas_muatan(pengguna, slot)
+    if pengiriman.status_pengiriman in (None, StatusPengiriman.MUAT, StatusPengiriman.SELESAI):
+        raise HTTPException(status.HTTP_409_CONFLICT, "GPS hanya dapat dikirim saat ANTAR atau BONGKAR_MUAT")
+    waktu = body.waktu or datetime.now(timezone.utc)
+    if waktu.tzinfo is None:
+        waktu = waktu.replace(tzinfo=timezone.utc)
+    db.add(
+        JejakPosisi(
+            pengiriman_id=pengiriman.id,
+            lat=body.lat,
+            lng=body.lng,
+            akurasi_m=body.akurasi_m,
+            waktu=waktu,
+            sumber=SumberPosisi.HP_PENGAWAL,
+        )
+    )
+    db.commit()
+    db.refresh(pengiriman)
+    return _ke_pengiriman_out(pengiriman, slot, db)
 
 
 def _ambang_slot(db: Session, slot: Slot) -> int:
@@ -70,6 +164,7 @@ def _ke_pengiriman_out(pengiriman: Pengiriman, slot: Slot, db: Session) -> Pengi
         vendor=pengiriman.vendor,
         vendor_ref=pengiriman.vendor_ref,
         status_vendor=pengiriman.status_vendor,
+        status_pengiriman=pengiriman.status_pengiriman,
         timeline=TimelineOut(
             dipesan=pengiriman.dibuat_pada,
             dimuat=dimuat,
@@ -82,7 +177,7 @@ def _ke_pengiriman_out(pengiriman: Pengiriman, slot: Slot, db: Session) -> Pengi
         jarak_provider_km=(
             float(pengiriman.rute_jarak_provider_km) if pengiriman.rute_jarak_provider_km is not None else None
         ),
-        jejak=[PosisiOut(lat=j.lat, lng=j.lng, waktu=j.waktu, sumber=j.sumber) for j in jejak],
+        jejak=[PosisiOut(lat=j.lat, lng=j.lng, waktu=j.waktu, sumber=j.sumber, akurasi_m=j.akurasi_m) for j in jejak],
         rute_polyline=pengiriman.rute_polyline,
         rute_versi=pengiriman.rute_versi,
         eta_sumber=pengiriman.rute_sumber,
@@ -167,6 +262,8 @@ def _telemetri_out(db: Session, slot: Slot, pengiriman: Pengiriman) -> Telemetri
             lat=r.lat,
             lng=r.lng,
             sumber=r.sumber,
+            sensor_uptime_ms=r.sensor_uptime_ms,
+            received_at=r.received_at,
         )
         for r in baris
     ]
@@ -214,7 +311,8 @@ def _telemetri_out(db: Session, slot: Slot, pengiriman: Pengiriman) -> Telemetri
 
 @router.post("/pengiriman/{pengiriman_id}/majukan", response_model=PengirimanOut)
 def majukan_pengiriman(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depends(get_db)):
-    """Majukan state simulasi MockVendor satu langkah (K5) — deterministik, untuk demo."""
+    """Legacy demo route disabled; driver updates real status instead."""
+    raise HTTPException(status.HTTP_410_GONE, "Pergerakan simulasi sudah dinonaktifkan; gunakan status dan GPS driver")
     pengiriman = db.get(Pengiriman, pengiriman_id)
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
@@ -283,6 +381,7 @@ def geser_posisi(pengiriman_id: UUID, pengguna=Depends(wajib_peran("PETUGAS")), 
     panggilan menulis satu titik `JejakPosisi`; begitu jarak tempuh melewati
     panjang polyline, muatan ditandai TIBA. Dipakai tombol "Majukan posisi" dan
     mode "jalan otomatis" di layar Lacak."""
+    raise HTTPException(status.HTTP_410_GONE, "Pergerakan simulasi sudah dinonaktifkan; gunakan GPS driver")
     pengiriman = db.get(Pengiriman, pengiriman_id)
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")
@@ -355,6 +454,7 @@ def sampai_pengiriman(
     diterima kalau koordinat itu berada dalam `radius_sampai_m` dari tujuan
     akhir (titik drop terakhir). Tanpa koordinat, kedatangan diterima begitu
     saja. Idempoten: muatan yang sudah tiba ditolak 409."""
+    raise HTTPException(status.HTTP_410_GONE, "Kedatangan ditetapkan melalui status BONGKAR_MUAT")
     pengiriman = db.get(Pengiriman, pengiriman_id)
     if pengiriman is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Pengiriman tidak ditemukan")

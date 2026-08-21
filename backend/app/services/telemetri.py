@@ -11,8 +11,9 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from app.adapters.telemetri.firebase import FirebaseTelemetryError, baca_telemetri_firebase
 from app.domain.paparan import SampelTelemetri, hitung_paparan
-from app.models import Komoditas, Penerima, Telemetri, TitikKumpul
+from app.models import JejakPosisi, Komoditas, Penerima, Telemetri, TitikKumpul
 from app.models.enums import SumberTelemetri
 from app.models.slot import Slot
 from app.models.bukti import Pengiriman
@@ -91,6 +92,45 @@ def pastikan_telemetri(db: Session, pengiriman: Pengiriman, slot: Slot) -> list[
     """
     if pengiriman.waktu_berangkat is None:
         return []
+
+    if slot.sensor_node_path:
+        try:
+            sensor = baca_telemetri_firebase(slot.sensor_node_path)
+        except FirebaseTelemetryError:
+            sensor = None
+        if sensor is not None:
+            ada_sensor = (
+                db.query(Telemetri)
+                .filter_by(pengiriman_id=pengiriman.id, sensor_uptime_ms=sensor.sensor_uptime_ms)
+                .one_or_none()
+            )
+            if ada_sensor is None:
+                posisi = (
+                    db.query(JejakPosisi)
+                    .filter_by(pengiriman_id=pengiriman.id)
+                    .order_by(JejakPosisi.waktu.desc())
+                    .first()
+                )
+                db.add(
+                    Telemetri(
+                        pengiriman_id=pengiriman.id,
+                        waktu=sensor.received_at,
+                        suhu_c=sensor.suhu_c,
+                        kelembapan_persen=sensor.kelembapan_persen,
+                        lat=posisi.lat if posisi else None,
+                        lng=posisi.lng if posisi else None,
+                        sumber=SumberTelemetri.SENSOR,
+                        sensor_uptime_ms=sensor.sensor_uptime_ms,
+                        received_at=sensor.received_at,
+                    )
+                )
+                db.commit()
+            return (
+                db.query(Telemetri)
+                .filter_by(pengiriman_id=pengiriman.id)
+                .order_by(Telemetri.waktu)
+                .all()
+            )
 
     interval = baca_konfigurasi(db, "interval_telemetri_menit")
     suhu_dasar = baca_konfigurasi(db, "suhu_dasar_c")
