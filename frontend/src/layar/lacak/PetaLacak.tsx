@@ -59,13 +59,15 @@ function koordinatDariPosisi(posisi: google.maps.LatLng | google.maps.LatLngLite
   return { lat: posisi.lat, lng: posisi.lng };
 }
 
-export default function PetaLacak({
+/** Isi peta — dipanggil usePeta() di DALAM <BingkaiPeta> (context tersedia).
+ *  Logika gambar semuanya di sini; wrapper `PetaLacak` hanya menyediakan
+ *  `<BingkaiPeta>` agar context ada saat komponen ini dieksekusi. */
+function IsiPetaLacak({
   gudang,
   tujuan,
   posisiTerakhir,
   jejak = [],
   rutePolyline,
-  className = "",
 }: PetaLacakProps) {
   const { peta, marker, idPeta, siap } = usePeta();
 
@@ -219,10 +221,29 @@ export default function PetaLacak({
   }, [posisiTampil]);
 
   return (
+    <div className="pointer-events-none" aria-hidden />
+  );
+}
+
+/** Peta rute Lacak — wrapper yang menyediakan <BingkaiPeta> (Google Maps)
+ *  supaya `usePeta()` di `IsiPetaLacak` selalu punya context. */
+export default function PetaLacak({
+  gudang,
+  tujuan,
+  posisiTerakhir,
+  jejak = [],
+  rutePolyline,
+  className = "",
+}: PetaLacakProps) {
+  return (
     <BingkaiPeta className={className}>
-      {/* Anak dirender sebagai overlay pointer-events-none (lihat BingkaiPeta);
-          tidak ada elemen interaktif di sini, jadi tidak perlu pointer-events-auto. */}
-      <div className="pointer-events-none" aria-hidden />
+      <IsiPetaLacak
+        gudang={gudang}
+        tujuan={tujuan}
+        posisiTerakhir={posisiTerakhir}
+        jejak={jejak}
+        rutePolyline={rutePolyline}
+      />
     </BingkaiPeta>
   );
 }
