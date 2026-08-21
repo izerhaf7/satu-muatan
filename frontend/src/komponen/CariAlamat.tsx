@@ -253,7 +253,7 @@ export default function CariAlamat({
 
   const idAktif = sorotan >= 0 && daftar[sorotan] ? `${listboxId}-${sorotan}` : undefined;
   const tampilkanStatus = terbuka && status;
-  const adaGoogle = daftar.some((item) => item.sumber === "GOOGLE");
+  const adaGoogle = daftar.some((item: AlamatSaranItem) => item.sumber === "GOOGLE");
 
   return (
     <div className="relative flex flex-col gap-1.5">
