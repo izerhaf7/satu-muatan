@@ -9,7 +9,12 @@
  *
  *  Peta memakai Google Maps (K14) lewat <BingkaiPeta> — instance + namespace
  *  diambil dari `usePeta()`. Pin memakai AdvancedMarkerElement (butuh Map ID
- *  vektor), draggable lewat `gmpDraggable`, dan klik peta menaruh pin pending. */
+ *  vektor), draggable lewat `gmpDraggable`, dan klik peta menaruh pin pending.
+ *
+ *  KONTRAK LAPISAN: `usePeta()` dipanggil di `IsiPilihTitik` yang dirender di
+ *  DALAM <BingkaiPeta> — context sudah tersedia saat body komponen dieksekusi.
+ *  Wrapper `PetaPilihTitik` memegang state yang dipakai bersama logika peta
+ *  DAN UI luar (generasiPilihan, onPendingRef) lalu menurunkannya ke anak. */
 
 import { useEffect, useRef } from "react";
 import { AlertTriangle, Check, LocateFixed, X } from "lucide-react";
@@ -64,30 +69,27 @@ interface PetaPilihTitikProps {
   tampilkanGps?: boolean;
 }
 
-export default function PetaPilihTitik({
+/** Isi peta — dipanggil usePeta() di DALAM <BingkaiPeta> (context tersedia).
+ *  Semua logika peta (posisi awal, klik, pin draggable) hidup di sini;
+ *  wrapper `PetaPilihTitik` hanya menyediakan <BingkaiPeta> + UI di luarnya.
+ *  `generasiPilihanRef` / `onPendingRef` datang dari wrapper karena dipakai
+ *  bersama fungsi di luar peta (pakaiLokasiSaya, konfirmasi, batalkan). */
+function IsiPilihTitik({
   titik,
-  pending,
+  titikPending,
+  titikFokus,
   pusatAwal,
-  onPending,
-  onConfirm,
-  onCancel,
-  tampilkanGps = false,
-}: PetaPilihTitikProps) {
+  generasiPilihanRef,
+  onPendingRef,
+}: {
+  titik: Titik | null;
+  titikPending: Titik | null;
+  titikFokus: Titik | null;
+  pusatAwal: Titik;
+  generasiPilihanRef: { current: number };
+  onPendingRef: { current: (titik: Titik, sumber: SumberTitik) => void };
+}) {
   const { peta, marker: markerNs } = usePeta();
-  const generasiPilihan = useRef(0);
-  const titikPending = pending?.titik ?? null;
-  const titikFokus = titikPending ?? titik;
-
-  // onPending bisa berganti identitas — simpan di ref supaya listener marker
-  // (yang dibuat sekali) selalu memanggil versi terbaru.
-  const onPendingRef = useRef(onPending);
-  useEffect(() => {
-    onPendingRef.current = onPending;
-  }, [onPending]);
-
-  useEffect(() => {
-    if (pending) generasiPilihan.current += 1;
-  }, [pending?.titik.lat, pending?.titik.lng, pending?.sumber]);
 
   // Posisi awal — sekali saat peta siap (StrictMode aman lewat guard ref).
   const sudahPosisiAwal = useRef(false);
@@ -112,7 +114,7 @@ export default function PetaPilihTitik({
     if (!peta) return;
     const listener = peta.addListener("click", (e: google.maps.MapMouseEvent) => {
       if (!e.latLng) return;
-      generasiPilihan.current += 1;
+      generasiPilihanRef.current += 1;
       onPendingRef.current({ lat: e.latLng.lat(), lng: e.latLng.lng() }, "PETA");
     });
     return () => listener.remove();
@@ -130,7 +132,7 @@ export default function PetaPilihTitik({
       marker.addListener("dragend", (e: PeristiwaGeser) => {
         const pos = e.latLng;
         if (!pos) return;
-        generasiPilihan.current += 1;
+        generasiPilihanRef.current += 1;
         onPendingRef.current({ lat: pos.lat(), lng: pos.lng() }, "GESER");
       });
     };
@@ -175,6 +177,35 @@ export default function PetaPilihTitik({
       markerPending.current = null;
     };
   }, []);
+
+  return (
+    <div className="pointer-events-none" aria-hidden />
+  );
+}
+
+export default function PetaPilihTitik({
+  titik,
+  pending,
+  pusatAwal,
+  onPending,
+  onConfirm,
+  onCancel,
+  tampilkanGps = false,
+}: PetaPilihTitikProps) {
+  const generasiPilihan = useRef(0);
+  const titikPending = pending?.titik ?? null;
+  const titikFokus = titikPending ?? titik;
+
+  // onPending bisa berganti identitas — simpan di ref supaya listener marker
+  // (yang dibuat sekali) selalu memanggil versi terbaru.
+  const onPendingRef = useRef(onPending);
+  useEffect(() => {
+    onPendingRef.current = onPending;
+  }, [onPending]);
+
+  useEffect(() => {
+    if (pending) generasiPilihan.current += 1;
+  }, [pending?.titik.lat, pending?.titik.lng, pending?.sumber]);
 
   function pakaiLokasiSaya() {
     if (!navigator.geolocation) return;
@@ -226,9 +257,16 @@ export default function PetaPilihTitik({
     <div className="flex flex-col gap-2">
       <BingkaiPeta tinggi={240}>
         {/* Peta dibuat oleh BingkaiPeta; interaksi (klik, pin) dipasang lewat
-            usePeta() di efek. Lapisan anak sengaja kosong supaya peta tetap
-            bisa digeser (overlay anak ber-pointer-events-none). */}
-        <></>
+            usePeta() di efek di IsiPilihTitik. Lapisan anak sengaja kosong
+            (hanya div pointer-events-none) supaya peta tetap bisa digeser. */}
+        <IsiPilihTitik
+          titik={titik}
+          titikPending={titikPending}
+          titikFokus={titikFokus}
+          pusatAwal={pusatAwal}
+          generasiPilihanRef={generasiPilihan}
+          onPendingRef={onPendingRef}
+        />
       </BingkaiPeta>
 
       {!pending && titik?.sumber && (
