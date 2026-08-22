@@ -88,10 +88,14 @@ function siapkanPeta(): Promise<PetaReady> {
       const kunci = import.meta.env.VITE_GOOGLE_MAPS_KEY;
       if (!kunci) throw new Error("VITE_GOOGLE_MAPS_KEY belum diisi.");
       setOptions({ key: kunci, v: "weekly" });
+       // DirectionsService hidup di library `routes`, bukan di library `maps`.
+      // Tanpa ini PetaLacak selalu jatuh ke fallback garis lurus meskipun
+      // Maps JavaScript API berhasil dimuat.
       const [maps, marker, geometry] = await Promise.all([
         importLibrary("maps"),
         importLibrary("marker"),
         importLibrary("geometry"),
+        importLibrary("routes"),
       ]);
       return {
         Map: maps.Map,
