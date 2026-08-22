@@ -71,6 +71,7 @@ function IsiLacak({
   const catatPosisi = useCatatPosisi(slotId);
   const tetapkanSensor = useTetapkanSensorNode();
   const [sensorPath, setSensorPath] = useState("/sensor");
+  const [gpsAktif, setGpsAktif] = useState(false);
 
   const memuat = slot.isLoading || pengiriman.isLoading;
 
@@ -104,12 +105,28 @@ function IsiLacak({
         ? "BONGKAR_MUAT"
         : null;
 
+  const sampelTerakhir = telemetri.data?.sampel.at(-1);
+  const statusSensor = !sampelTerakhir
+    ? "OFF"
+    : sampelTerakhir.sumber === "SIMULASI"
+      ? "SIMULASI"
+      : sampelTerakhir.sumber === "SENSOR" && Date.now() - new Date(sampelTerakhir.waktu).getTime() <= 5 * 60 * 1000
+        ? "ON"
+        : "OFF";
+
   useEffect(() => {
-    if (pengguna?.peran !== "PETUGAS" || !pengirimanId || !["ANTAR", "BONGKAR_MUAT"].includes(statusPengiriman ?? "")) return;
+    if (pengguna?.peran !== "PETUGAS" || !pengirimanId || !["MUAT", "ANTAR", "BONGKAR_MUAT"].includes(statusPengiriman ?? "")) {
+      setGpsAktif(false);
+      return;
+    }
     if (!navigator.geolocation) return;
+    const terakhirTerkirim = { value: 0 };
     const watchId = navigator.geolocation.watchPosition(
       (posisi) => {
-        if (!catatPosisi.isPending) {
+        setGpsAktif(true);
+        const sekarang = Date.now();
+        if (!catatPosisi.isPending && (terakhirTerkirim.value === 0 || sekarang - terakhirTerkirim.value >= 30_000)) {
+          terakhirTerkirim.value = sekarang;
           catatPosisi.mutate({
             pengirimanId,
             lat: posisi.coords.latitude,
@@ -119,10 +136,13 @@ function IsiLacak({
           });
         }
       },
-      () => undefined,
+      () => setGpsAktif(false),
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 },
     );
-    return () => navigator.geolocation.clearWatch(watchId);
+    return () => {
+      navigator.geolocation.clearWatch(watchId);
+      setGpsAktif(false);
+    };
   }, [pengguna?.peran, pengirimanId, statusPengiriman, catatPosisi]);
 
   return (
@@ -192,6 +212,7 @@ function IsiLacak({
 
           {telemetri.data?.ringkasan && (
             <section aria-label="Telemetri suhu" className="kartu-tonjol flex flex-col gap-4 p-4 lg:col-span-2">
+              <StatusSensor status={statusSensor} sampelTerakhir={sampelTerakhir?.waktu} />
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex flex-col gap-0.5">
                   <p className="angka text-2xl font-bold text-tanah-liat">
@@ -218,9 +239,21 @@ function IsiLacak({
             </section>
           )}
 
+          {!telemetri.data?.ringkasan && !telemetri.isLoading && (
+            <section aria-label="Status sensor" className="kartu-datar p-4 lg:col-span-2">
+              <StatusSensor status={statusSensor} sampelTerakhir={sampelTerakhir?.waktu} />
+            </section>
+          )}
+
           {pengguna?.peran === "PETUGAS" && !sudahTiba && (
             <div className="kartu-datar flex flex-col gap-2.5 p-4">
-              <p className="text-keterangan font-bold uppercase tracking-wide text-tanah/50">Kendali petugas</p>
+              <div>
+                <p className="text-keterangan font-bold uppercase tracking-wide text-tanah/50">Kendali petugas</p>
+                <p className="mt-1 text-base font-semibold text-tanah">GPS perjalanan &amp; sensor IoT</p>
+                <p className="mt-1 text-keterangan text-tanah/60">
+                   Tandai tahap perjalanan sesuai kondisi kendaraan. GPS HP akan dikirim otomatis setelah MUAT.
+                </p>
+              </div>
               {statusBerikutnya && (
                 <Tombol
                   type="button"
@@ -232,8 +265,8 @@ function IsiLacak({
                   Tandai {statusBerikutnya.replace("_", " ")}
                 </Tombol>
               )}
-              {statusPengiriman === "ANTAR" && (
-                <p className="text-keterangan text-tanah/60">GPS HP aktif. Biarkan halaman ini terbuka selama perjalanan.</p>
+              {gpsAktif && (
+                <p className="text-keterangan text-daun">GPS aktif. Biarkan halaman ini terbuka selama perjalanan.</p>
               )}
               <div className="flex gap-2">
                 <input
@@ -256,6 +289,22 @@ function IsiLacak({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function StatusSensor({ status, sampelTerakhir }: { status: string; sampelTerakhir?: string }) {
+  const gaya = status === "ON" ? "text-daun" : status === "SIMULASI" ? "text-tanah-liat" : "text-tanah/55";
+  const label = status === "ON" ? "SENSOR: ON" : status === "SIMULASI" ? "SIMULASI" : "SENSOR: OFF";
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
+        <Radio aria-hidden className={`h-5 w-5 ${gaya}`} strokeWidth={2.25} />
+        <p className={`text-base font-semibold ${gaya}`}>{label}</p>
+      </div>
+      <p className="text-keterangan text-tanah/55">
+        {sampelTerakhir ? `Data terakhir ${formatWaktu(sampelTerakhir)}` : "Belum ada data sensor"}
+      </p>
     </div>
   );
 }
