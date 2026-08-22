@@ -1,12 +1,11 @@
 /** Peta rute Lacak (§9.6) — Google Maps (K14).
  *
  *  Konsumsi instance peta + namespace lewat `usePeta()` dari BingkaiPeta.
- *  Marker titik kumpul + tujuan penerima, garis rute rencana (putus-putus),
+ *  Marker titik kumpul + tujuan penerima, polyline rute provider,
  *  jejak yang sudah dilalui, dan posisi terakhir yang dianimasikan.
  *
- *  Catatan dashed polyline: `@types/google.maps` tidak mengekspos
- *  `strokePattern` (properti runtime Maps JS), jadi dipakai `icons` +
- *  `IconSequence` dengan `Symbol` path garis pendek — cara yang type-check. */
+ *  Polyline provider diprioritaskan; fallback titik rencana tetap dipakai saat
+ *  provider tidak tersedia atau responsnya tidak valid. */
 
 import { useEffect, useRef } from "react";
 
@@ -108,20 +107,13 @@ function IsiPetaLacak({
 
     bersihkan();
 
-    // 1. Rute rencana — tipis & putus-putus, jadi latar bagi jejak sungguhan.
+    // 1. Rute provider — polyline jalan sungguhan dari Google Routes.
+    // Kalau provider gagal, ruteRencana berisi titik-titik fallback dari backend.
     const ruteRencanaPolyline = new google.maps.Polyline({
       path: ruteRencana.map((t) => ({ lat: t.lat, lng: t.lng })),
-      strokeColor: "var(--daun)",
-      strokeWeight: 2,
-      strokeOpacity: 0.45,
-      // Dashed: Symbol path garis pendek diulang tiap 12px (lihat catatan atas).
-      icons: [
-        {
-          icon: { path: "M 0,-1 0,1", strokeOpacity: 1, scale: 4 },
-          offset: "0",
-          repeat: "12px",
-        },
-      ],
+      strokeColor: "#16A34A",
+      strokeWeight: ruteDecoded ? 4 : 2,
+      strokeOpacity: ruteDecoded ? 0.85 : 0.45,
       map: peta,
     });
     polylinesRef.current.push(ruteRencanaPolyline);
