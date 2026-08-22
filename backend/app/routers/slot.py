@@ -327,12 +327,27 @@ def slot_tersedia(pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depend
     )
     hasil = []
     for slot in kandidat:
+        # Jarak diukur ke TITIK TERDEKAT dari wilayah kerja muatan — titik
+        # kumpul, semua perhentian jemput, dan semua tujuan. Petugas menjemput
+        # di lokasi petani, jadi muatan yang titik kumpulnya jauh tapi jemputnya
+        # dekat tetap layak tampil (K14: rute dua tahap, jemput dulu).
+        titik: list[tuple[float, float]] = []
         titik_kumpul = db.get(TitikKumpul, slot.titik_kumpul_id)
-        if titik_kumpul is None:
+        if titik_kumpul is not None:
+            titik.append((titik_kumpul.lat, titik_kumpul.lng))
+        for j in sorted(slot.jemput, key=lambda x: x.urutan):
+            titik.append((j.lat, j.lng))
+        for t in sorted(slot.tujuan, key=lambda x: x.urutan):
+            penerima = db.get(Penerima, t.penerima_id)
+            if penerima is not None:
+                titik.append((penerima.lat, penerima.lng))
+        if not titik:
             continue
-        jarak = jarak_haversine_km(pengguna.terkini_lat, pengguna.terkini_lng, titik_kumpul.lat, titik_kumpul.lng)
-        if jarak <= radius_km:
-            hasil.append(_ke_slot_item(slot, db, pengguna, tampilkan_resi=False, jarak_dari_driver_km=round(jarak, 2)))
+        jarak_min = min(
+            jarak_haversine_km(pengguna.terkini_lat, pengguna.terkini_lng, lat, lng) for lat, lng in titik
+        )
+        if jarak_min <= radius_km:
+            hasil.append(_ke_slot_item(slot, db, pengguna, tampilkan_resi=False, jarak_dari_driver_km=round(jarak_min, 2)))
     return hasil
 
 
