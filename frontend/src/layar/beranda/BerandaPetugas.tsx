@@ -52,12 +52,12 @@ export default function BerandaPetugas() {
         {dampak.isError ? (
           <KartuGalat pesan="Ringkasan bulan ini gagal dimuat." onCobaLagi={() => dampak.refetch()} />
         ) : (
-          <section aria-label="Ringkasan bulan ini" className="kartu-hero flex flex-col gap-4 p-5">
+          <section aria-label="Ringkasan bulan ini" className="kartu-hero flex flex-col gap-3 px-4 py-5 sm:gap-4 sm:p-5">
           <p className="text-keterangan font-bold uppercase tracking-wide text-kertas/70">
             Ringkasan {formatBulan(bulanSaatIni())}
           </p>
           <div
-            className="grid grid-cols-3 gap-3"
+            className="grid grid-cols-3 gap-2 sm:gap-3"
             role={dampak.isLoading ? "status" : undefined}
             aria-label={dampak.isLoading ? "Memuat ringkasan" : undefined}
           >
@@ -65,7 +65,7 @@ export default function BerandaPetugas() {
               {dampak.isLoading ? (
                 <Skeleton className="h-8 w-12 bg-kertas/20" />
               ) : (
-                <p className="angka text-2xl font-bold text-kertas">
+                <p className="angka text-[clamp(0.75rem,4.2vw,1.5rem)] font-bold leading-none text-kertas">
                   {bulanIni ? formatAngka(bulanIni.jumlah_kiriman) : "—"}
                 </p>
               )}
@@ -74,7 +74,7 @@ export default function BerandaPetugas() {
               {dampak.isLoading ? (
                 <Skeleton className="h-8 w-16 bg-kertas/20" />
               ) : (
-                <p className="angka text-2xl font-bold text-kertas">
+                <p className="angka text-[clamp(0.75rem,4.2vw,1.5rem)] font-bold leading-none text-kertas">
                   {bulanIni ? formatRupiah(bulanIni.penghematan_rp) : "—"}
                 </p>
               )}
@@ -83,7 +83,7 @@ export default function BerandaPetugas() {
               {dampak.isLoading ? (
                 <Skeleton className="h-8 w-12 bg-kertas/20" />
               ) : (
-                <p className="angka text-2xl font-bold text-kertas">
+                <p className="angka text-[clamp(0.75rem,4.2vw,1.5rem)] font-bold leading-none text-kertas">
                   {bulanIni ? formatAngka(bulanIni.truk_km_dihemat) : "—"}
                 </p>
               )}
@@ -169,7 +169,7 @@ export default function BerandaPetugas() {
 
 function ItemRingkasan({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex min-w-0 flex-col gap-1 overflow-hidden">
       {children}
       <p className="text-keterangan text-kertas/70">{label}</p>
     </div>
