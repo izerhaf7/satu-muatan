@@ -155,6 +155,9 @@ KONFIGURASI_SEED = [
     ("maks_muatan_aktif_per_petugas", "1", TipeKonfigurasi.INT,
      "Muatan aktif maksimum yang boleh dibawa satu petugas", "muatan",
      StatusSumber.ASUMSI, "Satu sopir tidak bisa membawa dua truk sekaligus."),
+    ("radius_papan_tugas_km", "15", TipeKonfigurasi.FLOAT,
+     "Radius tugas dari lokasi terkini petugas", "km",
+     StatusSumber.ASUMSI, "Perkiraan tim agar petugas tidak mengambil muatan terlalu jauh."),
     # K14 — cutoff tidak boleh lahir di masa lalu
     ("jeda_minimal_cutoff_menit", "120", TipeKonfigurasi.INT,
      "Jeda minimal antara muatan dibuka dan cutoff-nya", "menit",

@@ -113,6 +113,9 @@ class Pengguna(Base):
     titik_kumpul_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("titik_kumpul.id"))
     penerima_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("penerima.id"))
     aktif: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    terkini_lat: Mapped[float | None] = mapped_column()
+    terkini_lng: Mapped[float | None] = mapped_column()
+    lokasi_diperbarui_pada: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Komoditas(Base):
