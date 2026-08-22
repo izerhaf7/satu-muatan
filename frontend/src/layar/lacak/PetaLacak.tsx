@@ -1,21 +1,22 @@
 /** Peta rute Lacak (§9.6) — Google Maps (K14).
  *
  *  Konsumsi instance peta + namespace lewat `usePeta()` dari BingkaiPeta.
- *  Marker posisi driver + tujuan penerima, polyline rute provider, jejak yang
- *  sudah dilalui, dan posisi terkini yang dianimasikan.
+ *  Marker posisi driver + tujuan penerima, polyline rute, jejak yang sudah
+ *  dilalui, dan posisi terkini yang dianimasikan.
  *
- *  Dua prinsip anti-kedip:
- *  - Lapisan STATIS (rute, marker gudang/tujuan, fitBounds) di-redraw hanya
- *    saat rute/objek berubah — bukan setiap polling jejak.
- *  - Lapisan DINAMIS (jejak + marker posisi) diperbarui in-place (setPath /
- *    posisi marker), tanpa membongkar seluruh peta, sehingga polling GPS tidak
- *    membuat peta berkedip.
+ *  SUMBER RUTE (prioritas):
+ *  1. `rutePolyline` backend bila itu rute JALAN sungguhan (Google Routes punya
+ *     banyak titik); penentuannya heuristik: lebih dari 5 titik.
+ *  2. Kalau backend hanya memberi garis lurus (fallback haversine, ≤ 5 titik)
+ *     atau kosong, rute diminta ke Directions API di BROWSER — jadi peta tetap
+ *     menampilkan jalan yang benar tanpa menunggu perbaikan snapshot backend.
+ *  3. Keduanya gagal → garis lurus antar titik sebagai keadaan terakhir.
  *
- *  Rute tampil dime-mulai dari LOKASI DRIVER bila ada koordinat driver: kepala
- *  titik kumpul dibuang, jadi halaman tidak selalu tampil berawal dari titik
- *  kumpul (mis. Cikajang) padahal truk memuat di tempat lain. */
+ *  Rute tampil dime-mulai dari LOKASI DRIVER bila koordinat driver ada (kepala
+ *  titik kumpul dibuang), dan lapisan peta dipecah statis/dinamis supaya
+ *  polling GPS tidak membuat peta berkedip. */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import BingkaiPeta, { usePeta } from "@/komponen/BingkaiPeta";
 import { decodePolyline, interpolasiKoordinat, type Koordinat } from "@/utils/geometriRute";
@@ -29,9 +30,11 @@ interface TitikPeta {
 interface PetaLacakProps {
   gudang: TitikPeta;
   tujuan: TitikPeta[];
+  /** K14: perhentian penjemputan — ikut membentuk rute jalan yang diminta. */
+  jemput?: TitikPeta[];
   posisiTerakhir?: TitikPeta | null;
   /** K13: titik-titik posisi yang sudah dilalui — digambar sebagai jejak
-   *  berjalan di atas garis rute rencana, supaya peta benar-benar bergerak. */
+   *  berjalan di atas garis rute, supaya peta benar-benar bergerak. */
   jejak?: { lat: number; lng: number }[];
   rutePolyline?: string | null;
   className?: string;
@@ -70,59 +73,92 @@ function koordinatDariPosisi(posisi: google.maps.LatLng | google.maps.LatLngLite
 function IsiPetaLacak({
   gudang,
   tujuan,
+  jemput = [],
   posisiTerakhir,
   jejak = [],
   rutePolyline,
 }: PetaLacakProps) {
   const { peta, marker, idPeta, siap } = usePeta();
 
-  // Objek peta — dibersihkan saat unmount.
+  // Objek peta + status rute jalan (pergi ke DirectionsService maksimal sekali
+  // per asal, agar GPS yang berubah-ubah tidak memicu permintaan berulang).
   const rutePolylineRef = useRef<google.maps.Polyline | null>(null);
   const jejakPolylineRef = useRef<google.maps.Polyline | null>(null);
   const markerGudangRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const markerTujuanRefs = useRef<google.maps.marker.AdvancedMarkerElement[]>([]);
   const markerPosisiRef = useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const frameRef = useRef<number | null>(null);
-  // Posisi terbaru agar lapisan statis bisa membaca kepala rute saat di-redraw
-  // (ref, bukan state — tidak memicu render).
   const posisiRef = useRef<TitikPeta | null | undefined>(posisiTerakhir);
   posisiRef.current = posisiTerakhir;
+  const asalRuteRef = useRef<"gudang" | "driver" | null>(null);
+  const [ruteJalan, setRuteJalan] = useState<Koordinat[] | null>(null);
 
   // Data turunan.
   const ruteDecoded = decodePolyline(rutePolyline);
-  const ruteDasar: Koordinat[] = ruteDecoded
-    ? ruteDecoded
-    : [{ lat: gudang.lat, lng: gudang.lng }, ...tujuan.map((t) => ({ lat: t.lat, lng: t.lng }))];
+  // Rute backend dianggap "jalan sungguhan" bila punya banyak titik. Fallback
+  // haversine hanya menghasilkan segaris lurus (≤ 5 titik) — itu yang membuat
+  // peta tampak seperti garis lurus antar titik.
+  const ruteBackend: Koordinat[] = ruteDecoded && ruteDecoded.length > 5 ? ruteDecoded : [];
+  const perhentian: TitikPeta[] = [...jemput, ...tujuan];
+  const ruteDasar: Koordinat[] =
+    ruteBackend.length >= 2
+      ? ruteBackend
+      : [{ lat: gudang.lat, lng: gudang.lng }, ...perhentian.map((t) => ({ lat: t.lat, lng: t.lng }))];
 
-  /** Rute yang ditampilkan: dimulai dari lokasi driver bila ada. Kepala titik
-   *  kumpul dibuang agar peta tidak selalu berawal dari titik kumpul. */
+  /** Rute yang ditampilkan: jarum utamanya rute jalan (backend/Browser), lalu
+   *  kepala digeser ke lokasi driver bila koordinat driver ada. */
+  const ruteUtama = ruteJalan ?? ruteDasar;
   const ruteTampil = (posisiAwal: TitikPeta | null | undefined): Koordinat[] => {
     if (posisiAwal) {
-      const sisa = ruteDasar.slice(1);
-      return sisa.length > 0 ? [{ lat: posisiAwal.lat, lng: posisiAwal.lng }, ...sisa] : ruteDasar;
+      const sisa = ruteUtama.slice(1);
+      return sisa.length > 0 ? [{ lat: posisiAwal.lat, lng: posisiAwal.lng }, ...sisa] : ruteUtama;
     }
-    return ruteDasar;
+    return ruteUtama;
   };
 
-  // Bersihkan seluruh lapisan (unmount / perubahan statis).
-  const bersihkanSemua = () => {
-    if (frameRef.current !== null) {
-      cancelAnimationFrame(frameRef.current);
-      frameRef.current = null;
+  // -------------------------------------------------------------------------
+  // Rute JALAN dari browser (Directions API) bila backend cuma garis lurus.
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    if (!siap || !peta) return;
+    if (typeof google === "undefined" || !google.maps || !google.maps.DirectionsService) return;
+    if (perhentian.length === 0) return;
+
+    const asal = posisiRef.current ? "driver" : "gudang";
+    // Rute backend sudah jalan sungguhan — tidak perlu meminta lagi.
+    if (ruteBackend.length > 5) {
+      asalRuteRef.current = asal;
+      return;
     }
-    rutePolylineRef.current?.setMap(null);
-    rutePolylineRef.current = null;
-    jejakPolylineRef.current?.setMap(null);
-    jejakPolylineRef.current = null;
-    if (markerGudangRef.current) markerGudangRef.current.map = null;
-    markerGudangRef.current = null;
-    markerTujuanRefs.current.forEach((m) => {
-      m.map = null;
-    });
-    markerTujuanRefs.current = [];
-    if (markerPosisiRef.current) markerPosisiRef.current.map = null;
-    markerPosisiRef.current = null;
-  };
+    if (asalRuteRef.current === asal) return;
+    asalRuteRef.current = asal;
+
+    const asalTitik = posisiRef.current ?? gudang;
+    const tujuanAkhir = perhentian[perhentian.length - 1];
+    const waypoints = perhentian.slice(0, -1).map((t) => ({
+      location: { lat: t.lat, lng: t.lng },
+      stopover: true,
+    }));
+
+    const directions = new google.maps.DirectionsService();
+    directions.route(
+      {
+        origin: { lat: asalTitik.lat, lng: asalTitik.lng },
+        destination: { lat: tujuanAkhir.lat, lng: tujuanAkhir.lng },
+        waypoints,
+        travelMode: "DRIVING" as google.maps.TravelMode,
+        optimizeWaypoints: false,
+      },
+      (respons, status) => {
+        if (status !== google.maps.DirectionsStatus.OK) return;
+        const jalur = respons?.routes?.[0]?.overview_path;
+        if (!jalur || jalur.length < 2) return;
+        const decoded: Koordinat[] = jalur.map((t) => koordinatDariPosisi(t));
+        setRuteJalan(decoded);
+      },
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siap, peta, ruteBackend, gudang, perhentian]);
 
   // -------------------------------------------------------------------------
   // Lapisan STATIS — redraw hanya saat rute/objek berubah. fitBounds di sini.
@@ -139,14 +175,15 @@ function IsiPetaLacak({
     });
     markerTujuanRefs.current = [];
 
-    // 1. Rute provider — polyline jalan sungguhan dari Google Routes.
+    // 1. Rute — polyline jalan sungguhan (backend Google atau Directions browser).
     const jalur = ruteTampil(posisiRef.current);
     if (jalur.length >= 2) {
+      const sudahRuteJalan = (ruteJalan?.length ?? 0) >= 2 || ruteBackend.length > 5;
       const polyline = new google.maps.Polyline({
         path: jalur.map((t) => ({ lat: t.lat, lng: t.lng })),
         strokeColor: "#16A34A",
-        strokeWeight: ruteDecoded ? 4 : 2,
-        strokeOpacity: ruteDecoded ? 0.85 : 0.45,
+        strokeWeight: sudahRuteJalan ? 4 : 2,
+        strokeOpacity: sudahRuteJalan ? 0.85 : 0.45,
         map: peta,
       });
       rutePolylineRef.current = polyline;
@@ -162,14 +199,14 @@ function IsiPetaLacak({
     });
 
     // 3. Marker tujuan — lingkaran bernomor 1, 2, 3…
-    tujuan.forEach((t, idx) => {
-      const markerTujuan = new marker.AdvancedMarkerElement({
+    perhentian.forEach((t, idx) => {
+      const markerPerhentian = new marker.AdvancedMarkerElement({
         map: peta,
         position: { lat: t.lat, lng: t.lng },
         content: buatDivBundar("var(--daun)", String(idx + 1)),
         title: t.label,
       });
-      markerTujuanRefs.current.push(markerTujuan);
+      markerTujuanRefs.current.push(markerPerhentian);
     });
 
     // 4. fitBounds — sekali per perubahan rute (bukan per polling GPS).
@@ -194,7 +231,7 @@ function IsiPetaLacak({
       markerTujuanRefs.current = [];
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siap, peta, marker, idPeta, rutePolyline, gudang, tujuan]);
+  }, [siap, peta, marker, idPeta, rutePolyline, ruteJalan, gudang, perhentian]);
 
   // -------------------------------------------------------------------------
   // Kepala rute — geser in-place ke posisi driver + suai visibilitas marker G.
@@ -209,7 +246,7 @@ function IsiPetaLacak({
       markerGudangRef.current.map = posisiRef.current ? null : peta;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [siap, peta, posisiTerakhir, rutePolyline, gudang, tujuan]);
+  }, [siap, peta, posisiTerakhir, ruteJalan, rutePolyline, gudang, perhentian]);
 
   // -------------------------------------------------------------------------
   // Lapisan DINAMIS — jejak & marker posisi, diperbarui in-place tanpa redraw.
@@ -217,7 +254,6 @@ function IsiPetaLacak({
   useEffect(() => {
     if (!siap || !peta) return;
 
-    // 2. Jejak yang benar-benar sudah dilalui (K13).
     if (jejak.length > 1) {
       if (!jejakPolylineRef.current) {
         jejakPolylineRef.current = new google.maps.Polyline({
@@ -302,7 +338,28 @@ function IsiPetaLacak({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posisiTerakhir]);
 
-  useEffect(() => bersihkanSemua, []);
+  // Bersihkan seluruh lapisan saat unmount.
+  useEffect(() => {
+    const bersihkan = () => {
+      if (frameRef.current !== null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      rutePolylineRef.current?.setMap(null);
+      rutePolylineRef.current = null;
+      jejakPolylineRef.current?.setMap(null);
+      jejakPolylineRef.current = null;
+      if (markerGudangRef.current) markerGudangRef.current.map = null;
+      markerGudangRef.current = null;
+      markerTujuanRefs.current.forEach((m) => {
+        m.map = null;
+      });
+      markerTujuanRefs.current = [];
+      if (markerPosisiRef.current) markerPosisiRef.current.map = null;
+      markerPosisiRef.current = null;
+    };
+    return bersihkan;
+  }, []);
 
   return (
     <div className="pointer-events-none" aria-hidden />
@@ -314,6 +371,7 @@ function IsiPetaLacak({
 export default function PetaLacak({
   gudang,
   tujuan,
+  jemput = [],
   posisiTerakhir,
   jejak = [],
   rutePolyline,
@@ -324,6 +382,7 @@ export default function PetaLacak({
       <IsiPetaLacak
         gudang={gudang}
         tujuan={tujuan}
+        jemput={jemput}
         posisiTerakhir={posisiTerakhir}
         jejak={jejak}
         rutePolyline={rutePolyline}

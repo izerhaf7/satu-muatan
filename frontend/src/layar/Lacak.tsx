@@ -69,8 +69,7 @@ function IsiLacak({
   const pengiriman = usePengirimanSlot(slotId);
   const ubahStatus = useUbahStatusPengiriman(slotId);
   const catatPosisi = useCatatPosisi(slotId);
-  const tetapkanSensor = useTetapkanSensorNode();
-  const [sensorPath, setSensorPath] = useState("/sensor");
+const tetapkanSensor = useTetapkanSensorNode();
   const [gpsAktif, setGpsAktif] = useState(false);
 
   const memuat = slot.isLoading || pengiriman.isLoading;
@@ -84,6 +83,15 @@ function IsiLacak({
       lat: t.lat,
       lng: t.lng,
       label: `${t.urutan}. ${t.nama_penerima}`,
+    })) ?? [];
+
+  // K14: perhentian penjemputan ikut ditampilkan di peta — kurir berangkat dari
+  // lokasinya menuju titik jemput petani, baru ke tujuan akhir.
+  const jemputDenganKoordinat =
+    slot.data?.jemput.map((j) => ({
+      lat: j.lat,
+      lng: j.lng,
+      label: `Jemput ${j.nama_petani}`,
     })) ?? [];
 
   const jejak =
@@ -183,6 +191,7 @@ function IsiLacak({
               <PetaLacak
                 gudang={{ lat: slot.data.titik_kumpul.lat, lng: slot.data.titik_kumpul.lng, label: slot.data.titik_kumpul.nama }}
                 tujuan={tujuanDenganKoordinat}
+                jemput={jemputDenganKoordinat}
                 posisiTerakhir={posisiTerakhir}
                 jejak={jejak}
                 rutePolyline={pengiriman.data.rute_polyline}
@@ -265,26 +274,18 @@ function IsiLacak({
                   Tandai {statusBerikutnya.replace("_", " ")}
                 </Tombol>
               )}
-              {gpsAktif && (
+{gpsAktif && (
                 <p className="text-keterangan text-daun">GPS aktif. Biarkan halaman ini terbuka selama perjalanan.</p>
               )}
-              <div className="flex gap-2">
-                <input
-                  value={sensorPath}
-                  onChange={(event) => setSensorPath(event.target.value)}
-                  placeholder="/sensor"
-                  aria-label="Path node sensor"
-                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-tanah/20 bg-kertas px-3 text-base"
-                />
-                <Tombol
-                  type="button"
-                  varian="sekunder"
-                  sedangProses={tetapkanSensor.isPending}
-                  onClick={() => tetapkanSensor.mutate({ slotId, node_path: sensorPath })}
-                >
-                  Sensor
-                </Tombol>
-              </div>
+              <Tombol
+                type="button"
+                varian="sekunder"
+                ikon={Radio}
+                sedangProses={tetapkanSensor.isPending}
+                onClick={() => tetapkanSensor.mutate({ slotId, node_path: "/sensor" })}
+              >
+                Cek sensor
+              </Tombol>
             </div>
           )}
         </div>
