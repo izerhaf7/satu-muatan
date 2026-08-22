@@ -46,8 +46,11 @@ export default function Muat() {
           <p className="text-base font-semibold text-tanah">
             Muat selesai. Kiriman sudah {slot.data?.status === "SELESAI" ? "diterima" : "berangkat"}.
           </p>
+          <p className="max-w-prose text-keterangan text-tanah/65">
+            Buka kendali perjalanan untuk menyalakan GPS HP dan menghubungkan node sensor IoT.
+          </p>
           <TombolTautan to={`/slot/${slotId}/lacak`} ikon={Truck}>
-            Lihat pelacakan
+            Buka GPS &amp; sensor
           </TombolTautan>
         </section>
       )}
