@@ -11,6 +11,7 @@ import KartuGalat from "@/komponen/KartuGalat";
 import KeadaanKosong from "@/komponen/KeadaanKosong";
 import { SkeletonKartu } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
+import { ApiError } from "@/api/client";
 import { LABEL_GRADE } from "@/komponen/PilihGrade";
 import type { components } from "@/api/client";
 import { useCariLotQr, useKirimSerahTerima, useLotMasuk } from "@/hooks/useSerahTerima";
@@ -29,6 +30,17 @@ export default function SerahTerima() {
   const cariQr = useCariLotQr();
   const kirim = useKirimSerahTerima();
   const punyaAlamatTetap = useAuthStore((s) => s.pengguna?.penerima_id != null);
+
+  // Tampilkan alasan sungguhan dari server, bukan pesan generik — mis. "harus
+  // menunggu BONGKAR_MUAT" atau "tegangan sudah diserahterimakan".
+  const pesanGagalKirim = (() => {
+    if (!kirim.error) return undefined;
+    if (kirim.error instanceof ApiError) {
+      const detail = (kirim.error.body as { detail?: unknown } | null)?.detail;
+      if (typeof detail === "string" && detail) return detail;
+    }
+    return "Gagal mengirim keputusan. Coba lagi.";
+  })();
 
   function cariBerdasarkanKode(e: FormEvent) {
     e.preventDefault();
@@ -58,6 +70,7 @@ export default function SerahTerima() {
           bukti={buktiTerpilih}
           sedangMengirim={kirim.isPending}
           gagalMengirim={kirim.isError}
+          pesanGagal={pesanGagalKirim}
           onKirim={(body) =>
             kirim.mutate(
               { lotId: buktiTerpilih.lot.id, body },

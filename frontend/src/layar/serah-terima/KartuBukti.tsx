@@ -45,6 +45,8 @@ interface KartuBuktiProps {
   onKirim: (body: SerahTerimaCreate) => void;
   sedangMengirim: boolean;
   gagalMengirim: boolean;
+  /** Alasan kegagalan dari server (detail), supaya pengguna tahu harus apa. */
+  pesanGagal?: string;
 }
 
 const labelAtribusi: Record<Atribusi, string> = {
@@ -68,7 +70,7 @@ function formatWaktu(waktu: string): string {
   return new Date(waktu).toLocaleString("id-ID", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 }
 
-export default function KartuBukti({ bukti, onKirim, sedangMengirim, gagalMengirim }: KartuBuktiProps) {
+export default function KartuBukti({ bukti, onKirim, sedangMengirim, gagalMengirim, pesanGagal }: KartuBuktiProps) {
   const [keputusan, setKeputusan] = useState<KeputusanSerahTerima | null>(null);
   const [alasan, setAlasan] = useState("");
   const [fotoBongkar, setFotoBongkar] = useState<string | null>(null);
@@ -171,7 +173,7 @@ export default function KartuBukti({ bukti, onKirim, sedangMengirim, gagalMengir
 
           {gagalMengirim && (
             <p role="alert" className="text-keterangan text-tanah-liat">
-              Gagal mengirim keputusan. Coba lagi.
+              {pesanGagal ?? "Gagal mengirim keputusan. Coba lagi."}
             </p>
           )}
 
