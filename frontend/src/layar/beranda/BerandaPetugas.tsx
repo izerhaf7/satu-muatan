@@ -16,6 +16,7 @@ import { Skeleton, SkeletonKartu } from "@/komponen/Skeleton";
 import Tombol from "@/komponen/Tombol";
 import { ApiError } from "@/api/client";
 import { useDampakBulanan } from "@/hooks/useDampak";
+import { useLokasiDriver } from "@/hooks/useLokasiDriver";
 import { useDaftarSlot, useSlotTersedia, useTerimaTugas } from "@/hooks/useSlot";
 import { useAuthStore } from "@/stores/authStore";
 import { bulanSaatIni, formatAngka, formatBulan, formatRupiah } from "@/utils/format";
@@ -24,8 +25,9 @@ import KartuSlotDaftar from "./KartuSlotDaftar";
 
 export default function BerandaPetugas() {
   const pengguna = useAuthStore((s) => s.pengguna);
+  const lokasi = useLokasiDriver(true);
   const daftarSlot = useDaftarSlot();
-  const tersedia = useSlotTersedia();
+  const tersedia = useSlotTersedia(lokasi.status === "aktif");
   const terima = useTerimaTugas();
   const dampak = useDampakBulanan();
 
@@ -105,9 +107,30 @@ export default function BerandaPetugas() {
         <div className="flex flex-col gap-0.5">
           <h2 className="text-subjudul text-tanah">Tersedia diambil</h2>
           <p className="text-keterangan text-tanah/55">
-            Muatan dari titik kumpulmu yang belum punya sopir. Satu muatan aktif dalam satu waktu.
+            Muatan dalam radius 15 km dari lokasi GPS kamu. Satu muatan aktif dalam satu waktu.
           </p>
         </div>
+
+        {lokasi.status === "meminta" && (
+          <p role="status" className="text-keterangan text-tanah/65">
+            Meminta akses lokasi untuk mencari tugas terdekat…
+          </p>
+        )}
+        {lokasi.status === "ditolak" && (
+          <p role="alert" className="text-keterangan font-medium text-tanah-liat">
+            Aktifkan GPS untuk melihat tugas terdekat.
+          </p>
+        )}
+        {lokasi.status === "tidak_didukung" && (
+          <p role="alert" className="text-keterangan font-medium text-tanah-liat">
+            Perangkat atau browser ini tidak mendukung GPS.
+          </p>
+        )}
+        {lokasi.status === "galat" && (
+          <p role="alert" className="text-keterangan font-medium text-tanah-liat">
+            Lokasi belum terkirim. Periksa izin GPS dan koneksi, lalu coba lagi.
+          </p>
+        )}
 
         {pesanTerima && (
           <p role="alert" className="text-keterangan font-medium text-tanah-liat">
@@ -119,8 +142,8 @@ export default function BerandaPetugas() {
         {tersedia.isError && (
           <KartuGalat pesan="Gagal memuat papan tugas." onCobaLagi={() => tersedia.refetch()} />
         )}
-        {tersedia.data?.length === 0 && (
-          <KeadaanKosong pesan="Belum ada muatan yang menunggu sopir. Muatan muncul di sini begitu petani mulai mengirim panen ke arah yang sama." />
+        {lokasi.status === "aktif" && tersedia.data?.length === 0 && (
+          <KeadaanKosong pesan="Tidak ada tugas dalam radius 15 km dari lokasi Anda." />
         )}
 
         <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">

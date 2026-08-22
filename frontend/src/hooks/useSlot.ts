@@ -26,10 +26,11 @@ export function useDaftarSlot(status?: StatusSlot) {
 /** K14: PAPAN TUGAS — muatan yang belum punya driver dan bisa diambil petugas
  *  ini. Menggantikan penugasan otomatis K13, yang membuat satu petugas aktif
  *  menyerap seluruh muatan di sistem tanpa bisa diubah. */
-export function useSlotTersedia() {
+export function useSlotTersedia(aktif = true) {
   return useQuery({
     queryKey: ["slot", "tersedia"],
     queryFn: () => api<SlotItemOut[]>("/api/slot/tersedia"),
+    enabled: aktif,
   });
 }
 
