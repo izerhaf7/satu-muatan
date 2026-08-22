@@ -8,9 +8,8 @@
  *  - **Alamat penjemputan ada.** Sebelumnya asal kiriman tidak pernah ditanya:
  *    semua petani dianggap berangkat dari titik kumpul, jadi petugas tidak punya
  *    alamat untuk didatangi dan jarak muatan tidak menghitung leg jemput.
- *  - **Alamat terstruktur + autocomplete daerah**, mengikuti standar penulisan
- *    alamat ekspedisi — bukan lagi satu kotak teks bebas yang tidak terhubung
- *    ke pin di peta.
+ *  - **Alamat terstruktur dari titik**, mengikuti standar penulisan alamat
+ *    ekspedisi — titik GPS/peta mengisi wilayah tanpa pencarian alamat terpisah.
  *  - **Volume minimal diketahui klien** dari `/api/aturan-kiriman`, jadi petani
  *    tahu batasnya sebelum menekan tombol, bukan lewat galat 422 sesudahnya. */
 
@@ -24,7 +23,6 @@ import FormAlamat, {
   terapkanGeokode,
   type NilaiAlamat,
 } from "@/komponen/FormAlamat";
-import CariAlamat from "@/komponen/CariAlamat";
 import HeaderLayar from "@/komponen/kerangka/HeaderLayar";
 import InputTeks from "@/komponen/InputTeks";
 import KartuGalat from "@/komponen/KartuGalat";
@@ -85,33 +83,17 @@ export default function KirimPanen() {
   const [statusTitikTujuan, setStatusTitikTujuan] = useState<StatusTitik>(() => buatStatusTitik(null));
   const [alamatTujuan, setAlamatTujuan] = useState<NilaiAlamat>(ALAMAT_KOSONG);
   const [petaTujuanTerbuka, setPetaTujuanTerbuka] = useState(false);
-  const [peringatanCariTujuan, setPeringatanCariTujuan] = useState<string | null>(null);
-  const revisiTujuan = useRef(0);
   const providerAsal = useRef<JejakFieldProvider>({});
   const providerTujuan = useRef<JejakFieldProvider>({});
   const snapshotAlamatAsal = useRef<NilaiAlamat | null>(null);
   const snapshotAlamatTujuan = useRef<NilaiAlamat | null>(null);
-  const snapshotProviderTujuan = useRef<JejakFieldProvider | null>(null);
 
   function ajukanTitikAsal(titik: Titik, sumber: SumberTitik) {
     setStatusTitikAsal((status) => simpanTitikPending(status, titik, sumber));
   }
 
   function ajukanTitikTujuan(titik: Titik, sumber: SumberTitik) {
-    revisiTujuan.current += 1;
     setStatusTitikTujuan((status) => simpanTitikPending(status, titik, sumber));
-  }
-
-  function ubahAlamatTujuan(alamat: NilaiAlamat) {
-    revisiTujuan.current += 1;
-    setAlamatTujuan(alamat);
-  }
-
-  function ajukanAlamatTujuan(titik: Titik) {
-    snapshotAlamatTujuan.current ??= alamatTujuan;
-    snapshotProviderTujuan.current ??= { ...providerTujuan.current };
-    setPetaTujuanTerbuka(true);
-    ajukanTitikTujuan(titik, "ALAMAT");
   }
 
   function konfirmasiTitikAsal() {
@@ -129,15 +111,13 @@ export default function KirimPanen() {
   function konfirmasiTitikTujuan() {
     const hasil = konfirmasiTitikPending(statusTitikTujuan);
     if (!hasil) return;
-    revisiTujuan.current += 1;
-    if (hasil.titik.sumber !== "ALAMAT" && buatKunciKoordinat(titikTujuan) !== buatKunciKoordinat(hasil.titik)) {
+    if (buatKunciKoordinat(titikTujuan) !== buatKunciKoordinat(hasil.titik)) {
       setAlamatTujuan((alamat: NilaiAlamat) => bersihkanFieldProvider(alamat, providerTujuan.current));
       providerTujuan.current = {};
     }
     setStatusTitikTujuan(hasil.status);
     setTitikTujuan(hasil.titik);
     snapshotAlamatTujuan.current = null;
-    snapshotProviderTujuan.current = null;
   }
 
   function ajukanWilayahAsal(titik: Titik) {
@@ -157,12 +137,9 @@ export default function KirimPanen() {
   }
 
   function batalkanTitikTujuan() {
-    revisiTujuan.current += 1;
     setStatusTitikTujuan((status) => batalkanTitikPending(status));
     setAlamatTujuan((alamat: NilaiAlamat) => pulihkanAlamatSaatBatal(alamat, snapshotAlamatTujuan.current));
-    if (snapshotProviderTujuan.current) providerTujuan.current = snapshotProviderTujuan.current;
     snapshotAlamatTujuan.current = null;
-    snapshotProviderTujuan.current = null;
   }
 
   // Titik terkonfirmasi → alamat dibaca ulang. Hirarki wilayah mengikuti titik,
@@ -358,24 +335,6 @@ export default function KirimPanen() {
 
       {/* ---- Tujuan ---------------------------------------------------- */}
       <div className="flex flex-col gap-3 rounded-xl border-2 border-kabut p-4">
-        <CariAlamat
-          id="cari-alamat-tujuan"
-          nilai={alamatTujuan}
-          onUbah={ubahAlamatTujuan}
-          onPilihTitik={ajukanAlamatTujuan}
-          onPeringatan={setPeringatanCariTujuan}
-          jejakProvider={providerTujuan.current}
-          onJejakProvider={(jejak) => {
-            providerTujuan.current = jejak;
-          }}
-          dapatkanRevisiTujuan={() => revisiTujuan.current}
-        />
-        {peringatanCariTujuan && (
-          <p role="alert" className="flex items-start gap-2 rounded-lg bg-tanah-liat/10 px-3 py-2 text-keterangan font-medium text-tanah-liat">
-            <AlertCircle aria-hidden className="mt-0.5 h-4 w-4 shrink-0" />
-            {peringatanCariTujuan}
-          </p>
-        )}
         <button
           type="button"
           onClick={() => setPetaTujuanTerbuka((terbuka) => !terbuka)}
@@ -405,7 +364,7 @@ export default function KirimPanen() {
           wajib
           idPrefix="tujuan"
           nilai={alamatTujuan}
-          onUbah={ubahAlamatTujuan}
+          onUbah={setAlamatTujuan}
           labelNama="Nama penerima"
           labelTelepon="Telepon penerima"
           onWilayahBerkoordinat={ajukanWilayahTujuan}

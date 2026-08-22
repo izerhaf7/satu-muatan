@@ -59,7 +59,11 @@ export function buatPathWilayahAnak(tingkat: TingkatWilayah, indukKode?: string 
 }
 
 function namaNormal(nama: string): string {
-  return nama.trim().toLocaleLowerCase("id");
+  return nama
+    .trim()
+    .toLocaleLowerCase("id")
+    .replace(/^(kabupaten|kab\.?|kota|provinsi|kecamatan|kec\.?|desa|kelurahan)\s+/u, "")
+    .replace(/\s+/gu, " ");
 }
 
 export function cariKodeWilayah(nama: string | null, daftar: WilayahAnak[]): string | null {

@@ -56,6 +56,26 @@ describe("buatPathWilayahAnak", () => {
   });
 });
 
+describe("cariKodeWilayah", () => {
+  it("mencocokkan nama reverse geocode tanpa awalan administratif", () => {
+    const daftar = [
+      {
+        kode: "32.01",
+        nama: "Kabupaten Bogor",
+        tingkat: "KABUPATEN" as const,
+        jalur: "Kabupaten Bogor, Jawa Barat",
+        kode_pos: null,
+        lat: null,
+        lng: null,
+        induk_kode: "32",
+      },
+    ];
+
+    expect(cariKodeWilayah("Bogor", daftar)).toBe("32.01");
+    expect(cariKodeWilayah("Kabupaten Bogor", daftar)).toBe("32.01");
+  });
+});
+
 describe("useCariWilayahAnak", () => {
   it("mengaktifkan provinsi tanpa induk dengan cache sepuluh menit", () => {
     useCariWilayahAnak("PROVINSI");
