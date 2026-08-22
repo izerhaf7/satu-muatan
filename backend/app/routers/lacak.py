@@ -109,8 +109,8 @@ def catat_posisi_pengiriman(
     if slot is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Muatan tidak ditemukan")
     pastikan_petugas_muatan(pengguna, slot)
-    if pengiriman.status_pengiriman in (None, StatusPengiriman.MUAT, StatusPengiriman.SELESAI):
-        raise HTTPException(status.HTTP_409_CONFLICT, "GPS hanya dapat dikirim saat ANTAR atau BONGKAR_MUAT")
+    if pengiriman.status_pengiriman in (None, StatusPengiriman.SELESAI):
+        raise HTTPException(status.HTTP_409_CONFLICT, "GPS hanya dapat dikirim setelah tugas dimuat")
     waktu = body.waktu or datetime.now(timezone.utc)
     if waktu.tzinfo is None:
         waktu = waktu.replace(tzinfo=timezone.utc)

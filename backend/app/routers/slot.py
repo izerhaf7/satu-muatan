@@ -51,6 +51,7 @@ from app.services.pencocokan import STATUS_MUATAN_AKTIF, cutoff_lewat
 from app.services.otorisasi import pastikan_bisa_lihat_slot, pastikan_petugas_muatan, query_slot_untuk_peran
 from app.services.rute_snapshot import simpan_snapshot_rute
 from app.services.vendor import dapatkan_adapter_vendor
+from app.domain.armada import jarak_haversine_km
 
 router = APIRouter(prefix="/slot", tags=["slot"])
 
@@ -113,7 +114,13 @@ def _resi_slot(slot: Slot, db: Session, pengguna: Pengguna, tampilkan_resi: bool
     return [ResiLotRingkasOut(lot_id=lot.id, kode_qr=lot.kode_qr) for lot in query.order_by(Lot.kode_qr).all()]
 
 
-def _ke_slot_item(slot: Slot, db: Session, pengguna: Pengguna, tampilkan_resi: bool = True) -> SlotItemOut:
+def _ke_slot_item(
+    slot: Slot,
+    db: Session,
+    pengguna: Pengguna,
+    tampilkan_resi: bool = True,
+    jarak_dari_driver_km: float | None = None,
+) -> SlotItemOut:
     jumlah_petani = len({p.petani_id for p in slot.partisipasi if p.status != StatusPartisipasi.BATAL})
     kapasitas_rencana: int | None = None
     tier_ringkas: str | None = None
@@ -138,6 +145,7 @@ def _ke_slot_item(slot: Slot, db: Session, pengguna: Pengguna, tampilkan_resi: b
         cutoff_lewat=cutoff_lewat(slot),
         status=slot.status,
         jarak_km=float(slot.jarak_km),
+        jarak_dari_driver_km=jarak_dari_driver_km,
         volume_terkunci_kg=slot.volume_terkunci_kg,
         kapasitas_rencana_kg=kapasitas_rencana,
         tier_ringkas=tier_ringkas,
@@ -307,18 +315,25 @@ def slot_tersedia(pengguna=Depends(wajib_peran("PETUGAS")), db: Session = Depend
     aktif menyerap SELURUH muatan di sistem, dan tidak ada satu pun endpoint yang
     bisa mengubahnya. Sekarang muatan menunggu diambil, dan pengambilan itu
     tindakan sadar driver."""
-    tk_id = pengguna.titik_kumpul_id
-    baris = (
+    if pengguna.terkini_lat is None or pengguna.terkini_lng is None:
+        return []
+
+    radius_km = float(baca_konfigurasi(db, "radius_papan_tugas_km"))
+    kandidat = (
         db.query(Slot)
-        .filter(
-            Slot.petugas_id.is_(None),
-            Slot.status == StatusSlot.DIBUKA,
-            *( [Slot.titik_kumpul_id == tk_id] if tk_id is not None else [] ),
-        )
+        .filter(Slot.petugas_id.is_(None), Slot.status == StatusSlot.DIBUKA)
         .order_by(Slot.tanggal_kirim, Slot.dibuat_pada)
         .all()
     )
-    return [_ke_slot_item(s, db, pengguna, tampilkan_resi=False) for s in baris]
+    hasil = []
+    for slot in kandidat:
+        titik_kumpul = db.get(TitikKumpul, slot.titik_kumpul_id)
+        if titik_kumpul is None:
+            continue
+        jarak = jarak_haversine_km(pengguna.terkini_lat, pengguna.terkini_lng, titik_kumpul.lat, titik_kumpul.lng)
+        if jarak <= radius_km:
+            hasil.append(_ke_slot_item(slot, db, pengguna, tampilkan_resi=False, jarak_dari_driver_km=round(jarak, 2)))
+    return hasil
 
 
 @router.post("/{slot_id}/terima", response_model=SlotItemOut)

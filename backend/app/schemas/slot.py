@@ -89,6 +89,7 @@ class SlotItemOut(BaseModel):
     cutoff_lewat: bool = False
     status: StatusSlot
     jarak_km: float
+    jarak_dari_driver_km: float | None = None
     volume_terkunci_kg: int
     kapasitas_rencana_kg: int | None = None
     tier_ringkas: str | None = None  # mis. "VAN" atau "VAN+FUSO"
